@@ -1,3 +1,4 @@
+mod config;
 mod core;
 mod ipc;
 mod methods;
@@ -11,6 +12,9 @@ use anyhow::Result;
 use clap::Parser;
 use tracing_subscriber::EnvFilter;
 
+use omm_config::paths::Paths;
+
+use crate::config::Manager;
 use crate::state::State;
 
 #[derive(Debug, Parser)]
@@ -20,17 +24,19 @@ struct Args {
     #[arg(long, env = "OMM_SOCKET", default_value_os_t = omm_proto::default_socket_path())]
     socket: PathBuf,
 
-    /// mihomo `external-controller-unix` socket.
-    #[arg(long, env = "OMM_CORE_SOCKET", default_value_os_t = default_core_socket())]
-    core_socket: PathBuf,
-}
+    /// Data directory: profiles, overrides, settings, the core's home.
+    #[arg(long, env = "OMM_DATA_DIR", default_value_os_t = Paths::default_root())]
+    data_dir: PathBuf,
 
-fn default_core_socket() -> PathBuf {
-    let data = std::env::var_os("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
-        .unwrap_or_else(|| PathBuf::from("."));
-    data.join("omarchy-mihomo/runtime/mihomo.sock")
+    /// mihomo controller socket. Defaults to our core's
+    /// `<data-dir>/runtime/mihomo.sock`; pointing it elsewhere (e.g. at
+    /// Clash Verge's core) makes the daemon observe that core read-only.
+    #[arg(long, env = "OMM_CORE_SOCKET")]
+    core_socket: Option<PathBuf>,
+
+    /// mihomo binary used to validate configs.
+    #[arg(long, env = "OMM_CORE_BIN")]
+    core_bin: Option<PathBuf>,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -42,12 +48,26 @@ async fn main() -> Result<()> {
         .init();
 
     let args = Args::parse();
-    let state = Arc::new(State::new(mihomo_api::Client::new(&args.core_socket)));
-    tracing::info!(core = %args.core_socket.display(), "starting");
+    let paths = Paths::new(&args.data_dir);
+    let core_socket = args.core_socket.clone().unwrap_or_else(|| paths.controller_socket());
+    let binary = omm_config::runtime::find_binary(args.core_bin.as_deref());
+    if binary.is_none() {
+        tracing::warn!("no mihomo binary found; configs cannot be validated or applied");
+    }
+    let manager = Manager::open(paths, binary)?;
+    let state = Arc::new(State::new(mihomo_api::Client::new(&core_socket), manager));
+    tracing::info!(core = %core_socket.display(), data = %args.data_dir.display(), "starting");
 
     let listener = ipc::bind(&args.socket)?;
     tokio::spawn(core::watch(state.clone()));
     tokio::spawn(core::pump_traffic(state.clone()));
+    {
+        let state = state.clone();
+        tokio::spawn(async move {
+            state.config.init(&state).await;
+            config::auto_update(state).await;
+        });
+    }
     let server = tokio::spawn(ipc::serve(listener, state.clone()));
 
     shutdown_signal().await;

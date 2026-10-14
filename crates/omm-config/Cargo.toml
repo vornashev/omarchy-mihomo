@@ -1,0 +1,20 @@
+[package]
+name = "omm-config"
+description = "Profiles, overrides and runtime config generation for omarchy-mihomo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+idna.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml_ng.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread"] }

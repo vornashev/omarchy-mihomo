@@ -14,6 +14,7 @@ pub struct Published {
 
 pub struct State {
     pub core: mihomo_api::Client,
+    pub config: crate::config::Manager,
     status: watch::Sender<Status>,
     events: broadcast::Sender<Arc<Published>>,
     listeners: Mutex<HashMap<&'static str, usize>>,
@@ -21,14 +22,16 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(core: mihomo_api::Client) -> Self {
+    pub fn new(core: mihomo_api::Client, config: crate::config::Manager) -> Self {
         let status = Status {
             daemon_version: env!("CARGO_PKG_VERSION").into(),
             protocol: PROTOCOL_VERSION,
             core: CoreStatus { socket: core.socket().display().to_string(), ..Default::default() },
+            config: Default::default(),
         };
         Self {
             core,
+            config,
             status: watch::channel(status).0,
             // Slow clients lag and skip events rather than stall the daemon.
             events: broadcast::channel(256).0,
@@ -47,6 +50,20 @@ impl State {
 
     pub fn watch_status(&self) -> watch::Receiver<Status> {
         self.status.subscribe()
+    }
+
+    /// Store new config state; announce it only when something changed.
+    pub fn set_config_status(&self, config: omm_proto::ConfigStatus) {
+        let changed = self.status.send_if_modified(|s| {
+            if s.config == config {
+                return false;
+            }
+            s.config = config;
+            true
+        });
+        if changed {
+            self.publish(topic::STATUS, &self.status());
+        }
     }
 
     /// Store new core state; announce it only when something changed.

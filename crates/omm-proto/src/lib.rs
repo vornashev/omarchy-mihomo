@@ -73,6 +73,10 @@ pub enum ErrorCode {
     Core,
     /// Requested object does not exist.
     NotFound,
+    /// A profile or override produced a config mihomo rejects.
+    Config,
+    /// A subscription could not be downloaded.
+    Fetch,
     Internal,
 }
 
@@ -113,6 +117,30 @@ pub struct Status {
     pub daemon_version: String,
     pub protocol: u32,
     pub core: CoreStatus,
+    #[serde(default)]
+    pub config: ConfigStatus,
+}
+
+/// State of the generated runtime config.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ConfigStatus {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile: Option<ProfileRef>,
+    /// Unix seconds of the last successful apply.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub applied_at: Option<u64>,
+    /// User rules skipped because their target group is gone.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub orphans: Vec<i64>,
+    /// Last failed apply or profile update.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProfileRef {
+    pub id: String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]

@@ -49,10 +49,47 @@ enum Cmd {
     Tun { state: OnOff },
     /// List active connections.
     Conns,
+    /// Manage profiles (subscriptions and local configs).
+    #[command(subcommand)]
+    Profile(ProfileCmd),
+    /// Rebuild the runtime config and hot-reload the core.
+    Apply,
+    /// Restore a previous runtime config (the latest by default).
+    Rollback { name: Option<String> },
+    /// List saved runtime configs.
+    Snapshots,
+    /// Show settings, or change them: `omm settings '{"tun":{"stack":"system"}}'`.
+    Settings { patch: Option<String> },
     /// Stream events (status, traffic) as JSON lines.
     Watch { topics: Vec<String> },
     /// Call any daemon method: `omm call proxies.delay '{"name":"AI"}'`.
     Call { method: String, params: Option<String> },
+}
+
+#[derive(Debug, Subcommand)]
+enum ProfileCmd {
+    /// List profiles (default).
+    List,
+    /// Add a subscription URL or a local file.
+    Add {
+        /// `https://...` subscription or path to a YAML file.
+        source: String,
+        #[arg(long)]
+        name: Option<String>,
+        #[arg(long)]
+        user_agent: Option<String>,
+    },
+    /// Refresh one profile, or all remote ones.
+    Update {
+        profile: Option<String>,
+        /// Ignore ETag and refresh intervals.
+        #[arg(long)]
+        force: bool,
+    },
+    /// Make a profile current.
+    Use { profile: String },
+    /// Delete a profile and its overrides.
+    Rm { profile: String },
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -166,6 +203,42 @@ fn run(cli: Cli) -> Result<()> {
                 );
             }
         }
+        Cmd::Profile(cmd) => profile(&mut conn, cmd, json)?,
+        Cmd::Apply => {
+            let r: Value = conn.call("config.apply", Value::Null)?;
+            if json {
+                return print_json(&r);
+            }
+            println!(
+                "applied {} · {} groups · {}",
+                r["profile"]["name"].as_str().unwrap_or("?"),
+                r["groups"].as_array().map_or(0, Vec::len),
+                if r["reloaded"] == true { "core reloaded" } else { "core not reloaded (not running or not ours)" }
+            );
+            if let Some(o) = r["orphans"].as_array().filter(|o| !o.is_empty()) {
+                println!("skipped {} rule(s) whose group is gone", o.len());
+            }
+        }
+        Cmd::Rollback { name } => {
+            let r: Value = conn.call("config.rollback", json!({ "name": name }))?;
+            print_json(&r)?;
+        }
+        Cmd::Snapshots => {
+            let r: Value = conn.call("config.snapshots", Value::Null)?;
+            if json {
+                return print_json(&r);
+            }
+            for s in r.as_array().into_iter().flatten() {
+                println!("{}  {}", s["name"].as_str().unwrap_or(""), ago(s["time"].as_u64()));
+            }
+        }
+        Cmd::Settings { patch } => {
+            let r: Value = match patch {
+                Some(p) => conn.call("settings.set", serde_json::from_str(&p).context("settings patch must be JSON")?)?,
+                None => conn.call("settings.get", Value::Null)?,
+            };
+            print_json(&r)?;
+        }
         Cmd::Watch { topics } => {
             let params = if topics.is_empty() { Value::Null } else { json!({ "topics": topics }) };
             conn.call::<Value>("events.subscribe", params)?;
@@ -190,6 +263,97 @@ fn run(cli: Cli) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn profile(conn: &mut Conn, cmd: ProfileCmd, json: bool) -> Result<()> {
+    // Profiles can be named by id or by (unique) name.
+    let resolve = |conn: &mut Conn, key: &str| -> Result<String> {
+        let list: Value = conn.call("profiles.list", Value::Null)?;
+        let items = list["items"].as_array().cloned().unwrap_or_default();
+        let hits: Vec<_> = items.iter().filter(|p| p["id"] == key || p["name"] == key).collect();
+        match hits.as_slice() {
+            [one] => Ok(one["id"].as_str().unwrap_or_default().to_owned()),
+            [] => bail!("no profile {key:?}"),
+            _ => bail!("several profiles are named {key:?}; use the id"),
+        }
+    };
+    match cmd {
+        ProfileCmd::List => {
+            let r: Value = conn.call("profiles.list", Value::Null)?;
+            if json {
+                return print_json(&r);
+            }
+            for p in r["items"].as_array().into_iter().flatten() {
+                let cur = if p["id"] == r["current"] { "*" } else { " " };
+                let kind = p["source"]["type"].as_str().unwrap_or("?");
+                let mut line = format!("{cur} {:<10} {:<24} {:<7} updated {}", p["id"].as_str().unwrap_or(""), p["name"].as_str().unwrap_or(""), kind, ago(p["updated"].as_u64()));
+                if let Some(u) = p.get("usage").filter(|u| !u.is_null()) {
+                    let used = u["upload"].as_u64().unwrap_or(0) + u["download"].as_u64().unwrap_or(0);
+                    line += &format!(" · {} / {}", bytes(used), bytes(u["total"].as_u64().unwrap_or(0)));
+                }
+                if let Some(e) = p["last_error"].as_str() {
+                    line += &format!(" · error: {e}");
+                }
+                println!("{line}");
+            }
+        }
+        ProfileCmd::Add { source, name, user_agent } => {
+            let params = if source.starts_with("http://") || source.starts_with("https://") {
+                json!({ "url": source, "name": name, "user_agent": user_agent })
+            } else {
+                let path = std::fs::canonicalize(&source).with_context(|| format!("no such file {source}"))?;
+                json!({ "path": path, "name": name })
+            };
+            let r: Value = conn.call("profiles.add", params)?;
+            println!("added {}", r["id"].as_str().unwrap_or("?"));
+        }
+        ProfileCmd::Update { profile, force } => {
+            let id = profile.map(|p| resolve(conn, &p)).transpose()?;
+            let r: Value = conn.call("profiles.update", json!({ "id": id, "force": force }))?;
+            if json {
+                return print_json(&r);
+            }
+            let list = r.as_array().cloned().unwrap_or_default();
+            if list.is_empty() {
+                println!("nothing to update");
+            }
+            for u in list {
+                let err = u["error"].as_str().map(|e| format!(": {e}")).unwrap_or_default();
+                println!("{} {}{err}", u["name"].as_str().unwrap_or("?"), u["outcome"].as_str().unwrap_or("?"));
+            }
+        }
+        ProfileCmd::Use { profile } => {
+            let id = resolve(conn, &profile)?;
+            conn.call::<Value>("profiles.select", json!({ "id": id }))?;
+        }
+        ProfileCmd::Rm { profile } => {
+            let id = resolve(conn, &profile)?;
+            conn.call::<Value>("profiles.remove", json!({ "id": id }))?;
+        }
+    }
+    Ok(())
+}
+
+fn ago(t: Option<u64>) -> String {
+    let Some(t) = t else { return "never".into() };
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    match now.saturating_sub(t) {
+        s if s < 90 => "just now".into(),
+        s if s < 5400 => format!("{} min ago", s / 60),
+        s if s < 172_800 => format!("{} h ago", s / 3600),
+        s => format!("{} days ago", s / 86400),
+    }
+}
+
+fn bytes(n: u64) -> String {
+    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
+    let mut v = n as f64;
+    let mut i = 0;
+    while v >= 1024.0 && i < UNITS.len() - 1 {
+        v /= 1024.0;
+        i += 1;
+    }
+    if i == 0 { format!("{n} B") } else { format!("{v:.1} {}", UNITS[i]) }
 }
 
 fn fmt_delay(d: Option<u32>) -> String {

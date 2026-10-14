@@ -28,6 +28,8 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             }
             let p: P = parse(params)?;
             state.core.patch_configs(json!({ "mode": p.mode })).await.map_err(core_err)?;
+            let mode = crate::core::mode_name(p.mode).to_owned();
+            state.config.persist(|s| s.mode = mode).await?;
             refreshed(state)
         }
         "tun.set" => {
@@ -37,6 +39,7 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             }
             let p: P = parse(params)?;
             state.core.patch_configs(json!({ "tun": { "enable": p.enable } })).await.map_err(core_err)?;
+            state.config.persist(|s| s.tun.enable = p.enable).await?;
             refreshed(state)
         }
 
@@ -88,10 +91,72 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             Ok(json!({ "ok": true }))
         }
 
+        "config.apply" => to_value(state.config.apply(state).await?),
+        "config.snapshots" => to_value(state.config.snapshots()?),
+        "config.rollback" => {
+            #[derive(Deserialize)]
+            struct P {
+                name: Option<String>,
+            }
+            let p: P = parse(params)?;
+            state.config.rollback(state, p.name).await
+        }
+        "settings.get" => to_value(state.config.settings().await),
+        "settings.set" => {
+            if !params.is_object() {
+                return Err(RpcError::new(ErrorCode::BadRequest, "settings.set expects an object"));
+            }
+            to_value(state.config.set_settings(state, params).await?)
+        }
+
+        "profiles.list" => Ok(state.config.list().await),
+        "profiles.add" => {
+            #[derive(Deserialize)]
+            struct P {
+                url: Option<String>,
+                name: Option<String>,
+                user_agent: Option<String>,
+                /// Local profile: YAML text or a file to read.
+                content: Option<String>,
+                path: Option<std::path::PathBuf>,
+            }
+            let p: P = parse(params)?;
+            match (p.url, p.content, p.path) {
+                (Some(url), None, None) => state.config.add_remote(state, url, p.name, p.user_agent).await,
+                (None, content, path) if content.is_some() != path.is_some() => {
+                    let text = match (content, &path) {
+                        (Some(c), _) => c,
+                        (None, Some(path)) => std::fs::read_to_string(path).map_err(|e| RpcError::new(ErrorCode::BadRequest, format!("{}: {e}", path.display())))?,
+                        _ => unreachable!(),
+                    };
+                    let name = p.name.or_else(|| path.as_ref().and_then(|p| p.file_stem()).map(|s| s.to_string_lossy().into_owned())).unwrap_or_else(|| "local".into());
+                    state.config.add_local(state, name, text).await
+                }
+                _ => Err(RpcError::new(ErrorCode::BadRequest, "give exactly one of url, content, path")),
+            }
+        }
+        "profiles.update" => {
+            #[derive(Deserialize)]
+            struct P {
+                id: Option<String>,
+                #[serde(default)]
+                force: bool,
+            }
+            let p: P = parse(params)?;
+            to_value(state.config.update(state, p.id, p.force).await)
+        }
+        "profiles.select" => to_value(state.config.select(state, &parse::<IdParam>(params)?.id).await?),
+        "profiles.remove" => state.config.remove(state, &parse::<IdParam>(params)?.id).await,
+
         "core.rules" => to_value(state.core.rules().await.map_err(core_err)?),
 
         _ => Err(RpcError::new(ErrorCode::UnknownMethod, format!("unknown method {method}"))),
     }
+}
+
+#[derive(Deserialize)]
+struct IdParam {
+    id: String,
 }
 
 #[derive(Deserialize)]
