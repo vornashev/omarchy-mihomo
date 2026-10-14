@@ -13,6 +13,7 @@
 //! The result is validated with `mihomo -t` before it replaces the live config.
 
 pub mod build;
+pub mod core_bin;
 pub mod error;
 pub mod fetch;
 pub mod merge;

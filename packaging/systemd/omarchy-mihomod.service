@@ -1,0 +1,15 @@
+[Unit]
+Description=omarchy-mihomo daemon (profiles, rules, problem collector)
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/omarchy-mihomod
+Restart=on-failure
+RestartSec=2
+Environment=OMM_LOG=info
+# The daemon itself never needs privileges (the core has its own unit).
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

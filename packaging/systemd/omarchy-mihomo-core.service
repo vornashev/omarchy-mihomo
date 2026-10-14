@@ -1,0 +1,20 @@
+[Unit]
+Description=mihomo core for omarchy-mihomo
+Documentation=https://wiki.metacubex.one
+# The daemon generates the config; without it there is nothing to run.
+ConditionPathExists=%h/.local/share/omarchy-mihomo/runtime/config.yaml
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/lib/omarchy-mihomo/mihomo -d %h/.local/share/omarchy-mihomo/runtime -f %h/.local/share/omarchy-mihomo/runtime/config.yaml
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=1048576
+# TUN needs CAP_NET_ADMIN, granted to the binary with setcap (omm core setcap).
+# NoNewPrivileges must stay off, or file capabilities are ignored.
+NoNewPrivileges=no
+
+[Install]
+WantedBy=default.target

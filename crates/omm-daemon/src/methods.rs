@@ -11,6 +11,8 @@ use serde_json::{Value, json};
 
 use crate::state::State;
 
+pub const CORE_UNIT: &str = "omarchy-mihomo-core.service";
+
 /// URL used for latency tests unless the caller names one.
 const DEFAULT_TEST_URL: &str = "https://www.gstatic.com/generate_204";
 const DEFAULT_TEST_TIMEOUT_MS: u32 = 5000;
@@ -333,6 +335,20 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
                 })
                 .await?;
             Ok(json!({ "undone": undone, "apply": report }))
+        }
+
+        "core.start" | "core.stop" | "core.restart" => {
+            let verb = method.trim_start_matches("core.");
+            let out = tokio::process::Command::new("systemctl")
+                .args(["--user", verb, CORE_UNIT])
+                .output()
+                .await
+                .map_err(|e| RpcError::new(ErrorCode::Internal, e.to_string()))?;
+            if !out.status.success() {
+                return Err(RpcError::new(ErrorCode::Core, String::from_utf8_lossy(&out.stderr).trim().to_owned()));
+            }
+            state.request_refresh();
+            Ok(json!({ "ok": true }))
         }
 
         "core.rules" => to_value(state.core.rules().await.map_err(core_err)?),

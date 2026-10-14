@@ -1,5 +1,7 @@
 //! `omm`: thin client for `omarchy-mihomod`.
 
+mod system;
+
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::UnixStream;
@@ -68,8 +70,31 @@ enum Cmd {
     Settings { patch: Option<String> },
     /// Stream events (status, traffic) as JSON lines.
     Watch { topics: Vec<String> },
+    /// Install or control the mihomo core.
+    #[command(subcommand)]
+    Core(CoreCmd),
+    /// Check the installation and say how to fix what is wrong.
+    Doctor,
     /// Call any daemon method: `omm call proxies.delay '{"name":"AI"}'`.
     Call { method: String, params: Option<String> },
+}
+
+#[derive(Debug, Subcommand)]
+enum CoreCmd {
+    /// Download, verify (sha256) and install the core binary.
+    Install {
+        /// Release tag, or `latest`. Default: the pinned, tested version.
+        #[arg(long)]
+        version: Option<String>,
+        /// Download through a proxy, e.g. http://127.0.0.1:7897.
+        #[arg(long)]
+        proxy: Option<String>,
+    },
+    /// Give the core the capabilities TUN needs (asks for sudo).
+    Setcap,
+    Start,
+    Stop,
+    Restart,
 }
 
 #[derive(Debug, Subcommand)]
@@ -208,6 +233,26 @@ fn main() {
 }
 
 fn run(cli: Cli) -> Result<()> {
+    // These work without the daemon.
+    match &cli.cmd {
+        Some(Cmd::Core(c)) => {
+            return match c {
+                CoreCmd::Install { version, proxy } => system::core_install(version.as_deref(), proxy.as_deref()),
+                CoreCmd::Setcap => system::core_setcap(),
+                CoreCmd::Start => system::core_unit("start"),
+                CoreCmd::Stop => system::core_unit("stop"),
+                CoreCmd::Restart => system::core_unit("restart"),
+            };
+        }
+        Some(Cmd::Doctor) => {
+            let status = Conn::open(&cli.socket).ok().and_then(|mut c| c.call::<Value>("status", Value::Null).ok());
+            if !system::doctor(status)? {
+                std::process::exit(1);
+            }
+            return Ok(());
+        }
+        _ => {}
+    }
     let mut conn = Conn::open(&cli.socket)?;
     let json = cli.json;
     match cli.cmd.unwrap_or(Cmd::Status) {
@@ -346,6 +391,7 @@ fn run(cli: Cli) -> Result<()> {
                 out.flush()?;
             }
         }
+        Cmd::Core(_) | Cmd::Doctor => unreachable!("handled above"),
         Cmd::Call { method, params } => {
             let params = match params {
                 Some(p) => serde_json::from_str(&p).context("params must be JSON")?,
