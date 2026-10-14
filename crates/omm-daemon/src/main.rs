@@ -2,6 +2,7 @@ mod config;
 mod core;
 mod ipc;
 mod methods;
+mod problems;
 mod state;
 
 use std::io::IsTerminal;
@@ -49,18 +50,23 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
     let paths = Paths::new(&args.data_dir);
+    paths.ensure()?;
     let core_socket = args.core_socket.clone().unwrap_or_else(|| paths.controller_socket());
     let binary = omm_config::runtime::find_binary(args.core_bin.as_deref());
     if binary.is_none() {
         tracing::warn!("no mihomo binary found; configs cannot be validated or applied");
     }
+    let collector = omm_problems::Collector::open(&paths.root.join("state.db"))?;
     let manager = Manager::open(paths, binary)?;
-    let state = Arc::new(State::new(mihomo_api::Client::new(&core_socket), manager));
+    let state = Arc::new(State::new(mihomo_api::Client::new(&core_socket), manager, collector));
     tracing::info!(core = %core_socket.display(), data = %args.data_dir.display(), "starting");
 
     let listener = ipc::bind(&args.socket)?;
     tokio::spawn(core::watch(state.clone()));
     tokio::spawn(core::pump_traffic(state.clone()));
+    let recorded = Arc::default();
+    tokio::spawn(problems::collect(state.clone(), Arc::clone(&recorded)));
+    tokio::spawn(problems::flush(state.clone(), recorded));
     {
         let state = state.clone();
         tokio::spawn(async move {
@@ -72,6 +78,9 @@ async fn main() -> Result<()> {
 
     shutdown_signal().await;
     tracing::info!("shutting down");
+    if let Err(e) = state.problems.lock().unwrap().flush() {
+        tracing::warn!("saving problems: {e}");
+    }
     server.abort();
     let _ = std::fs::remove_file(&args.socket);
     Ok(())

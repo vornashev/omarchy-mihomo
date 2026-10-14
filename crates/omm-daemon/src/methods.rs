@@ -148,6 +148,63 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
         "profiles.select" => to_value(state.config.select(state, &parse::<IdParam>(params)?.id).await?),
         "profiles.remove" => state.config.remove(state, &parse::<IdParam>(params)?.id).await,
 
+        "problems.list" => {
+            let query: omm_problems::Query = parse(params)?;
+            let c = state.problems.lock().unwrap();
+            let (apps, targets) = c.facets();
+            Ok(json!({ "items": c.list(&query), "counts": c.counts(), "apps": apps, "targets": targets }))
+        }
+        "problems.get" => {
+            #[derive(Deserialize)]
+            struct P {
+                host: String,
+            }
+            let p: P = parse(params)?;
+            let c = state.problems.lock().unwrap();
+            let view = c.get(&p.host).ok_or_else(|| RpcError::new(ErrorCode::NotFound, format!("no problem for {}", p.host)))?;
+            to_value(view)
+        }
+        "problems.mark_seen" => {
+            state.problems.lock().unwrap().mark_seen(crate::problems::now_ms()).map_err(db_err)?;
+            crate::problems::announce(state);
+            Ok(json!({ "ok": true }))
+        }
+        "problems.hide" => {
+            #[derive(Deserialize)]
+            struct P {
+                kind: omm_problems::IgnoreKind,
+                value: String,
+            }
+            let p: P = parse(params)?;
+            if p.value.trim().is_empty() {
+                return Err(RpcError::new(ErrorCode::BadRequest, "value is empty"));
+            }
+            let ignore = state.problems.lock().unwrap().hide(p.kind, &p.value, crate::problems::now_ms()).map_err(db_err)?;
+            crate::problems::announce(state);
+            to_value(ignore)
+        }
+        "problems.unhide" => {
+            #[derive(Deserialize)]
+            struct P {
+                id: i64,
+            }
+            let p: P = parse(params)?;
+            let removed = state.problems.lock().unwrap().unhide(p.id).map_err(db_err)?;
+            crate::problems::announce(state);
+            Ok(json!({ "removed": removed }))
+        }
+        "problems.ignores" => to_value(state.problems.lock().unwrap().ignores()),
+        "problems.clear" => {
+            #[derive(Deserialize)]
+            struct P {
+                host: Option<String>,
+            }
+            let p: P = parse(params)?;
+            let n = state.problems.lock().unwrap().clear(p.host.as_deref()).map_err(db_err)?;
+            crate::problems::announce(state);
+            Ok(json!({ "removed": n }))
+        }
+
         "core.rules" => to_value(state.core.rules().await.map_err(core_err)?),
 
         _ => Err(RpcError::new(ErrorCode::UnknownMethod, format!("unknown method {method}"))),
@@ -240,6 +297,10 @@ fn parse<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
 
 fn to_value(v: impl serde::Serialize) -> Reply {
     serde_json::to_value(v).map_err(|e| RpcError::new(ErrorCode::Internal, e.to_string()))
+}
+
+fn db_err(e: impl std::fmt::Display) -> RpcError {
+    RpcError::new(ErrorCode::Internal, format!("database: {e}"))
 }
 
 fn core_err(e: mihomo_api::Error) -> RpcError {

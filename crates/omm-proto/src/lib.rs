@@ -101,8 +101,11 @@ pub mod topic {
     pub const STATUS: &str = "status";
     /// `{up, down}` bytes per second, once a second.
     pub const TRAFFIC: &str = "traffic";
+    /// `{counts: {new, visible, hidden}, recorded}` whenever failures were
+    /// recorded or counts changed; drives the bar badge.
+    pub const PROBLEMS: &str = "problems";
 
-    pub const ALL: &[&str] = &[STATUS, TRAFFIC];
+    pub const ALL: &[&str] = &[STATUS, TRAFFIC, PROBLEMS];
 
     /// The canonical `'static` name of a known topic.
     pub fn resolve(name: &str) -> Option<&'static str> {

@@ -87,6 +87,12 @@ async fn client(stream: UnixStream, state: Arc<State>) {
                         let status = omm_proto::Event { event: topic::STATUS.into(), data: serde_json::to_value(state.status()).unwrap_or_default() };
                         let _ = tx.send(encode(&status)).await;
                     }
+                    if topics.contains(&topic::PROBLEMS) {
+                        let counts = state.problems.lock().unwrap().counts();
+                        let update = crate::problems::Update { counts, recorded: 0 };
+                        let ev = omm_proto::Event { event: topic::PROBLEMS.into(), data: serde_json::to_value(update).unwrap_or_default() };
+                        let _ = tx.send(encode(&ev)).await;
+                    }
                     Response::ok(req.id, serde_json::json!({ "topics": topics }))
                 }
                 Err(e) => Response::err(req.id, e),

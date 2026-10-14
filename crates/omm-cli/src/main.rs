@@ -52,6 +52,9 @@ enum Cmd {
     /// Manage profiles (subscriptions and local configs).
     #[command(subcommand)]
     Profile(ProfileCmd),
+    /// Failed connections, merged per resource.
+    #[command(subcommand)]
+    Problems(ProblemsCmd),
     /// Rebuild the runtime config and hot-reload the core.
     Apply,
     /// Restore a previous runtime config (the latest by default).
@@ -90,6 +93,44 @@ enum ProfileCmd {
     Use { profile: String },
     /// Delete a profile and its overrides.
     Rm { profile: String },
+}
+
+#[derive(Debug, Subcommand)]
+enum ProblemsCmd {
+    /// List problems, newest first.
+    List {
+        /// Only those since the last `omm problems seen`.
+        #[arg(long)]
+        new: bool,
+        /// Show hidden problems instead.
+        #[arg(long)]
+        hidden: bool,
+        /// timeout, reset, refused, dns_fail, dns_stub, no_route, tls, proxy, other
+        #[arg(long)]
+        kind: Option<String>,
+        #[arg(long)]
+        app: Option<String>,
+        /// Substring of host or app.
+        search: Option<String>,
+        #[arg(long, default_value_t = 50)]
+        limit: usize,
+    },
+    /// Mark everything as seen (resets the bar badge).
+    Seen,
+    /// Hide a host, a domain with subdomains (--suffix) or an app (--app).
+    Hide {
+        value: String,
+        #[arg(long, conflicts_with = "app")]
+        suffix: bool,
+        #[arg(long)]
+        app: bool,
+    },
+    /// Show what is hidden.
+    Ignores,
+    /// Stop hiding (id from `omm problems ignores`).
+    Unhide { id: i64 },
+    /// Forget one host, or everything.
+    Clear { host: Option<String> },
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -204,6 +245,7 @@ fn run(cli: Cli) -> Result<()> {
             }
         }
         Cmd::Profile(cmd) => profile(&mut conn, cmd, json)?,
+        Cmd::Problems(cmd) => problems(&mut conn, cmd, json)?,
         Cmd::Apply => {
             let r: Value = conn.call("config.apply", Value::Null)?;
             if json {
@@ -329,6 +371,66 @@ fn profile(conn: &mut Conn, cmd: ProfileCmd, json: bool) -> Result<()> {
         ProfileCmd::Rm { profile } => {
             let id = resolve(conn, &profile)?;
             conn.call::<Value>("profiles.remove", json!({ "id": id }))?;
+        }
+    }
+    Ok(())
+}
+
+fn problems(conn: &mut Conn, cmd: ProblemsCmd, json: bool) -> Result<()> {
+    match cmd {
+        ProblemsCmd::List { new, hidden, kind, app, search, limit } => {
+            let r: Value = conn.call("problems.list", json!({ "only_new": new, "hidden": hidden, "kind": kind, "app": app, "search": search, "limit": limit }))?;
+            if json {
+                return print_json(&r);
+            }
+            let c = &r["counts"];
+            println!("{} new · {} visible · {} hidden", c["new"], c["visible"], c["hidden"]);
+            for p in r["items"].as_array().into_iter().flatten() {
+                let kinds: Vec<String> = p["kinds"].as_object().into_iter().flatten().map(|(k, n)| format!("{k}×{n}")).collect();
+                let apps: Vec<&str> = p["apps"].as_object().into_iter().flatten().map(|(a, _)| a.as_str()).collect();
+                let route = &p["route"];
+                let rule = route["rule"].as_str().filter(|r| !r.is_empty()).map(|r| format!("{r} → ")).unwrap_or_default();
+                let ok = p["ok_since_error"].as_u64().filter(|n| *n > 0).map(|n| format!(" · ok×{n} since")).unwrap_or_default();
+                let host = match p["domain_hint"].as_str() {
+                    Some(h) => format!("{} ({h})", p["host"].as_str().unwrap_or("")),
+                    None => p["host"].as_str().unwrap_or("").to_owned(),
+                };
+                println!(
+                    "{} {:<34} ×{:<5} {:<22} {:<20} {}{}  {}{ok}",
+                    if p["new"] == true { "●" } else { " " },
+                    host,
+                    p["count"],
+                    kinds.join(","),
+                    if apps.is_empty() { "-".into() } else { apps.join(",") },
+                    rule,
+                    route["target"].as_str().unwrap_or(""),
+                    ago(p["last_seen"].as_u64().map(|ms| ms / 1000)),
+                );
+            }
+        }
+        ProblemsCmd::Seen => {
+            conn.call::<Value>("problems.mark_seen", Value::Null)?;
+        }
+        ProblemsCmd::Hide { value, suffix, app } => {
+            let kind = if app { "app" } else if suffix { "suffix" } else { "host" };
+            let r: Value = conn.call("problems.hide", json!({ "kind": kind, "value": value }))?;
+            println!("hidden #{}", r["id"]);
+        }
+        ProblemsCmd::Ignores => {
+            let r: Value = conn.call("problems.ignores", Value::Null)?;
+            if json {
+                return print_json(&r);
+            }
+            for i in r.as_array().into_iter().flatten() {
+                println!("#{:<4} {:<7} {}", i["id"], i["kind"].as_str().unwrap_or(""), i["value"].as_str().unwrap_or(""));
+            }
+        }
+        ProblemsCmd::Unhide { id } => {
+            conn.call::<Value>("problems.unhide", json!({ "id": id }))?;
+        }
+        ProblemsCmd::Clear { host } => {
+            let r: Value = conn.call("problems.clear", json!({ "host": host }))?;
+            println!("removed {}", r["removed"]);
         }
     }
     Ok(())

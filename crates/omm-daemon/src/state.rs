@@ -15,6 +15,7 @@ pub struct Published {
 pub struct State {
     pub core: mihomo_api::Client,
     pub config: crate::config::Manager,
+    pub problems: crate::problems::Shared,
     status: watch::Sender<Status>,
     events: broadcast::Sender<Arc<Published>>,
     listeners: Mutex<HashMap<&'static str, usize>>,
@@ -22,7 +23,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(core: mihomo_api::Client, config: crate::config::Manager) -> Self {
+    pub fn new(core: mihomo_api::Client, config: crate::config::Manager, problems: omm_problems::Collector) -> Self {
         let status = Status {
             daemon_version: env!("CARGO_PKG_VERSION").into(),
             protocol: PROTOCOL_VERSION,
@@ -32,6 +33,7 @@ impl State {
         Self {
             core,
             config,
+            problems: std::sync::Mutex::new(problems),
             status: watch::channel(status).0,
             // Slow clients lag and skip events rather than stall the daemon.
             events: broadcast::channel(256).0,
