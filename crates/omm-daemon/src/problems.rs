@@ -47,6 +47,9 @@ pub async fn collect(state: Arc<State>, recorded: Arc<std::sync::atomic::AtomicU
         loop {
             match stream.next::<LogLine>().await {
                 Ok(Some(l)) => {
+                    if state.listeners(topic::LOGS) > 0 {
+                        state.publish(topic::LOGS, &l);
+                    }
                     let Some(line) = parse::parse(&l.payload) else { continue };
                     let mut c = state.problems.lock().unwrap();
                     if c.ingest(&line, now_ms()) {

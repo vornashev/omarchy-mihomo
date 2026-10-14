@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "tema.omarchy-mihomo",
+  "name": "Mihomo",
+  "version": "0.1.0",
+  "author": "tema",
+  "license": "MIT",
+  "description": "mihomo for Omarchy: problem resources with a new-errors badge, manual per-resource routing with checks and rollback, proxies, profiles and logs. Backed by the omarchy-mihomod daemon.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "plugin/Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Mihomo",
+    "description": "Proxy status, problem resources and routing rules",
+    "category": "Network",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "locale": "ru",
+      "badge": "on"
+    },
+    "schema": [
+      { "key": "locale", "type": "enum", "label": "Language", "options": ["ru", "en"], "defaultValue": "ru" },
+      { "key": "badge", "type": "enum", "label": "New-problems badge", "options": ["on", "off"], "defaultValue": "on" },
+      { "key": "socketPath", "type": "string", "label": "Daemon socket (empty = default)" }
+    ]
+  }
+}

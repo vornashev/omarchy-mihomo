@@ -1,0 +1,43 @@
+pragma Singleton
+import QtQuick
+
+// Nerd Font (Material Design) glyphs used by the plugin.
+QtObject {
+  function g(cp) { return String.fromCodePoint(cp) }
+  readonly property string shield: g(0xf0565)
+  readonly property string shieldOff: g(0xf099e)
+  readonly property string shieldAlert: g(0xf0ecb)
+  readonly property string overview: g(0xf056e)
+  readonly property string problems: g(0xf0026)
+  readonly property string rules: g(0xf0756)
+  readonly property string proxies: g(0xf0317)
+  readonly property string profiles: g(0xf0328)
+  readonly property string connections: g(0xf1616)
+  readonly property string logs: g(0xf021a)
+  readonly property string settings: g(0xf0493)
+  readonly property string search: g(0xf0349)
+  readonly property string hide: g(0xf0209)
+  readonly property string show: g(0xf0208)
+  readonly property string seen: g(0xf0139)
+  readonly property string back: g(0xf004d)
+  readonly property string route: g(0xf062c)
+  readonly property string check: g(0xf012c)
+  readonly property string refresh: g(0xf0450)
+  readonly property string undo: g(0xf054c)
+  readonly property string history: g(0xf02da)
+  readonly property string add: g(0xf0415)
+  readonly property string orphan: g(0xf0338)
+  readonly property string test: g(0xf140b)
+  readonly property string expanded: g(0xf0140)
+  readonly property string collapsed: g(0xf0142)
+  readonly property string info: g(0xf02fc)
+  readonly property string app: g(0xf08c6)
+  readonly property string path: g(0xf046d)
+  readonly property string remove: g(0xf01b4)
+  readonly property string arrow: g(0xf0054)
+  readonly property string globe: g(0xf059f)
+  readonly property string close: g(0xf0156)
+  readonly property string down: g(0xf01da)
+  readonly property string up: g(0xf0552)
+  readonly property string edit: g(0xf03eb)
+}

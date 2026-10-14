@@ -104,8 +104,10 @@ pub mod topic {
     /// `{counts: {new, visible, hidden}, recorded}` whenever failures were
     /// recorded or counts changed; drives the bar badge.
     pub const PROBLEMS: &str = "problems";
+    /// `{type, payload}` core log lines (level info and above).
+    pub const LOGS: &str = "logs";
 
-    pub const ALL: &[&str] = &[STATUS, TRAFFIC, PROBLEMS];
+    pub const ALL: &[&str] = &[STATUS, TRAFFIC, PROBLEMS, LOGS];
 
     /// The canonical `'static` name of a known topic.
     pub fn resolve(name: &str) -> Option<&'static str> {
