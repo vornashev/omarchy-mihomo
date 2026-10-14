@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use mihomo_api::model::{Mode, Proxies};
+use omm_config::rules::{MatchKind, UserRule};
 use omm_proto::{ErrorCode, ProxyGroup, ProxyMember, RpcError};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
@@ -205,10 +206,159 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             Ok(json!({ "removed": n }))
         }
 
+        "rules.list" => {
+            let (rules, orphans) = state.config.rules().await?;
+            // Hit counters from the core, for rules it has loaded.
+            let hits: std::collections::HashMap<(String, String, String), u64> = match state.core.rules().await {
+                Ok(r) => r.rules.into_iter().map(|x| ((x.kind.clone(), x.payload.clone(), x.proxy.clone()), x.hits())).collect(),
+                Err(_) => Default::default(),
+            };
+            let items: Vec<Value> = rules
+                .into_iter()
+                .map(|s| {
+                    let key = (s.rule.core_type().to_owned(), s.rule.value.clone(), s.rule.target.clone());
+                    let mut v = serde_json::to_value(&s).unwrap_or_default();
+                    v["orphan"] = json!(orphans.contains(&s.rule.id));
+                    v["line"] = json!(s.rule.line());
+                    v["hits"] = json!(hits.get(&key));
+                    v
+                })
+                .collect();
+            Ok(json!({ "items": items, "orphans": orphans }))
+        }
+        "rules.preview" => {
+            let p: RuleInput = parse(params)?;
+            let value = normalize(p.kind, &p.value)?;
+            let rule = UserRule { id: 0, kind: p.kind, value: value.clone(), target: p.target.unwrap_or_else(|| "DIRECT".into()), enabled: true };
+            let (rules, _) = state.config.rules().await?;
+            let existing = rules.iter().find(|s| s.rule.kind == p.kind && s.rule.value == value);
+            Ok(json!({ "value": value, "line": rule.line(), "existing": existing }))
+        }
+        "rules.test" => {
+            #[derive(Deserialize)]
+            struct P {
+                host: String,
+                port: Option<u16>,
+                targets: Vec<String>,
+            }
+            let p: P = parse(params)?;
+            if p.targets.is_empty() || p.targets.len() > 32 {
+                return Err(RpcError::new(ErrorCode::BadRequest, "give 1 to 32 targets"));
+            }
+            let probe = crate::route_check::probe_for(p.host.trim(), p.port);
+            let results = crate::route_check::check(state, &probe, &p.targets).await;
+            Ok(json!({ "probe": probe, "results": results }))
+        }
+        "rules.save" => {
+            #[derive(Deserialize)]
+            struct P {
+                #[serde(flatten)]
+                input: RuleInput,
+                note: Option<String>,
+                test: Option<crate::user_rules::Check>,
+                #[serde(default = "user_source")]
+                source: String,
+            }
+            let p: P = parse(params)?;
+            let value = normalize(p.input.kind, &p.input.value)?;
+            let target = p.input.target.filter(|t| !t.trim().is_empty()).ok_or_else(|| RpcError::new(ErrorCode::BadRequest, "target is required"))?;
+            let new = crate::user_rules::NewRule { kind: p.input.kind, value, target, note: p.note, source: p.source, test: p.test };
+            let now = crate::problems::now_ms();
+            let (stored, report) = state
+                .config
+                .change_rules(state, true, |store| {
+                    let (stored, change) = store.upsert(new, now).map_err(crate::config::db_err)?;
+                    Ok((stored, vec![change]))
+                })
+                .await?;
+            let closed = if report.reloaded { crate::route_check::close_matching(state, &stored.rule).await } else { 0 };
+            Ok(json!({ "rule": stored, "apply": report, "closed": closed }))
+        }
+        "rules.update" => {
+            #[derive(Deserialize)]
+            struct P {
+                id: i64,
+                #[serde(flatten)]
+                patch: crate::user_rules::Patch,
+            }
+            let p: P = parse(params)?;
+            let now = crate::problems::now_ms();
+            let (stored, report) = state
+                .config
+                .change_rules(state, true, |store| match store.update(p.id, p.patch, now).map_err(crate::config::db_err)? {
+                    Some((s, c)) => Ok((s, vec![c])),
+                    None => Err(RpcError::new(ErrorCode::NotFound, format!("no rule #{}", p.id))),
+                })
+                .await?;
+            let closed = if report.reloaded { crate::route_check::close_matching(state, &stored.rule).await } else { 0 };
+            Ok(json!({ "rule": stored, "apply": report, "closed": closed }))
+        }
+        "rules.delete" => {
+            let id = parse::<NumId>(params)?.id;
+            let now = crate::problems::now_ms();
+            let (rule, report) = state
+                .config
+                .change_rules(state, false, |store| match store.delete(id, now).map_err(crate::config::db_err)? {
+                    Some(c) => Ok((c.before.clone(), vec![c])),
+                    None => Err(RpcError::new(ErrorCode::NotFound, format!("no rule #{id}"))),
+                })
+                .await?;
+            let closed = match (&rule, report.reloaded) {
+                (Some(r), true) => crate::route_check::close_matching(state, &r.rule).await,
+                _ => 0,
+            };
+            Ok(json!({ "apply": report, "closed": closed }))
+        }
+        "rules.history" => {
+            #[derive(Deserialize)]
+            struct P {
+                limit: Option<usize>,
+            }
+            let p: P = parse(params)?;
+            to_value(state.config.rule_history(p.limit.unwrap_or(50).min(500)).await?)
+        }
+        "rules.rollback" => {
+            #[derive(Deserialize)]
+            struct P {
+                /// Undo every change after this one; 0 undoes all.
+                to: i64,
+            }
+            let p: P = parse(params)?;
+            let now = crate::problems::now_ms();
+            let (undone, report) = state
+                .config
+                .change_rules(state, false, |store| {
+                    let undone = store.rollback_to(p.to, now).map_err(crate::config::db_err)?;
+                    Ok((undone.len(), undone))
+                })
+                .await?;
+            Ok(json!({ "undone": undone, "apply": report }))
+        }
+
         "core.rules" => to_value(state.core.rules().await.map_err(core_err)?),
 
         _ => Err(RpcError::new(ErrorCode::UnknownMethod, format!("unknown method {method}"))),
     }
+}
+
+#[derive(Deserialize)]
+struct RuleInput {
+    kind: MatchKind,
+    value: String,
+    target: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct NumId {
+    id: i64,
+}
+
+fn user_source() -> String {
+    "user".into()
+}
+
+fn normalize(kind: MatchKind, value: &str) -> Result<String, RpcError> {
+    omm_config::rules::normalize(kind, value).map_err(|e| RpcError::new(ErrorCode::BadRequest, e.to_string()))
 }
 
 #[derive(Deserialize)]

@@ -26,6 +26,8 @@ pub struct Output {
     pub orphans: Vec<i64>,
     /// Valid rule targets in this config: `DIRECT` and every group.
     pub groups: Vec<String>,
+    /// Every name a rule may point at: groups, proxies, built-in policies.
+    pub targets: Vec<String>,
 }
 
 impl Output {
@@ -55,6 +57,9 @@ pub fn build(i: &Inputs) -> Result<Output> {
     let groups: Vec<String> = yaml::names(&config, "proxy-groups").map(str::to_owned).collect();
     let targets: HashSet<&str> = groups.iter().map(String::as_str).chain(yaml::names(&config, "proxies")).collect();
     let rendered = rules::render(i.user_rules, &targets);
+    let mut all_targets: Vec<String> = rules::BUILTIN_TARGETS.iter().map(|s| (*s).to_owned()).chain(targets.iter().map(|s| (*s).to_owned())).collect();
+    all_targets.sort();
+    all_targets.dedup();
     if !rendered.lines.is_empty() {
         let mut list: Sequence = rendered.lines.into_iter().map(Value::from).collect();
         if let Some(Value::Sequence(existing)) = config.remove("rules") {
@@ -69,6 +74,7 @@ pub fn build(i: &Inputs) -> Result<Output> {
     Ok(Output {
         config: sorted(config),
         orphans: rendered.orphans,
+        targets: all_targets,
         groups: std::iter::once("DIRECT".to_owned()).chain(groups.into_iter().filter(|g| g != "GLOBAL")).collect(),
     })
 }

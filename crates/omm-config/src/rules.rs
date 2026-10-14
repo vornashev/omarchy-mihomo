@@ -48,6 +48,28 @@ pub struct UserRule {
 }
 
 impl UserRule {
+    /// Whether a connection to `host` / `ip` falls under this rule.
+    pub fn matches(&self, host: &str, ip: Option<IpAddr>) -> bool {
+        match self.kind {
+            MatchKind::Domain => host.eq_ignore_ascii_case(&self.value),
+            MatchKind::DomainSuffix => {
+                let host = host.to_ascii_lowercase();
+                host == self.value || host.strip_suffix(&self.value).is_some_and(|rest| rest.ends_with('.'))
+            }
+            MatchKind::IpCidr => ip.is_some_and(|ip| cidr_contains(&self.value, ip)),
+        }
+    }
+
+    /// The mihomo rule type name as reported by `GET /rules`.
+    pub fn core_type(&self) -> &'static str {
+        match self.kind {
+            MatchKind::Domain => "Domain",
+            MatchKind::DomainSuffix => "DomainSuffix",
+            MatchKind::IpCidr if self.value.contains(':') => "IPCIDR6",
+            MatchKind::IpCidr => "IPCIDR",
+        }
+    }
+
     /// The mihomo rule line. IP rules get `no-resolve` so that domain
     /// traffic is not forced through DNS just to test them.
     pub fn line(&self) -> String {
@@ -117,6 +139,36 @@ fn normalize_cidr(s: &str) -> Result<String> {
     Ok(format!("{ip}/{prefix}"))
 }
 
+/// Order rules so a narrower one is never shadowed by a broader one
+/// (mihomo stops at the first match): exact domains, then networks from
+/// the longest prefix, then suffixes from the most labels. Ties keep id order.
+pub fn sort_by_specificity(rules: &mut [UserRule]) {
+    rules.sort_by_key(|r| {
+        let rank = match r.kind {
+            MatchKind::Domain => (0, 0),
+            MatchKind::IpCidr => (1, 255 - r.value.rsplit_once('/').and_then(|(_, p)| p.parse::<u32>().ok()).unwrap_or(0)),
+            MatchKind::DomainSuffix => (2, 255 - r.value.split('.').count() as u32),
+        };
+        (rank, r.id)
+    });
+}
+
+fn cidr_contains(cidr: &str, ip: IpAddr) -> bool {
+    let Some((net, prefix)) = cidr.split_once('/') else { return false };
+    let (Ok(net), Ok(prefix)) = (net.parse::<IpAddr>(), prefix.parse::<u32>()) else { return false };
+    match (net, ip) {
+        (IpAddr::V4(n), IpAddr::V4(a)) => {
+            let mask = u32::MAX.checked_shl(32 - prefix.min(32)).unwrap_or(0);
+            u32::from(n) & mask == u32::from(a) & mask
+        }
+        (IpAddr::V6(n), IpAddr::V6(a)) => {
+            let mask = u128::MAX.checked_shl(128 - prefix.min(128)).unwrap_or(0);
+            u128::from(n) & mask == u128::from(a) & mask
+        }
+        _ => false,
+    }
+}
+
 /// Rule lines in order, and the ids of rules left out.
 #[derive(Debug, Default, PartialEq)]
 pub struct Rendered {
@@ -161,6 +213,39 @@ mod tests {
         assert_eq!(normalize(IpCidr, "[2001:db8::1]").unwrap(), "2001:db8::1/128");
         assert!(normalize(IpCidr, "1.2.3.4/33").is_err());
         assert!(normalize(IpCidr, "example.com").is_err());
+    }
+
+    fn rule(id: i64, kind: MatchKind, value: &str) -> UserRule {
+        UserRule { id, kind, value: value.into(), target: "AI".into(), enabled: true }
+    }
+
+    #[test]
+    fn matching_hosts_and_addresses() {
+        let suffix = rule(1, MatchKind::DomainSuffix, "x.com");
+        assert!(suffix.matches("x.com", None) && suffix.matches("API.x.com", None));
+        assert!(!suffix.matches("notx.com", None));
+        let exact = rule(2, MatchKind::Domain, "api.x.com");
+        assert!(exact.matches("api.x.com", None) && !exact.matches("x.com", None));
+        let net = rule(3, MatchKind::IpCidr, "91.108.4.0/22");
+        assert!(net.matches("", Some("91.108.7.255".parse().unwrap())));
+        assert!(!net.matches("", Some("91.108.8.0".parse().unwrap())));
+        assert!(rule(4, MatchKind::IpCidr, "0.0.0.0/0").matches("", Some("8.8.8.8".parse().unwrap())));
+        let v6 = rule(5, MatchKind::IpCidr, "2001:db8::/32");
+        assert!(v6.matches("", Some("2001:db8:1::1".parse().unwrap())));
+        assert!(!v6.matches("", Some("1.2.3.4".parse().unwrap())));
+    }
+
+    #[test]
+    fn specific_rules_come_first() {
+        let mut rules = vec![
+            rule(1, MatchKind::DomainSuffix, "x.com"),
+            rule(2, MatchKind::DomainSuffix, "api.x.com"),
+            rule(3, MatchKind::IpCidr, "10.0.0.0/8"),
+            rule(4, MatchKind::Domain, "a.x.com"),
+            rule(5, MatchKind::IpCidr, "10.1.2.3/32"),
+        ];
+        sort_by_specificity(&mut rules);
+        assert_eq!(rules.iter().map(|r| r.id).collect::<Vec<_>>(), [4, 5, 3, 2, 1]);
     }
 
     #[test]

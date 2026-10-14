@@ -188,6 +188,21 @@ pub struct Rule {
     pub kind: String,
     pub payload: String,
     pub proxy: String,
+    pub extra: RuleExtra,
+}
+
+impl Rule {
+    pub fn hits(&self) -> u64 {
+        self.extra.hit_count
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct RuleExtra {
+    pub disabled: bool,
+    pub hit_count: u64,
+    pub miss_count: u64,
 }
 
 fn null_as_default<'de, D, T>(de: D) -> Result<T, D::Error>

@@ -3,7 +3,9 @@ mod core;
 mod ipc;
 mod methods;
 mod problems;
+mod route_check;
 mod state;
+mod user_rules;
 
 use std::io::IsTerminal;
 use std::path::PathBuf;

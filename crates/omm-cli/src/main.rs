@@ -55,6 +55,9 @@ enum Cmd {
     /// Failed connections, merged per resource.
     #[command(subcommand)]
     Problems(ProblemsCmd),
+    /// Your own routing rules (above the profile's).
+    #[command(subcommand)]
+    Rules(RulesCmd),
     /// Rebuild the runtime config and hot-reload the core.
     Apply,
     /// Restore a previous runtime config (the latest by default).
@@ -131,6 +134,53 @@ enum ProblemsCmd {
     Unhide { id: i64 },
     /// Forget one host, or everything.
     Clear { host: Option<String> },
+}
+
+#[derive(Debug, Subcommand)]
+enum RulesCmd {
+    /// List rules (default order is the order they apply in).
+    List,
+    /// Route a domain, URL or IP: `omm rules add claude.ai --via AI`.
+    Add {
+        value: String,
+        /// DIRECT or a group of the current profile.
+        #[arg(long)]
+        via: String,
+        /// Only this exact host, not its subdomains.
+        #[arg(long)]
+        exact: bool,
+        /// Check the route first and refuse to save if it fails.
+        #[arg(long)]
+        check: bool,
+        #[arg(long)]
+        note: Option<String>,
+    },
+    /// Check how a host behaves through some targets.
+    Test {
+        host: String,
+        #[arg(required = true)]
+        targets: Vec<String>,
+        #[arg(long)]
+        port: Option<u16>,
+    },
+    /// Change a rule's target or switch it on/off.
+    Set {
+        id: i64,
+        #[arg(long)]
+        via: Option<String>,
+        #[arg(long, conflicts_with = "off")]
+        on: bool,
+        #[arg(long)]
+        off: bool,
+    },
+    Rm { id: i64 },
+    /// Journal of rule changes.
+    History {
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+    },
+    /// Undo every change after journal entry <to> (0 = undo all).
+    Rollback { to: i64 },
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -246,6 +296,7 @@ fn run(cli: Cli) -> Result<()> {
         }
         Cmd::Profile(cmd) => profile(&mut conn, cmd, json)?,
         Cmd::Problems(cmd) => problems(&mut conn, cmd, json)?,
+        Cmd::Rules(cmd) => rules(&mut conn, cmd, json)?,
         Cmd::Apply => {
             let r: Value = conn.call("config.apply", Value::Null)?;
             if json {
@@ -431,6 +482,97 @@ fn problems(conn: &mut Conn, cmd: ProblemsCmd, json: bool) -> Result<()> {
         ProblemsCmd::Clear { host } => {
             let r: Value = conn.call("problems.clear", json!({ "host": host }))?;
             println!("removed {}", r["removed"]);
+        }
+    }
+    Ok(())
+}
+
+fn rules(conn: &mut Conn, cmd: RulesCmd, json: bool) -> Result<()> {
+    let applied = |r: &Value| {
+        let mut s = String::new();
+        if r["apply"]["reloaded"] == true {
+            s += "applied";
+        } else {
+            s += "saved (core not reloaded)";
+        }
+        if let Some(n) = r["closed"].as_u64().filter(|n| *n > 0) {
+            s += &format!(", closed {n} connection(s)");
+        }
+        s
+    };
+    match cmd {
+        RulesCmd::List => {
+            let r: Value = conn.call("rules.list", Value::Null)?;
+            if json {
+                return print_json(&r);
+            }
+            for x in r["items"].as_array().into_iter().flatten() {
+                let state = if x["orphan"] == true {
+                    "orphan"
+                } else if x["enabled"] == true {
+                    "on"
+                } else {
+                    "off"
+                };
+                let hits = x["hits"].as_u64().map(|h| format!("{h} hits")).unwrap_or_default();
+                println!("#{:<4} {:<6} {:<48} {:<10} {}", x["id"], state, x["line"].as_str().unwrap_or(""), hits, x["source"].as_str().filter(|s| *s != "user").unwrap_or(""));
+            }
+        }
+        RulesCmd::Add { value, via, exact, check, note } => {
+            let is_ip = value.trim_matches(['[', ']']).split('/').next().is_some_and(|v| v.parse::<std::net::IpAddr>().is_ok());
+            let kind = if is_ip { "ip-cidr" } else if exact { "domain" } else { "domain-suffix" };
+            let preview: Value = conn.call("rules.preview", json!({ "kind": kind, "value": value, "target": via }))?;
+            let mut test = Value::Null;
+            if check {
+                let host = preview["value"].as_str().unwrap_or("").split('/').next().unwrap_or("").to_owned();
+                let r: Value = conn.call("rules.test", json!({ "host": host, "targets": [via] }))?;
+                let o = &r["results"][0];
+                if o["ok"] != true {
+                    bail!("{} via {via} failed: {} — not saved", r["probe"]["url"].as_str().unwrap_or(""), o["error"].as_str().unwrap_or("?"));
+                }
+                println!("check ok: {} ms", o["delay"]);
+                let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0);
+                test = json!({ "target": via, "ok": true, "delay": o["delay"], "at": now });
+            }
+            let r: Value = conn.call("rules.save", json!({ "kind": kind, "value": value, "target": via, "note": note, "test": test }))?;
+            println!("{} — {}", preview["line"].as_str().unwrap_or(""), applied(&r));
+        }
+        RulesCmd::Test { host, targets, port } => {
+            let r: Value = conn.call("rules.test", json!({ "host": host, "port": port, "targets": targets }))?;
+            if json {
+                return print_json(&r);
+            }
+            println!("{}{}", r["probe"]["url"].as_str().unwrap_or(""), if r["probe"]["inconclusive"] == true { "  (a failure here may not mean the service is down)" } else { "" });
+            for o in r["results"].as_array().into_iter().flatten() {
+                match o["ok"].as_bool() {
+                    Some(true) => println!("  {:<24} {} ms", o["target"].as_str().unwrap_or(""), o["delay"]),
+                    _ => println!("  {:<24} failed: {}", o["target"].as_str().unwrap_or(""), o["error"].as_str().unwrap_or("?")),
+                }
+            }
+        }
+        RulesCmd::Set { id, via, on, off } => {
+            let enabled = if on { Some(true) } else if off { Some(false) } else { None };
+            let r: Value = conn.call("rules.update", json!({ "id": id, "target": via, "enabled": enabled }))?;
+            println!("{} — {}", r["rule"]["value"].as_str().unwrap_or(""), applied(&r));
+        }
+        RulesCmd::Rm { id } => {
+            let r: Value = conn.call("rules.delete", json!({ "id": id }))?;
+            println!("deleted — {}", applied(&r));
+        }
+        RulesCmd::History { limit } => {
+            let r: Value = conn.call("rules.history", json!({ "limit": limit }))?;
+            if json {
+                return print_json(&r);
+            }
+            for c in r.as_array().into_iter().flatten() {
+                let describe = |s: &Value| if s.is_null() { "—".to_owned() } else { format!("{} → {}{}", s["value"].as_str().unwrap_or(""), s["target"].as_str().unwrap_or(""), if s["enabled"] == false { " (off)" } else { "" }) };
+                let reverts = c["reverts"].as_i64().map(|r| format!(" (undo #{r})")).unwrap_or_default();
+                println!("#{:<4} {:<7} {:<12} {}  ⇒  {}{reverts}", c["id"], c["action"].as_str().unwrap_or(""), ago(c["at"].as_u64().map(|ms| ms / 1000)), describe(&c["before"]), describe(&c["after"]));
+            }
+        }
+        RulesCmd::Rollback { to } => {
+            let r: Value = conn.call("rules.rollback", json!({ "to": to }))?;
+            println!("undid {} change(s) — {}", r["undone"], applied(&r));
         }
     }
     Ok(())

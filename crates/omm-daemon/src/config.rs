@@ -8,7 +8,6 @@ use omm_config::build::{self, Inputs};
 use omm_config::fetch::{self, Fetched};
 use omm_config::paths::Paths;
 use omm_config::profiles::{self, GLOBAL, Overrides, Profile, Source, Store};
-use omm_config::rules::UserRule;
 use omm_config::runtime::{Runtime, Snapshot};
 use omm_config::settings::Settings;
 use omm_proto::{ConfigStatus, ErrorCode, ProfileRef, RpcError};
@@ -29,8 +28,10 @@ pub struct Manager {
 struct Inner {
     store: Store,
     settings: Settings,
-    user_rules: Vec<UserRule>,
+    rules: crate::user_rules::Store,
     status: ConfigStatus,
+    /// Names rules may target, from the last successful build.
+    targets: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -58,10 +59,11 @@ impl Manager {
         paths.ensure()?;
         let store = Store::open(paths.clone())?;
         let settings = Settings::load(&paths.settings())?;
+        let rules = crate::user_rules::Store::open(&paths.root.join("state.db"))?;
         Ok(Self {
             paths,
             binary,
-            inner: Mutex::new(Inner { store, settings, user_rules: Vec::new(), status: ConfigStatus::default() }),
+            inner: Mutex::new(Inner { store, settings, rules, status: ConfigStatus::default(), targets: Vec::new() }),
         })
     }
 
@@ -83,12 +85,13 @@ impl Manager {
         let text = inner.store.text(&profile.id).map_err(cfg_err)?;
         let global = Overrides::load(&self.paths, GLOBAL).map_err(cfg_err)?;
         let overrides = Overrides::load(&self.paths, &profile.id).map_err(cfg_err)?;
+        let user_rules = inner.rules.rules().map_err(db_err)?;
         let out = build::build(&Inputs {
             profile: &text,
             profile_name: &profile.name,
             global: &global,
             overrides: &overrides,
-            user_rules: &inner.user_rules,
+            user_rules: &user_rules,
             settings: &inner.settings,
         })
         .map_err(cfg_err)?;
@@ -101,6 +104,7 @@ impl Manager {
 
         let profile = Some(ProfileRef { id: profile.id, name: profile.name });
         inner.status = ConfigStatus { profile: profile.clone(), applied_at: Some(profiles::now()), orphans: out.orphans.clone(), error: None };
+        inner.targets = out.targets;
         tracing::info!(reloaded, orphans = out.orphans.len(), "config applied");
         Ok(ApplyReport { profile, groups: out.groups, orphans: out.orphans, reloaded })
     }
@@ -297,6 +301,77 @@ impl Manager {
         Ok(())
     }
 
+    // ------------------------------------------------------------ user rules
+
+    pub async fn rules(&self) -> Result<(Vec<crate::user_rules::Stored>, Vec<i64>), RpcError> {
+        let inner = self.inner.lock().await;
+        Ok((inner.rules.all().map_err(db_err)?, inner.status.orphans.clone()))
+    }
+
+    pub async fn rule_history(&self, limit: usize) -> Result<Vec<crate::user_rules::Change>, RpcError> {
+        self.inner.lock().await.rules.history(limit).map_err(db_err)
+    }
+
+    /// Change rules and apply. If the config cannot be applied, or a rule
+    /// this change touched ends up without its target, the change is undone
+    /// and nothing reaches the core.
+    ///
+    /// `strict` (save, edit) refuses targets the profile lacks; rollback and
+    /// delete may leave orphans, which are skipped and flagged instead.
+    pub async fn change_rules<T>(
+        &self,
+        state: &State,
+        strict: bool,
+        f: impl FnOnce(&mut crate::user_rules::Store) -> Result<(T, Vec<crate::user_rules::Change>), RpcError>,
+    ) -> Result<(T, ApplyReport), RpcError> {
+        let mut inner = self.inner.lock().await;
+        let known = inner.targets.clone();
+        let (value, changes) = f(&mut inner.rules)?;
+        // Refuse unknown targets up front when we know the current profile.
+        let unknown: Vec<&str> = changes
+            .iter()
+            .filter_map(|c| c.after.as_ref())
+            .filter(|a| strict && a.rule.enabled)
+            .map(|a| a.rule.target.as_str())
+            .filter(|t| !known.is_empty() && !known.iter().any(|k| k == t))
+            .collect();
+        if !unknown.is_empty() {
+            let msg = format!("no group or proxy named {} in the current profile", unknown.join(", "));
+            if let Some(first) = changes.iter().map(|c| c.id).min() {
+                inner.rules.discard_since(first).map_err(db_err)?;
+            }
+            return Err(RpcError::new(ErrorCode::NotFound, msg));
+        }
+        let first = changes.iter().map(|c| c.id).min();
+        let touched: Vec<i64> = if strict { changes.iter().filter(|c| c.after.as_ref().is_some_and(|a| a.rule.enabled)).map(|c| c.rule_id).collect() } else { Vec::new() };
+
+        let result = match self.apply_locked(&mut inner, state).await {
+            Ok(r) if r.orphans.iter().any(|o| touched.contains(o)) => {
+                let bad: Vec<String> = changes.iter().filter_map(|c| c.after.as_ref()).filter(|a| r.orphans.contains(&a.rule.id)).map(|a| a.rule.target.clone()).collect();
+                Err(RpcError::new(ErrorCode::NotFound, format!("no group or proxy named {} in the current profile", bad.join(", "))))
+            }
+            other => other,
+        };
+        match result {
+            Ok(report) => {
+                state.set_config_status(inner.status.clone());
+                Ok((value, report))
+            }
+            Err(e) => {
+                if let Some(first) = first {
+                    inner.rules.discard_since(first).map_err(db_err)?;
+                    // Put the previous state back into the live config as well.
+                    if let Err(again) = self.apply_locked(&mut inner, state).await {
+                        tracing::warn!("re-apply after undo: {}", again.message);
+                    }
+                }
+                inner.status.error = Some(e.message.clone());
+                state.set_config_status(inner.status.clone());
+                Err(e)
+            }
+        }
+    }
+
     // ------------------------------------------------------------ settings
 
     pub async fn settings(&self) -> Settings {
@@ -405,6 +480,10 @@ pub fn cfg_err(e: omm_config::Error) -> RpcError {
         E::Io { .. } => ErrorCode::Internal,
     };
     RpcError::new(code, e.to_string())
+}
+
+pub fn db_err(e: impl std::fmt::Display) -> RpcError {
+    RpcError::new(ErrorCode::Internal, format!("database: {e}"))
 }
 
 fn internal(e: impl std::fmt::Display) -> RpcError {
