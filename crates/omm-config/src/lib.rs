@@ -14,8 +14,10 @@
 
 pub mod build;
 pub mod core_bin;
+pub mod cvr;
 pub mod error;
 pub mod fetch;
+pub mod host;
 pub mod merge;
 pub mod paths;
 pub mod profiles;

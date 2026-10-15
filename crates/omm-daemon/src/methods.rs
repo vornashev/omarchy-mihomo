@@ -112,6 +112,17 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             to_value(state.config.set_settings(state, params).await?)
         }
 
+        "health.fix" => {
+            #[derive(Deserialize)]
+            struct P {
+                id: String,
+            }
+            crate::health::run(state, &parse::<P>(params)?.id).await
+        }
+        // After `omm fix` changed the system behind the daemon's back.
+        "health.refresh" => refreshed(state),
+        "migrate.cvr_import" => state.config.import_cvr(state).await,
+
         "profiles.list" => Ok(state.config.list().await),
         "profiles.add" => {
             #[derive(Deserialize)]
@@ -137,6 +148,15 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
                 }
                 _ => Err(RpcError::new(ErrorCode::BadRequest, "give exactly one of url, content, path")),
             }
+        }
+        "profiles.create" => {
+            #[derive(Deserialize)]
+            struct P {
+                name: Option<String>,
+            }
+            let p: P = parse(params)?;
+            let name = p.name.map(|n| n.trim().to_owned()).filter(|n| !n.is_empty()).unwrap_or_else(|| "local".into());
+            state.config.create(name).await
         }
         "profiles.update" => {
             #[derive(Deserialize)]
@@ -275,6 +295,44 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
                 .await?;
             let closed = if report.reloaded { crate::route_check::close_matching(state, &stored.rule).await } else { 0 };
             Ok(json!({ "rule": stored, "apply": report, "closed": closed }))
+        }
+        "rules.save_many" => {
+            #[derive(Deserialize)]
+            struct P {
+                rules: Vec<RuleInput>,
+                target: String,
+            }
+            let p: P = parse(params)?;
+            if p.rules.is_empty() || p.rules.len() > 300 || p.target.trim().is_empty() {
+                return Err(RpcError::new(ErrorCode::BadRequest, "give 1 to 300 rules and a target"));
+            }
+            // Validate every match before changing the store. A group never
+            // introduces a catch-all rule; it consists of explicit resources.
+            let rules = p
+                .rules
+                .into_iter()
+                .map(|r| {
+                    Ok(crate::user_rules::NewRule {
+                        kind: r.kind,
+                        value: normalize(r.kind, &r.value)?,
+                        target: p.target.clone(),
+                        note: None,
+                        source: user_source(),
+                        test: None,
+                    })
+                })
+                .collect::<Result<Vec<_>, RpcError>>()?;
+            let (stored, report) = state
+                .config
+                .change_rules(state, true, |store| store.upsert_many(rules, crate::problems::now_ms()).map_err(crate::config::db_err))
+                .await?;
+            let mut closed = 0;
+            if report.reloaded {
+                for s in &stored {
+                    closed += crate::route_check::close_matching(state, &s.rule).await;
+                }
+            }
+            Ok(json!({ "rules": stored, "apply": report, "closed": closed }))
         }
         "rules.update" => {
             #[derive(Deserialize)]

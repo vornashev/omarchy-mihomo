@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import "ProblemModels.js" as ProblemModels
 
 // Problem resources: failed connections merged per host.
 Item {
@@ -16,19 +17,27 @@ Item {
   property var ignores: []
   property int cursor: 0
   property bool loading: false
+  property int requestRevision: 0
+  property bool ready: false
+  property string viewMode: panel ? panel.problemsView : "table"
+  property var collapsedGroups: ({})
+  property string selectedKey: ""
+  readonly property var rows: ProblemModels.rows(items, viewMode === "groups", collapsedGroups)
   readonly property bool typing: searchField.input.activeFocus
 
-  readonly property var kindFilters: ["", "timeout", "reset", "refused", "dns_fail", "dns_stub", "tls", "proxy", "other"]
+  readonly property var kindFilters: ["", "timeout", "reset", "refused", "dns_fail", "dns_stub", "no_route", "tls", "proxy", "other"]
 
   function reload() {
+    if (!ready || !svc) return
+    var revision = ++requestRevision
     loading = true
     var q = { only_new: tab === "new", hidden: tab === "hidden", search: search || null, kind: kind || null, limit: 300 }
     svc.request("problems.list", q, function(r, err) {
+      if (revision !== requestRevision) return
       loading = false
-      if (err || !r) return
+      if (err || !r) { if (err) panel.notify(err.message); return }
       items = r.items
       counts = r.counts
-      cursor = Math.min(cursor, Math.max(0, items.length - 1))
     })
     if (tab === "hidden") svc.request("problems.ignores", null, function(r) { if (r) ignores = r })
   }
@@ -39,15 +48,37 @@ Item {
       tab = tabs[(tabs.indexOf(tab) + dx + tabs.length) % tabs.length]
       return
     }
-    cursor = Math.max(0, Math.min(items.length - 1, cursor + dy))
+    select(Math.max(0, Math.min(rows.length - 1, cursor + dy)))
     list.positionViewAtIndex(cursor, ListView.Contain)
   }
-  function activate() { if (items[cursor]) panel.openEditor({ problem: items[cursor] }) }
-  function remove() { if (items[cursor]) hide(items[cursor]) }
+  function select(index) {
+    cursor = index
+    selectedKey = rows[index] ? rows[index].key : ""
+  }
+  function restoreSelection() {
+    var index = rows.findIndex(function(r) { return r.key === selectedKey })
+    select(index >= 0 ? index : Math.min(cursor, Math.max(0, rows.length - 1)))
+    Qt.callLater(function() { if (rows.length) list.positionViewAtIndex(cursor, ListView.Contain) })
+  }
+  function openGroup(group) { panel.openEditor({ group: group, problem: group.items[0] }) }
+  function activate() {
+    var row = rows[cursor]
+    if (!row) return
+    if (row.group) openGroup(row.group)
+    else panel.openEditor({ problem: row.problem })
+  }
+  function remove() { if (rows[cursor] && rows[cursor].problem) hide(rows[cursor].problem) }
+  function toggleGroup(group) {
+    selectedKey = "group:" + group.key
+    var next = Object.assign({}, collapsedGroups)
+    next[group.key] = !next[group.key]
+    collapsedGroups = next
+  }
   function textKey(t) {
     if (t === "/") searchField.input.forceActiveFocus()
     else if (t === "s") markSeen()
     else if (t === "r") reload()
+    else if (t === "g" && rows[cursor] && rows[cursor].group) toggleGroup(rows[cursor].group)
   }
 
   function hide(p) {
@@ -63,9 +94,10 @@ Item {
     svc.request("problems.mark_seen", null, function() { reload() })
   }
 
-  onTabChanged: { cursor = 0; reload() }
+  onTabChanged: { cursor = 0; selectedKey = ""; reload() }
   onKindChanged: reload()
-  Component.onCompleted: reload()
+  onRowsChanged: restoreSelection()
+  Component.onCompleted: { ready = true; reload() }
   Connections {
     target: root.svc
     function onProblemsRevisionChanged() { if (!root.loading) refreshTimer.restart() }
@@ -117,12 +149,20 @@ Item {
         ]
         onPicked: function(k) { root.tab = k }
       }
-      Item { width: 1; height: 1 }
+      Seg {
+        current: root.viewMode
+        model: [{ key: "table", label: I18n.t("problemTable") }, { key: "groups", label: I18n.t("problemGroups") }]
+        onPicked: function(k) { root.panel.problemsView = k }
+      }
+    }
+
+    Flow {
+      width: parent.width
+      spacing: Style.space(6)
       Repeater {
-        model: root.kindFilters.slice(1, 6)
+        model: root.kindFilters.slice(1)
         Chip {
           required property string modelData
-          anchors.verticalCenter: parent.verticalCenter
           text: I18n.kind(modelData)
           dot: root.svc.kindColor(modelData)
           color: root.kind === modelData ? Style.selectedFillFor(Color.popups.text, Color.accent) : Util.alpha(Color.popups.text, 0.04)
@@ -158,29 +198,82 @@ Item {
     }
   }
 
-  ListView {
-    id: list
+  ProblemTableRow {
+    id: tableHeader
+    visible: root.viewMode === "table"
     anchors.top: head.bottom
     anchors.topMargin: Style.space(10)
+    width: list.width - Style.space(6)
+    height: visible ? implicitHeight : 0
+    header: true
+    svc: root.svc
+  }
+
+  ListView {
+    id: list
+    anchors.top: tableHeader.bottom
     anchors.left: parent.left
     anchors.right: parent.right
     anchors.bottom: footer.top
     anchors.bottomMargin: Style.space(8)
     clip: true
-    spacing: Style.space(2)
-    model: root.items
+    spacing: 0
+    model: root.rows
     boundsBehavior: Flickable.StopAtBounds
     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-    delegate: ProblemRow {
+    delegate: Item {
+      id: entry
       required property var modelData
       required property int index
       width: list.width - Style.space(6)
-      problem: modelData
-      svc: root.svc
-      selected: index === root.cursor
-      onClicked: root.cursor = index
-      onRouteClicked: root.panel.openEditor({ problem: modelData })
-      onHideClicked: root.hide(modelData)
+      height: content.height + (modelData.last ? Style.space(10) : 0)
+      Item {
+        visible: root.viewMode === "groups"
+        width: parent.width; height: content.height
+        clip: true
+        Rectangle {
+          width: parent.width
+          y: entry.modelData.group ? 0 : -radius
+          height: parent.height + (entry.modelData.group ? 0 : radius) + (entry.modelData.last ? 0 : radius)
+          radius: Style.cornerRadius
+          color: Util.alpha(Color.popups.text, 0.04)
+          border.width: 1
+          border.color: Util.alpha(Color.popups.text, 0.15)
+        }
+        Rectangle {
+          visible: !!entry.modelData.group && entry.index === root.cursor
+          anchors.fill: parent
+          radius: Style.cornerRadius
+          color: Style.hoverFillFor(Color.popups.text, Color.accent)
+        }
+      }
+      Loader {
+        id: content
+        width: parent.width
+        sourceComponent: entry.modelData.group ? groupHeader : problemRow
+      }
+      Component {
+        id: groupHeader
+        ProblemGroupHeader {
+          group: entry.modelData.group
+          svc: root.svc
+          collapsed: entry.modelData.closed
+          onToggled: root.toggleGroup(group)
+          onRouteClicked: root.openGroup(group)
+        }
+      }
+      Component {
+        id: problemRow
+        ProblemTableRow {
+          problem: entry.modelData.problem
+          svc: root.svc
+          grouped: root.viewMode === "groups"
+          selected: entry.index === root.cursor
+          onClicked: root.select(entry.index)
+          onRouteClicked: root.panel.openEditor({ problem: problem })
+          onHideClicked: root.hide(problem)
+        }
+      }
     }
 
     Column {
@@ -192,25 +285,35 @@ Item {
     }
   }
 
-  Row {
+  Column {
     id: footer
     anchors.left: parent.left
+    anchors.right: parent.right
     anchors.bottom: parent.bottom
-    spacing: Style.space(14)
-    Repeater {
-      model: [["j/k", I18n.t("keyNav")], ["Enter", I18n.t("keyRoute")], ["x", I18n.t("keyHide")], ["/", I18n.t("keySearch")], ["s", I18n.t("keySeen")]]
-      Row {
-        required property var modelData
-        spacing: Style.space(5)
-        Rectangle {
-          width: k.implicitWidth + Style.space(8); height: k.implicitHeight + Style.space(2)
-          radius: Style.space(3)
-          color: "transparent"
-          border.width: 1
-          border.color: Util.alpha(Color.popups.text, 0.18)
-          Txt { id: k; anchors.centerIn: parent; text: modelData[0]; dim: true; font.pixelSize: Style.font.caption }
+    spacing: Style.space(10)
+    Row {
+      spacing: Style.space(5)
+      Rectangle { anchors.verticalCenter: parent.verticalCenter; width: Style.space(6); height: width; radius: width / 2; color: root.svc.green }
+      Txt { text: I18n.t("problemRecovered"); faint: true; font.pixelSize: Style.font.caption }
+    }
+    Flow {
+      width: parent.width
+      spacing: Style.space(14)
+      Repeater {
+        model: [["j/k", I18n.t("keyNav")], ["Enter", I18n.t("keyRoute")], ["x", I18n.t("keyHide")], ["/", I18n.t("keySearch")], ["s", I18n.t("keySeen")]].concat(root.viewMode === "groups" ? [["g", I18n.t("keyGroup")]] : [])
+        Row {
+          required property var modelData
+          spacing: Style.space(5)
+          Rectangle {
+            width: k.implicitWidth + Style.space(8); height: k.implicitHeight + Style.space(2)
+            radius: Style.space(3)
+            color: "transparent"
+            border.width: 1
+            border.color: Util.alpha(Color.popups.text, 0.18)
+            Txt { id: k; anchors.centerIn: parent; text: modelData[0]; dim: true; font.pixelSize: Style.font.caption }
+          }
+          Txt { text: modelData[1]; faint: true; font.pixelSize: Style.font.caption }
         }
-        Txt { text: modelData[1]; faint: true; font.pixelSize: Style.font.caption }
       }
     }
   }

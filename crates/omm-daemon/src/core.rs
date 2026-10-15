@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use mihomo_api::model::{Mode, Traffic};
-use omm_proto::{CoreStatus, topic};
+use omm_proto::{CoreStatus, TunIssue, topic};
 
 use crate::state::State;
 
@@ -18,6 +18,7 @@ pub async fn watch(state: Arc<State>) {
         let status = probe(&state).await;
         let running = status.running;
         state.set_core_status(status);
+        state.set_issues(crate::health::check(&state).await);
         let wait = if running { POLL_UP } else { POLL_DOWN };
         tokio::select! {
             _ = tokio::time::sleep(wait) => {}
@@ -38,6 +39,7 @@ async fn probe(state: &State) -> CoreStatus {
             tun: c.tun.enable,
             mixed_port: c.mixed_port,
             error: None,
+            tun_issue: tun_issue(state, c.tun.enable).await,
         },
         (Err(e), _) | (_, Err(e)) => CoreStatus {
             running: false,
@@ -47,6 +49,21 @@ async fn probe(state: &State) -> CoreStatus {
             ..Default::default()
         },
     }
+}
+
+/// mihomo turns TUN off by itself when it cannot open the device, and says
+/// so only in its log. Explain the gap between the settings and the core.
+async fn tun_issue(state: &State, tun_on: bool) -> Option<TunIssue> {
+    if tun_on {
+        *state.tun_error.lock().unwrap() = None;
+        return None;
+    }
+    if !state.config.tun_wanted(state).await {
+        return None;
+    }
+    let no_capabilities = omm_config::core_bin::has_capabilities(&omm_config::core_bin::default_path()) == Some(false);
+    let message = state.tun_error.lock().unwrap().clone();
+    Some(TunIssue { no_capabilities, other_core: omm_config::host::other_core().map(Into::into), message })
 }
 
 pub fn mode_name(m: Mode) -> &'static str {

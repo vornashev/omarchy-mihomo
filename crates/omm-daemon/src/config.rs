@@ -1,8 +1,9 @@
 //! Profiles, settings and the generated runtime config.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use omm_config::build::{self, Inputs};
 use omm_config::fetch::{self, Fetched};
@@ -10,7 +11,8 @@ use omm_config::paths::Paths;
 use omm_config::profiles::{self, GLOBAL, Overrides, Profile, Source, Store};
 use omm_config::runtime::{Runtime, Snapshot};
 use omm_config::settings::Settings;
-use omm_proto::{ConfigStatus, ErrorCode, ProfileRef, RpcError};
+use omm_config::yaml::parse_mapping;
+use omm_proto::{ConfigStatus, ErrorCode, ProfileRef, RpcError, topic};
 use serde::Serialize;
 use serde_json::Value;
 use tokio::sync::Mutex;
@@ -18,10 +20,15 @@ use tokio::sync::Mutex;
 use crate::state::State;
 
 const AUTO_UPDATE_EVERY: Duration = Duration::from_secs(10 * 60);
+/// How often local profile files are checked for saves from an editor.
+const FILE_POLL_EVERY: Duration = Duration::from_secs(1);
+/// Drafts never filled in are dropped on startup after this long.
+const DRAFT_TTL: Duration = Duration::from_secs(24 * 3600);
 
 pub struct Manager {
     paths: Paths,
-    binary: Option<PathBuf>,
+    /// Validates configs; set later when the core gets installed.
+    binary: std::sync::RwLock<Option<PathBuf>>,
     inner: Mutex<Inner>,
 }
 
@@ -62,7 +69,7 @@ impl Manager {
         let rules = crate::user_rules::Store::open(&paths.root.join("state.db"))?;
         Ok(Self {
             paths,
-            binary,
+            binary: std::sync::RwLock::new(binary),
             inner: Mutex::new(Inner { store, settings, rules, status: ConfigStatus::default(), targets: Vec::new() }),
         })
     }
@@ -128,15 +135,32 @@ impl Manager {
         Err(RpcError::new(ErrorCode::Core, format!("core rejected the new config: {e}")))
     }
 
+    /// TUN is on in the settings of a core we run.
+    pub async fn tun_wanted(&self, state: &State) -> bool {
+        self.owns_core(state) && self.inner.lock().await.settings.tun.enable
+    }
+
+    pub fn set_binary(&self, path: PathBuf) {
+        *self.binary.write().unwrap() = Some(path);
+    }
+
+    pub fn paths(&self) -> &Paths {
+        &self.paths
+    }
+
+    pub async fn has_profile(&self) -> bool {
+        self.inner.lock().await.store.current().is_some()
+    }
+
     /// Only the core living in our runtime directory is ever reloaded.
     /// Pointing the daemon at someone else's core (Clash Verge during
     /// migration) must never replace that core's config.
-    fn owns_core(&self, state: &State) -> bool {
+    pub fn owns_core(&self, state: &State) -> bool {
         state.core.socket() == self.paths.controller_socket()
     }
 
     fn runtime(&self) -> Result<Runtime, RpcError> {
-        let binary = self.binary.clone().ok_or_else(|| {
+        let binary = self.binary.read().unwrap().clone().ok_or_else(|| {
             RpcError::new(ErrorCode::Config, "mihomo binary not found: install it to ~/.local/lib/omarchy-mihomo/mihomo or set OMM_CORE_BIN")
         })?;
         Ok(Runtime::new(self.paths.clone(), binary))
@@ -146,7 +170,111 @@ impl Manager {
 
     pub async fn list(&self) -> Value {
         let inner = self.inner.lock().await;
-        serde_json::json!({ "current": inner.store.index.current, "items": inner.store.index.items })
+        // `root` lets clients open profile and override files in an editor.
+        serde_json::json!({ "current": inner.store.index.current, "items": inner.store.index.items, "root": self.paths.root })
+    }
+
+    /// An empty local profile to be filled in an editor; [`watch_files`]
+    /// picks up every save.
+    pub async fn create(&self, name: String) -> Result<Value, RpcError> {
+        let mut inner = self.inner.lock().await;
+        let p = inner.store.create_draft(&name).map_err(cfg_err)?;
+        inner.store.save().map_err(cfg_err)?;
+        Ok(serde_json::json!({ "id": p.id, "path": self.paths.profile(&p.id) }))
+    }
+
+    /// A local profile's file changed on disk: take its name, check it, and
+    /// apply it when it is (or just became) the current profile.
+    async fn file_saved(&self, state: &State, id: &str) {
+        let apply = {
+            let mut inner = self.inner.lock().await;
+            let Ok(text) = inner.store.text(id) else { return };
+            let had_current = inner.store.index.current.is_some();
+            let Ok(p) = inner.store.get_mut(id) else { return };
+            if let Some(name) = profiles::name_hint(&text) {
+                p.name = name;
+            }
+            let usable = match parse_mapping(&text, &p.name) {
+                Ok(m) if m.is_empty() => {
+                    // Still the bare template: nothing to report for a draft.
+                    p.last_error = (!p.draft).then(|| "the file holds no config".into());
+                    false
+                }
+                Ok(_) => {
+                    p.draft = false;
+                    p.last_error = None;
+                    p.updated = Some(profiles::now());
+                    true
+                }
+                Err(e) => {
+                    p.last_error = Some(e.to_string());
+                    false
+                }
+            };
+            if usable && !had_current {
+                inner.store.index.current = Some(id.into());
+            }
+            if let Err(e) = inner.store.save() {
+                tracing::warn!("saving profiles: {e}");
+            }
+            usable && inner.store.index.current.as_deref() == Some(id)
+        };
+
+        if apply {
+            match self.apply(state).await {
+                Ok(_) => crate::health::start_core_if_free(state).await,
+                // Shown on the profile, where the user is looking.
+                Err(e) => {
+                    if let Ok(p) = self.inner.lock().await.store.get_mut(id) {
+                        p.last_error = Some(e.message);
+                    }
+                }
+            }
+        }
+        let inner = self.inner.lock().await;
+        // A draft still holding its template has nothing to report.
+        if let Ok(p) = inner.store.get(id)
+            && !(p.draft && p.last_error.is_none())
+        {
+            tracing::info!(profile = %p.name, error = p.last_error.as_deref(), "local profile saved");
+            state.publish(topic::PROFILES, &serde_json::json!({ "id": p.id, "name": p.name, "draft": p.draft, "error": p.last_error }));
+        }
+    }
+
+    /// Size and mtime of every local profile file.
+    async fn local_files(&self) -> Vec<(String, bool, Option<FileStamp>)> {
+        let inner = self.inner.lock().await;
+        inner
+            .store
+            .index
+            .items
+            .iter()
+            .filter(|p| p.is_local())
+            .map(|p| (p.id.clone(), p.draft, stamp(&self.paths.profile(&p.id))))
+            .collect()
+    }
+
+    /// Forget drafts left empty for a day (an editor closed without saving).
+    async fn drop_stale_drafts(&self) {
+        let mut inner = self.inner.lock().await;
+        let stale: Vec<String> = inner
+            .store
+            .index
+            .items
+            .iter()
+            .filter(|p| p.draft)
+            .filter(|p| stamp(&self.paths.profile(&p.id)).is_none_or(|s| s.mtime.elapsed().is_ok_and(|age| age > DRAFT_TTL)))
+            .map(|p| p.id.clone())
+            .collect();
+        for id in &stale {
+            let _ = inner.store.remove(id);
+        }
+        if !stale.is_empty() {
+            tracing::info!(count = stale.len(), "dropped empty drafts");
+            if let Err(e) = inner.store.save() {
+                tracing::warn!("saving profiles: {e}");
+            }
+        }
     }
 
     pub async fn add_remote(&self, state: &State, url: String, name: Option<String>, user_agent: Option<String>) -> Result<Value, RpcError> {
@@ -172,6 +300,7 @@ impl Manager {
             usage: dl.usage,
             etag: dl.etag,
             last_error: None,
+            draft: false,
         });
         inner.store.save().map_err(cfg_err)?;
         drop(inner);
@@ -193,6 +322,7 @@ impl Manager {
             usage: None,
             etag: None,
             last_error: None,
+            draft: false,
         });
         inner.store.save().map_err(cfg_err)?;
         drop(inner);
@@ -297,8 +427,101 @@ impl Manager {
     async fn after_profile_change(&self, state: &State, became_current: bool) -> Result<(), RpcError> {
         if became_current {
             self.apply(state).await?;
+            crate::health::start_core_if_free(state).await;
         }
         Ok(())
+    }
+
+    /// Bring over Clash Verge Rev's profiles with their enhancements, make
+    /// its current profile ours and apply it. Profiles imported before
+    /// (same subscription URL, or same name and text) are not duplicated.
+    pub async fn import_cvr(&self, state: &State) -> Result<Value, RpcError> {
+        let dir = omm_config::host::cvr_data_dir().ok_or_else(|| RpcError::new(ErrorCode::NotFound, "no Clash Verge Rev profiles found"))?;
+        let found = omm_config::cvr::read(&dir).map_err(cfg_err)?;
+        let mut warnings = found.warnings;
+        let (mut imported, mut skipped) = (Vec::new(), Vec::new());
+        let mut autotune = Vec::new();
+        let had_current = {
+            let mut inner = self.inner.lock().await;
+            let had_current = inner.store.current().is_some();
+            let mut current = None;
+            for p in found.profiles {
+                let store = &inner.store;
+                let dup = store.index.items.iter().find(|e| match (&e.source, &p.source) {
+                    (Source::Remote { url: a, .. }, Source::Remote { url: b, .. }) => a == b,
+                    (Source::Local, Source::Local) => e.name == p.name && store.text(&e.id).is_ok_and(|t| t == p.body),
+                    _ => false,
+                });
+                if let Some(e) = dup {
+                    if p.current {
+                        current = Some(e.id.clone());
+                    }
+                    skipped.push(p.name);
+                    continue;
+                }
+                autotune.extend(p.autotune_rules.iter().cloned());
+                let id = inner.store.new_id();
+                inner.store.write_text(&id, &p.body).map_err(cfg_err)?;
+                for (file, text) in &p.overrides {
+                    omm_config::paths::write_atomic(&self.paths.overrides(&id).join(file), text.as_bytes()).map_err(cfg_err)?;
+                }
+                inner.store.insert(Profile {
+                    id: id.clone(),
+                    name: p.name.clone(),
+                    source: p.source,
+                    updated: Some(profiles::now()),
+                    interval_hours: p.interval_hours,
+                    usage: None,
+                    etag: None,
+                    last_error: None,
+                    draft: false,
+                });
+                if p.current {
+                    current = Some(id);
+                }
+                imported.push(p.name);
+            }
+            if let Some(text) = found.global_merge {
+                let path = self.paths.overrides(GLOBAL).join("merge.yaml");
+                let ours = omm_config::paths::read_optional(&path).map_err(cfg_err)?.unwrap_or_default();
+                if parse_mapping(&ours, "global/merge.yaml").is_ok_and(|m| m.is_empty()) {
+                    omm_config::paths::write_atomic(&path, text.as_bytes()).map_err(cfg_err)?;
+                } else {
+                    warnings.push("global merge.yaml already has content; Clash Verge's global Merge was not copied over it".into());
+                }
+            }
+            if let Some(id) = current {
+                inner.store.index.current = Some(id);
+            }
+            inner.store.save().map_err(cfg_err)?;
+            // site-autotune's picks become ordinary user rules: visible,
+            // editable, and undoable through the journal like any other.
+            let now = crate::problems::now_ms();
+            for r in &autotune {
+                let new = crate::user_rules::NewRule {
+                    kind: r.kind,
+                    value: r.value.clone(),
+                    target: r.target.clone(),
+                    note: None,
+                    source: "site-autotune".into(),
+                    test: None,
+                };
+                if inner.rules.find(r.kind, &r.value).map_err(db_err)?.is_none() {
+                    inner.rules.upsert(new, now).map_err(db_err)?;
+                }
+            }
+            had_current
+        };
+        tracing::info!(imported = imported.len(), skipped = skipped.len(), rules = autotune.len(), "imported Clash Verge profiles");
+        if self.has_profile().await {
+            if let Err(e) = self.apply(state).await {
+                warnings.push(format!("apply: {}", e.message));
+            } else if !had_current {
+                crate::health::start_core_if_free(state).await;
+            }
+        }
+        state.request_refresh();
+        Ok(serde_json::json!({ "imported": imported, "skipped": skipped, "rules": autotune.len(), "warnings": warnings }))
     }
 
     // ------------------------------------------------------------ user rules
@@ -423,6 +646,7 @@ impl Manager {
 
     /// Publish what we know on startup and generate a config if none exists.
     pub async fn init(&self, state: &State) {
+        self.drop_stale_drafts().await;
         let has_profile = {
             let mut inner = self.inner.lock().await;
             inner.status.profile = inner.store.current().map(|p| ProfileRef { id: p.id.clone(), name: p.name.clone() });
@@ -445,6 +669,43 @@ pub async fn auto_update(state: Arc<State>) {
             }
         }
         tokio::time::sleep(AUTO_UPDATE_EVERY).await;
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct FileStamp {
+    mtime: SystemTime,
+    len: u64,
+}
+
+fn stamp(path: &std::path::Path) -> Option<FileStamp> {
+    let m = std::fs::metadata(path).ok()?;
+    Some(FileStamp { mtime: m.modified().ok()?, len: m.len() })
+}
+
+/// Notice saves of local profile files (pasted into an editor, Ctrl+S) and
+/// take them in without any further action from the user.
+///
+/// Polling keeps this free of inotify plumbing and copes with every way
+/// editors save: in place, or a new file renamed over the old one.
+pub async fn watch_files(state: Arc<State>) {
+    let mut seen: HashMap<String, FileStamp> = HashMap::new();
+    loop {
+        let files = state.config.local_files().await;
+        seen.retain(|id, _| files.iter().any(|(f, ..)| f == id));
+        for (id, draft, stamp) in files {
+            let Some(stamp) = stamp else { continue };
+            // A draft saved before its first poll still counts as a save;
+            // other files seen for the first time are just remembered.
+            let changed = match seen.insert(id.clone(), stamp) {
+                Some(old) => old != stamp,
+                None => draft,
+            };
+            if changed {
+                state.config.file_saved(&state, &id).await;
+            }
+        }
+        tokio::time::sleep(FILE_POLL_EVERY).await;
     }
 }
 

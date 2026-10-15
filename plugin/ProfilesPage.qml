@@ -11,6 +11,8 @@ Item {
 
   property var items: []
   property string current: ""
+  // Daemon's data directory, for opening profile and override files.
+  property string dataRoot: Quickshell.env("HOME") + "/.local/share/omarchy-mihomo"
   property int cursor: 0
   property var busy: ({})
   property bool adding: false
@@ -21,6 +23,7 @@ Item {
       if (!r) return
       items = r.items
       current = r.current || ""
+      if (r.root) dataRoot = r.root
       cursor = Math.min(cursor, Math.max(0, items.length - 1))
     })
   }
@@ -58,19 +61,44 @@ Item {
       reload()
     })
   }
+  function openInEditor(path) {
+    Quickshell.execDetached(["bash", "-c", "omarchy-launch-editor \"$1\" || xdg-open \"$1\"", "omm", path])
+  }
   function editOverrides(p) {
-    var dir = Quickshell.env("HOME") + "/.local/share/omarchy-mihomo/overrides/" + (p ? p.id : "global")
+    var dir = dataRoot + "/overrides/" + (p ? p.id : "global")
     Quickshell.execDetached(["bash", "-c", "mkdir -p \"$1\" && cd \"$1\" && touch merge.yaml rules.yaml proxies.yaml groups.yaml && omarchy-launch-editor \"$1\" || xdg-open \"$1\"", "omm", dir])
     panel.notify(I18n.t("overridesHint"))
   }
+  // An empty local profile opened in the editor; the daemon notices each
+  // save, so pasting a config and pressing Ctrl+S is all it takes.
+  function newFile() {
+    var typed = urlField.text.trim()
+    var looksLikeSource = typed.indexOf("://") > 0 || typed.indexOf("/") === 0 || typed.indexOf("~") === 0
+    var name = typed !== "" && !looksLikeSource ? typed : I18n.t("newFileName")
+    svc.request("profiles.create", { name: name }, function(r, err) {
+      if (err) { panel.notify(err.message); return }
+      if (!looksLikeSource) urlField.text = ""
+      openInEditor(r.path)
+      panel.notify(I18n.t("newFileHint"))
+      reload()
+    })
+  }
+  function editFile(p) { openInEditor(dataRoot + "/profiles/" + p.id + ".yaml") }
+
+  Connections {
+    target: root.svc
+    function onProfileSaved(info) { root.reload() }
+  }
 
   function move(dx, dy) { cursor = Math.max(0, Math.min(items.length - 1, cursor + dy)) }
-  function activate() { if (items[cursor]) use(items[cursor]) }
+  function activate() { if (items[cursor] && !items[cursor].draft) use(items[cursor]) }
   function remove() { if (items[cursor] && items[cursor].id !== current) del(items[cursor]) }
   function textKey(t) {
     if (t === "u" && items[cursor]) update(items[cursor])
     else if (t === "a" || t === "/") urlField.input.forceActiveFocus()
     else if (t === "e" && items[cursor]) editOverrides(items[cursor])
+    else if (t === "n") newFile()
+    else if (t === "o" && items[cursor] && items[cursor].source.type === "local") editFile(items[cursor])
   }
 
   Component.onCompleted: reload()
@@ -96,13 +124,14 @@ Item {
       spacing: Style.space(8)
       Field {
         id: urlField
-        width: parent.width - addBtn.width - Style.space(8)
+        width: parent.width - addBtn.width - newBtn.width - Style.space(16)
         icon: Icons.add
         placeholder: I18n.t("addPlaceholder")
         onAccepted: root.add()
         onEscaped: { text = ""; input.focus = false; root.panel.forceKeys() }
       }
       Btn { id: addBtn; primary: true; text: I18n.t("add"); busy: root.adding; onClicked: root.add() }
+      Btn { id: newBtn; icon: Icons.file; text: I18n.t("newFile"); tooltip: I18n.t("newFileHint"); onClicked: root.newFile() }
     }
   }
 
@@ -128,7 +157,7 @@ Item {
       color: isCurrent ? Style.selectedFillFor(Color.popups.text, Color.accent) : (index === root.cursor ? Style.hoverFillFor(Color.popups.text, Color.accent) : Util.alpha(Color.popups.text, 0.03))
       border.width: 1
       border.color: isCurrent ? Color.accent : Util.alpha(Color.popups.text, 0.12)
-      MouseArea { anchors.fill: parent; onClicked: root.cursor = index; onDoubleClicked: root.use(modelData) }
+      MouseArea { anchors.fill: parent; onClicked: root.cursor = index; onDoubleClicked: if (!modelData.draft) root.use(modelData) }
       Column {
         id: col
         anchors.left: parent.left; anchors.leftMargin: Style.space(12)
@@ -140,10 +169,11 @@ Item {
           Txt { text: modelData.name; bold: true }
           Chip { showDot: false; text: modelData.source.type === "remote" ? I18n.t("remote") : I18n.t("local") }
           Chip { visible: isCurrent; dot: root.svc.green; text: I18n.t("active") }
+          Chip { visible: !!modelData.draft; dot: root.svc.yellow; text: I18n.t("draft") }
         }
         Txt {
           width: parent.width
-          text: I18n.t("updatedAgo").arg(root.svc.ago(modelData.updated * 1000)) + (u && u.total > 0 ? " · " + I18n.t("usage").arg(root.svc.formatBytes(u.upload + u.download)).arg(root.svc.formatBytes(u.total)) : "") + (u && u.expire ? " · " + I18n.t("until").arg(new Date(u.expire * 1000).toLocaleDateString()) : "")
+          text: modelData.draft ? I18n.t("newFileHint") : I18n.t("updatedAgo").arg(root.svc.ago(modelData.updated * 1000)) + (u && u.total > 0 ? " · " + I18n.t("usage").arg(root.svc.formatBytes(u.upload + u.download)).arg(root.svc.formatBytes(u.total)) : "") + (u && u.expire ? " · " + I18n.t("until").arg(new Date(u.expire * 1000).toLocaleDateString()) : "")
           dim: true; font.pixelSize: Style.font.caption
         }
         Txt { visible: !!modelData.last_error; width: parent.width; text: modelData.last_error || ""; color: root.svc.red; font.pixelSize: Style.font.caption; wrapMode: Text.Wrap; maximumLineCount: 2 }
@@ -153,9 +183,10 @@ Item {
         anchors.right: parent.right; anchors.rightMargin: Style.space(8)
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.space(4)
-        Btn { visible: !isCurrent; text: I18n.t("use"); onClicked: root.use(modelData) }
+        Btn { visible: !isCurrent && !modelData.draft; text: I18n.t("use"); onClicked: root.use(modelData) }
+        Btn { visible: modelData.source.type === "local"; ghost: true; icon: Icons.file; tooltip: I18n.t("editFile"); onClicked: root.editFile(modelData) }
         Btn { visible: modelData.source.type === "remote"; ghost: true; icon: Icons.refresh; busy: !!root.busy[modelData.id]; onClicked: root.update(modelData) }
-        Btn { ghost: true; icon: Icons.edit; onClicked: root.editOverrides(modelData) }
+        Btn { ghost: true; icon: Icons.edit; tooltip: I18n.t("editOverrides"); onClicked: root.editOverrides(modelData) }
         Btn { visible: !isCurrent; ghost: true; icon: Icons.remove; onClicked: root.del(modelData) }
       }
     }

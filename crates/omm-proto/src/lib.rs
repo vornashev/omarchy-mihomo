@@ -106,8 +106,11 @@ pub mod topic {
     pub const PROBLEMS: &str = "problems";
     /// `{type, payload}` core log lines (level info and above).
     pub const LOGS: &str = "logs";
+    /// `{id, name, draft, error}` after a local profile's file was saved
+    /// and checked.
+    pub const PROFILES: &str = "profiles";
 
-    pub const ALL: &[&str] = &[STATUS, TRAFFIC, PROBLEMS, LOGS];
+    pub const ALL: &[&str] = &[STATUS, TRAFFIC, PROBLEMS, LOGS, PROFILES];
 
     /// The canonical `'static` name of a known topic.
     pub fn resolve(name: &str) -> Option<&'static str> {
@@ -124,6 +127,43 @@ pub struct Status {
     pub core: CoreStatus,
     #[serde(default)]
     pub config: ConfigStatus,
+    /// What stands in the way, each with its fix when there is one.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub issues: Vec<Issue>,
+}
+
+/// A problem with the setup. Clients word it from `id` (and `detail`);
+/// `omm fix` lists them in English.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Issue {
+    /// `core_missing`, `core_installing`, `core_install_failed`,
+    /// `other_core`, `core_no_caps`, `core_stopped`, `tun_failed`,
+    /// `no_profile`, `autotune`.
+    pub id: String,
+    pub level: IssueLevel,
+    /// The variable part of the message: an app name, an error text.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fix: Option<Fix>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IssueLevel {
+    Info,
+    Warn,
+    Error,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Fix {
+    /// Passed to `health.fix`, or to `omm fix` when privileged.
+    pub id: String,
+    /// Needs sudo: run `omm fix <id>` in a terminal instead of `health.fix`.
+    pub privileged: bool,
+    /// Changes other programs or the system: ask before running.
+    pub confirm: bool,
 }
 
 /// State of the generated runtime config.
@@ -160,6 +200,23 @@ pub struct CoreStatus {
     pub mixed_port: u16,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// Set while the settings ask for TUN but the core runs without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tun_issue: Option<TunIssue>,
+}
+
+/// Why TUN is off although the settings turn it on.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct TunIssue {
+    /// The core binary lacks the capabilities TUN needs (`omm core setcap`).
+    pub no_capabilities: bool,
+    /// Another mihomo core that may hold the TUN device and routes
+    /// (Clash Verge's `verge-mihomo`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub other_core: Option<String>,
+    /// The core's own complaint, from its log.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

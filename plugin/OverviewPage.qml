@@ -63,6 +63,7 @@ Item {
       Btn { id: restartBtn; icon: Icons.refresh; text: I18n.t("applyConfig"); onClicked: root.svc.request("config.apply", null, function(r, err) { root.panel.notify(err ? err.message : I18n.t("configApplied")) }) }
     }
 
+    IssueList { width: parent.width; svc: root.svc }
     Banner {
       visible: root.svc.configError !== ""
       width: parent.width

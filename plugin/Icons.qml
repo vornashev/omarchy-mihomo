@@ -40,4 +40,5 @@ QtObject {
   readonly property string down: g(0xf01da)
   readonly property string up: g(0xf0552)
   readonly property string edit: g(0xf03eb)
+  readonly property string file: g(0xf0224)
 }

@@ -146,13 +146,38 @@ impl Store {
         id.map_or(Ok(None), |id| self.get(id))
     }
 
+    /// Keep the entire batch and its journal atomic, including database errors.
+    pub fn upsert_many(&mut self, rules: Vec<NewRule>, now: i64) -> Result<(Vec<Stored>, Vec<Change>)> {
+        self.db.execute_batch("SAVEPOINT rule_batch")?;
+        let result = (|| {
+            let mut stored = Vec::new();
+            let mut changes = Vec::new();
+            for rule in rules {
+                let (s, c) = self.upsert(rule, now)?;
+                stored.push(s);
+                changes.push(c);
+            }
+            Ok((stored, changes))
+        })();
+        match result {
+            Ok(value) => {
+                self.db.execute_batch("RELEASE rule_batch")?;
+                Ok(value)
+            }
+            Err(error) => {
+                self.db.execute_batch("ROLLBACK TO rule_batch; RELEASE rule_batch")?;
+                Err(error)
+            }
+        }
+    }
+
     /// Add a rule, or retarget the existing rule for the same match.
     pub fn upsert(&mut self, new: NewRule, now: i64) -> Result<(Stored, Change)> {
         if let Some(existing) = self.find(new.kind, &new.value)? {
             let patch = Patch { target: Some(new.target), enabled: Some(true), note: new.note, test: new.test };
             return self.update(existing.rule.id, patch, now).map(|o| o.expect("row exists"));
         }
-        let tx = self.db.transaction()?;
+        let tx = self.db.savepoint()?;
         tx.execute("INSERT INTO user_rules (kind, value, data) VALUES (?1, ?2, '{}')", params![kind_str(new.kind), new.value])?;
         let id = tx.last_insert_rowid();
         let stored = Stored {
@@ -185,7 +210,7 @@ impl Store {
             after.test = Some(t);
         }
         after.updated = now;
-        let tx = self.db.transaction()?;
+        let tx = self.db.savepoint()?;
         tx.execute("UPDATE user_rules SET data = ?2 WHERE id = ?1", params![id, json(&after)])?;
         let change = journal(&tx, now, Action::Update, id, Some(&before), Some(&after), None)?;
         tx.commit()?;
@@ -309,6 +334,24 @@ mod tests {
 
     fn summary(s: &Store) -> Vec<(String, String, bool)> {
         s.all().unwrap().into_iter().map(|r| (r.rule.value, r.rule.target, r.rule.enabled)).collect()
+    }
+
+    #[test]
+    fn batch_updates_are_atomic_and_reversible() {
+        let mut s = Store::in_memory().unwrap();
+        s.upsert(new(MatchKind::Domain, "keep.com", "DIRECT"), 1).unwrap();
+        // A failure halfway through must restore both earlier updates and the journal.
+        s.db.execute_batch("CREATE TRIGGER fail_batch BEFORE INSERT ON user_rules WHEN NEW.value = 'fail.com' BEGIN SELECT RAISE(ABORT, 'test failure'); END;").unwrap();
+        assert!(s.upsert_many(vec![new(MatchKind::Domain, "keep.com", "AI"), new(MatchKind::Domain, "fail.com", "AI")], 2).is_err());
+        assert_eq!(summary(&s), [("keep.com".into(), "DIRECT".into(), true)]);
+        assert_eq!(s.history(10).unwrap().len(), 1);
+
+        let (stored, changes) = s.upsert_many(vec![new(MatchKind::Domain, "keep.com", "AI"), new(MatchKind::IpCidr, "1.2.3.4/32", "AI")], 3).unwrap();
+        assert_eq!(stored.len(), 2);
+        assert_eq!(changes.len(), 2);
+        assert!(stored.iter().all(|s| s.rule.target == "AI"));
+        s.discard_since(changes[0].id).unwrap();
+        assert_eq!(summary(&s), [("keep.com".into(), "DIRECT".into(), true)]);
     }
 
     #[test]

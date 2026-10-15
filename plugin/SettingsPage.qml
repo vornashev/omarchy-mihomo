@@ -44,6 +44,8 @@ Item {
       Txt { text: I18n.t("settingsSubtitle"); dim: true; font.pixelSize: Style.font.bodySmall }
     }
 
+    IssueList { width: parent.width; svc: root.svc; only: ["other_core", "core_no_caps", "tun_failed", "core_stopped"] }
+
     Repeater {
       model: root.s ? [
         { label: "TUN", hint: I18n.t("tunHint"), key: "tun", on: root.s.tun.enable },

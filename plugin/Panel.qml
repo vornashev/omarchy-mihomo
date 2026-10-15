@@ -15,6 +15,7 @@ Panel {
   implicitHeight: button.implicitHeight
 
   property string page: "problems"
+  property string problemsView: "table"
   // Problem (or rule) being routed in the editor.
   property var editing: null
   property string toast: ""
@@ -220,7 +221,12 @@ Panel {
             color: svc.coreRunning ? svc.green : Color.urgent
             font.pixelSize: Style.font.caption
           }
-          Txt { visible: svc.coreRunning; text: "TUN " + (svc.tun ? I18n.t("on") : I18n.t("off")); faint: true; font.pixelSize: Style.font.caption }
+          Txt {
+            visible: svc.coreRunning
+            text: svc.tunIssue ? I18n.t("tunFailedShort") : "TUN " + (svc.tun ? I18n.t("on") : I18n.t("off"))
+            color: svc.tunIssue ? svc.red : Util.alpha(Color.popups.text, 0.42)
+            font.pixelSize: Style.font.caption
+          }
           Txt { visible: svc.profileName !== ""; text: svc.profileName; faint: true; font.pixelSize: Style.font.caption; width: parent.width - Style.space(10) }
         }
       }

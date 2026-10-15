@@ -26,6 +26,30 @@ Item {
   readonly property bool coreRunning: !!(status && status.core && status.core.running)
   readonly property string mode: status && status.core && status.core.mode ? status.core.mode : ""
   readonly property bool tun: !!(status && status.core && status.core.tun)
+  // TUN is on in the settings, yet the core runs without it.
+  readonly property var tunIssue: status && status.core && status.core.tun_issue ? status.core.tun_issue : null
+  // Setup problems, each with the fix the daemon offers.
+  readonly property var issues: status && status.issues ? status.issues : []
+  // Fix ids running now.
+  property var fixing: ({})
+
+  function setFixing(id, on) { var f = Object.assign({}, fixing); if (on) f[id] = true; else delete f[id]; fixing = f }
+
+  // Unprivileged fixes run in the daemon; the others need sudo, so they run
+  // as `omm fix` in Omarchy's floating terminal, where sudo can ask.
+  function runFix(fix) {
+    if (fix.privileged) {
+      var omm = Quickshell.env("HOME") + "/.local/bin/omm"
+      var args = fix.id === "migrate_cvr" ? "migrate cvr" : "fix " + fix.id
+      Quickshell.execDetached(["omarchy-launch-floating-terminal-with-presentation", "'" + omm + "' " + args])
+      return
+    }
+    setFixing(fix.id, true)
+    request("health.fix", { id: fix.id }, function(r, err) {
+      setFixing(fix.id, false)
+      Quickshell.execDetached(["notify-send", "-a", "Mihomo", "-u", err ? "critical" : "normal", I18n.t("fix_" + fix.id), err ? err.message : I18n.t("fixDone")])
+    }, true)
+  }
   readonly property string profileName: status && status.config && status.config.profile ? status.config.profile.name : ""
   readonly property var orphans: status && status.config && status.config.orphans ? status.config.orphans : []
   readonly property string configError: status && status.config && status.config.error ? status.config.error : ""
@@ -43,6 +67,8 @@ Item {
   property var extraTopics: []
 
   signal logLine(var line)
+  // A local profile's file was saved in an editor and checked by the daemon.
+  signal profileSaved(var info)
 
   // ---------------------------------------------------------------- palette
   // The shell exposes only foreground/background/accent/urgent/muted; the
@@ -89,13 +115,14 @@ Item {
   // gone are dropped instead of writing into a destroyed object.
   property int pageGeneration: 0
 
-  function request(method, params, callback) {
+  // `keep`: deliver the reply even if the panel changed pages meanwhile.
+  function request(method, params, callback, keep) {
     if (!sock.connected) {
       if (callback) callback(null, { code: "core_unavailable", message: I18n.t("daemonDown") })
       return
     }
     var id = nextId++
-    if (callback) pending[id] = { cb: callback, gen: pageGeneration }
+    if (callback) pending[id] = { cb: callback, gen: keep ? -1 : pageGeneration }
     var frame = { id: id, method: method }
     if (params !== undefined && params !== null) frame.params = params
     sock.write(JSON.stringify(frame) + "\n")
@@ -103,7 +130,7 @@ Item {
   }
 
   function subscribe() {
-    var topics = ["status", "problems"].concat(extraTopics)
+    var topics = ["status", "problems", "profiles"].concat(extraTopics)
     request("events.subscribe", { topics: topics }, null)
   }
 
@@ -125,7 +152,14 @@ Item {
       else if (msg.event === "problems") {
         root.problemCounts = msg.data.counts
         if (msg.data.recorded > 0) root.problemsRevision++
-      } else if (msg.event === "traffic") root.traffic = msg.data
+      } else if (msg.event === "profiles") {
+        // The panel is usually closed while the editor is in front.
+        var p = msg.data
+        Quickshell.execDetached(["notify-send", "-a", "Mihomo", "-u", p.error ? "critical" : "normal",
+          p.error ? I18n.t("profileSaveFailed").arg(p.name) : I18n.t("profileSaved").arg(p.name), p.error || ""])
+        root.profileSaved(p)
+      }
+      else if (msg.event === "traffic") root.traffic = msg.data
       else if (msg.event === "logs") {
         var lines = root.logLines.slice(Math.max(0, root.logLines.length - root.maxLogLines + 1))
         lines.push(msg.data)
@@ -137,7 +171,7 @@ Item {
     var entry = pending[msg.id]
     if (entry) {
       delete pending[msg.id]
-      if (entry.gen === root.pageGeneration) entry.cb(msg.result === undefined ? null : msg.result, msg.error || null)
+      if (entry.gen === -1 || entry.gen === root.pageGeneration) entry.cb(msg.result === undefined ? null : msg.result, msg.error || null)
     }
   }
 
@@ -156,7 +190,7 @@ Item {
         // Fail outstanding calls instead of leaving the UI waiting.
         var calls = root.pending
         root.pending = {}
-        for (var id in calls) if (calls[id].gen === root.pageGeneration) calls[id].cb(null, { code: "core_unavailable", message: I18n.t("daemonDown") })
+        for (var id in calls) if (calls[id].gen === -1 || calls[id].gen === root.pageGeneration) calls[id].cb(null, { code: "core_unavailable", message: I18n.t("daemonDown") })
         root.status = null
         retry.start()
       }

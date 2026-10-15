@@ -50,6 +50,11 @@ pub async fn collect(state: Arc<State>, recorded: Arc<std::sync::atomic::AtomicU
                     if state.listeners(topic::LOGS) > 0 {
                         state.publish(topic::LOGS, &l);
                     }
+                    // "Start TUN listening error: configure tun interface: operation not permitted"
+                    if l.level == "error" && l.payload.contains("TUN") {
+                        *state.tun_error.lock().unwrap() = Some(l.payload.clone());
+                        state.request_refresh();
+                    }
                     let Some(line) = parse::parse(&l.payload) else { continue };
                     let mut c = state.problems.lock().unwrap();
                     if c.ingest(&line, now_ms()) {

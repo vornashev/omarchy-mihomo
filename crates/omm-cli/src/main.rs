@@ -1,5 +1,6 @@
 //! `omm`: thin client for `omarchy-mihomod`.
 
+mod fix;
 mod system;
 
 use std::collections::VecDeque;
@@ -75,8 +76,24 @@ enum Cmd {
     Core(CoreCmd),
     /// Check the installation and say how to fix what is wrong.
     Doctor,
+    /// List setup issues, or run the fix with this id (some ask for sudo).
+    Fix { id: Option<String> },
+    /// Move over from another proxy client.
+    #[command(subcommand)]
+    Migrate(MigrateCmd),
     /// Call any daemon method: `omm call proxies.delay '{"name":"AI"}'`.
     Call { method: String, params: Option<String> },
+}
+
+#[derive(Debug, Subcommand)]
+enum MigrateCmd {
+    /// Import Clash Verge Rev's profiles, switch it off (service, app,
+    /// autostart; nothing is deleted) and start our core. Asks for sudo.
+    Cvr {
+        /// Switch Clash Verge back on and stop our core.
+        #[arg(long)]
+        undo: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -110,6 +127,14 @@ enum ProfileCmd {
         #[arg(long)]
         user_agent: Option<String>,
     },
+    /// Create an empty local profile and open it in $VISUAL/$EDITOR;
+    /// paste a config and save, the daemon takes it in.
+    New {
+        #[arg(long)]
+        name: Option<String>,
+    },
+    /// Open a local profile's file in $VISUAL/$EDITOR.
+    Edit { profile: String },
     /// Refresh one profile, or all remote ones.
     Update {
         profile: Option<String>,
@@ -244,6 +269,10 @@ fn run(cli: Cli) -> Result<()> {
                 CoreCmd::Restart => system::core_unit("restart"),
             };
         }
+        Some(Cmd::Fix { id }) => return fix::run(&cli.socket, id.as_deref()),
+        Some(Cmd::Migrate(MigrateCmd::Cvr { undo })) => {
+            return if *undo { fix::undo_cvr(&cli.socket) } else { fix::migrate_cvr(&cli.socket) };
+        }
         Some(Cmd::Doctor) => {
             let status = Conn::open(&cli.socket).ok().and_then(|mut c| c.call::<Value>("status", Value::Null).ok());
             if !system::doctor(status)? {
@@ -271,6 +300,9 @@ fn run(cli: Cli) -> Result<()> {
                     if c.tun { "on" } else { "off" },
                     c.mixed_port
                 );
+                if let Some(t) = &c.tun_issue {
+                    println!("tun     wanted but off: {}", tun_reasons(t).join("; "));
+                }
             } else {
                 println!("core    not running ({})", c.error.as_deref().unwrap_or(&c.socket));
             }
@@ -391,7 +423,7 @@ fn run(cli: Cli) -> Result<()> {
                 out.flush()?;
             }
         }
-        Cmd::Core(_) | Cmd::Doctor => unreachable!("handled above"),
+        Cmd::Core(_) | Cmd::Doctor | Cmd::Fix { .. } | Cmd::Migrate(_) => unreachable!("handled above"),
         Cmd::Call { method, params } => {
             let params = match params {
                 Some(p) => serde_json::from_str(&p).context("params must be JSON")?,
@@ -430,6 +462,9 @@ fn profile(conn: &mut Conn, cmd: ProfileCmd, json: bool) -> Result<()> {
                     let used = u["upload"].as_u64().unwrap_or(0) + u["download"].as_u64().unwrap_or(0);
                     line += &format!(" · {} / {}", bytes(used), bytes(u["total"].as_u64().unwrap_or(0)));
                 }
+                if p["draft"] == true {
+                    line += " · draft: paste a config and save";
+                }
                 if let Some(e) = p["last_error"].as_str() {
                     line += &format!(" · error: {e}");
                 }
@@ -445,6 +480,22 @@ fn profile(conn: &mut Conn, cmd: ProfileCmd, json: bool) -> Result<()> {
             };
             let r: Value = conn.call("profiles.add", params)?;
             println!("added {}", r["id"].as_str().unwrap_or("?"));
+        }
+        ProfileCmd::New { name } => {
+            let r: Value = conn.call("profiles.create", json!({ "name": name }))?;
+            let path = r["path"].as_str().context("daemon sent no path")?;
+            println!("created {} at {path}", r["id"].as_str().unwrap_or("?"));
+            edit(path)?;
+        }
+        ProfileCmd::Edit { profile } => {
+            let id = resolve(conn, &profile)?;
+            let list: Value = conn.call("profiles.list", Value::Null)?;
+            let p = list["items"].as_array().into_iter().flatten().find(|p| p["id"] == id.as_str()).context("profile vanished")?;
+            if p["source"]["type"] != "local" {
+                bail!("{profile} is a subscription: its file is replaced on every update; edit its overrides instead");
+            }
+            let root = list["root"].as_str().context("daemon sent no data root")?;
+            edit(&format!("{root}/profiles/{id}.yaml"))?;
         }
         ProfileCmd::Update { profile, force } => {
             let id = profile.map(|p| resolve(conn, &p)).transpose()?;
@@ -470,6 +521,38 @@ fn profile(conn: &mut Conn, cmd: ProfileCmd, json: bool) -> Result<()> {
             conn.call::<Value>("profiles.remove", json!({ "id": id }))?;
         }
     }
+    Ok(())
+}
+
+/// Why TUN is off, with what to do about it.
+fn tun_reasons(t: &omm_proto::TunIssue) -> Vec<String> {
+    let mut out = Vec::new();
+    if t.no_capabilities {
+        out.push("the core lacks capabilities (omm fix setcap)".into());
+    }
+    if let Some(app) = &t.other_core {
+        out.push(format!("{app} runs its own core: turn its TUN off or omm migrate cvr"));
+    }
+    if let Some(m) = &t.message {
+        out.push(format!("core: {m}"));
+    }
+    if out.is_empty() {
+        out.push("see journalctl --user -u omarchy-mihomo-core".into());
+    }
+    out
+}
+
+/// Run the user's editor on `path` and wait for it.
+fn edit(path: &str) -> Result<()> {
+    let editor = std::env::var("VISUAL").or_else(|_| std::env::var("EDITOR")).unwrap_or_else(|_| "nvim".into());
+    let status = std::process::Command::new("sh")
+        .args(["-c", &format!("{editor} \"$1\""), "omm", path])
+        .status()
+        .with_context(|| format!("running {editor}"))?;
+    if !status.success() {
+        bail!("{editor} exited with {status}");
+    }
+    println!("saved changes are picked up by the daemon; see `omm profile`");
     Ok(())
 }
 

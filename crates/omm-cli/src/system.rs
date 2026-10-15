@@ -8,8 +8,7 @@ use omm_config::core_bin;
 use omm_config::paths::Paths;
 use serde_json::Value;
 
-pub const CORE_UNIT: &str = "omarchy-mihomo-core.service";
-pub const DAEMON_UNIT: &str = "omarchy-mihomod.service";
+pub use omm_config::host::{CORE_UNIT, DAEMON_UNIT};
 const PLUGIN_ID: &str = "tema.omarchy-mihomo";
 
 fn runtime() -> Result<tokio::runtime::Runtime> {
@@ -142,7 +141,7 @@ pub fn doctor(daemon: Option<Value>) -> Result<bool> {
         let enabled = systemctl(&["--user", "is-enabled", unit]);
         let active = systemctl(&["--user", "is-active", unit]);
         let level = if active == "active" { Level::Ok } else if required { Level::Warn } else { Level::Ok };
-        let fix = (active != "active").then_some(if unit == CORE_UNIT { "omm core start  (after migrating from Clash Verge: omm migrate)" } else { "systemctl --user enable --now omarchy-mihomod" });
+        let fix = (active != "active").then_some(if unit == CORE_UNIT { "omm core start  (or, from Clash Verge: omm migrate cvr)" } else { "systemctl --user enable --now omarchy-mihomod" });
         r.line(level, format!("{unit}: {active}, {enabled}"), fix);
     }
 
@@ -159,6 +158,10 @@ pub fn doctor(daemon: Option<Value>) -> Result<bool> {
                     format!("core {} · mode {} · TUN {}", core["version"].as_str().unwrap_or("?"), core["mode"].as_str().unwrap_or("?"), if core["tun"] == true { "on" } else { "off" }),
                     (!ours).then_some("the daemon watches another core (OMM_CORE_SOCKET); configs are not applied to it"),
                 );
+                if let Some(t) = core.get("tun_issue").filter(|t| !t.is_null()) {
+                    let fix = if t["no_capabilities"] == true { "omm fix setcap" } else { "omm migrate cvr" };
+                    r.line(Level::Warn, format!("TUN is on in the settings but the core could not start it{}", t["message"].as_str().map(|m| format!(": {m}")).unwrap_or_default()), Some(fix));
+                }
             } else {
                 r.line(Level::Warn, "core not running", Some("omm core start"));
             }
@@ -189,13 +192,13 @@ pub fn doctor(daemon: Option<Value>) -> Result<bool> {
         r.line(
             if ours { Level::Fail } else { Level::Warn },
             format!("Clash Verge Rev is running (service {cvr_service}, core {})", if cvr_core { "up" } else { "down" }),
-            Some(if ours { "two cores with TUN fight over routes: stop one of them" } else { "omm migrate cvr  moves profiles and switches over" }),
+            Some(if ours { "two cores with TUN fight over routes: omm migrate cvr" } else { "omm migrate cvr  moves profiles and switches over" }),
         );
     } else {
         r.line(Level::Ok, "Clash Verge Rev not running", None);
     }
     if systemctl(&["--user", "is-active", "site-autotune-tuner.timer"]) == "active" {
-        r.line(Level::Warn, "site-autotune timer is active and rewrites routes on its own", Some("omm migrate autotune"));
+        r.line(Level::Warn, "site-autotune timer is active and rewrites routes on its own", Some("omm fix disable_autotune"));
     }
     let tuns = Command::new("ip").args(["-o", "link", "show", "type", "tun"]).output().map(|o| String::from_utf8_lossy(&o.stdout).lines().count()).unwrap_or(0);
     if tuns > 1 {

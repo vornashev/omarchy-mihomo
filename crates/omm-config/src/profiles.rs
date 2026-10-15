@@ -37,6 +37,10 @@ pub struct Profile {
     /// Last failed update, cleared on success.
     #[serde(default)]
     pub last_error: Option<String>,
+    /// A local profile created empty for the user to fill in an editor;
+    /// cleared by the first save that holds a config.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub draft: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -61,7 +65,32 @@ pub struct Usage {
     pub expire: Option<u64>,
 }
 
+/// Body of a new local profile: comments only, so it parses as empty.
+pub fn template(name: &str) -> String {
+    format!(
+        "# name: {name}\n\
+         # Paste a mihomo config below and save the file: the profile becomes\n\
+         # usable right away. The name line above may be edited or removed.\n\n"
+    )
+}
+
+/// The name a local profile file gives itself, from a leading
+/// `# name: ...` line (before any YAML content).
+pub fn name_hint(text: &str) -> Option<String> {
+    text.lines()
+        .map(str::trim)
+        .take_while(|l| l.is_empty() || l.starts_with('#'))
+        .find_map(|l| l.strip_prefix('#')?.trim_start().strip_prefix("name:"))
+        .map(str::trim)
+        .filter(|n| !n.is_empty())
+        .map(str::to_owned)
+}
+
 impl Profile {
+    pub fn is_local(&self) -> bool {
+        matches!(self.source, Source::Local)
+    }
+
     pub fn is_remote(&self) -> bool {
         matches!(self.source, Source::Remote { .. })
     }
@@ -160,9 +189,9 @@ impl Store {
         write_atomic(&self.paths.profile(id), text.as_bytes())
     }
 
-    /// Register a profile; the first one becomes current.
+    /// Register a profile; the first usable one becomes current.
     pub fn insert(&mut self, profile: Profile) {
-        if self.index.current.is_none() {
+        if self.index.current.is_none() && !profile.draft {
             self.index.current = Some(profile.id.clone());
         }
         self.index.items.push(profile);
@@ -179,8 +208,30 @@ impl Store {
         Ok(p)
     }
 
+    /// Register an empty local profile and write its template, for the user
+    /// to fill in an editor.
+    pub fn create_draft(&mut self, name: &str) -> Result<Profile> {
+        let id = self.new_id();
+        write_atomic(&self.paths.profile(&id), template(name).as_bytes())?;
+        let profile = Profile {
+            id,
+            name: name.into(),
+            source: Source::Local,
+            updated: None,
+            interval_hours: None,
+            usage: None,
+            etag: None,
+            last_error: None,
+            draft: true,
+        };
+        self.insert(profile.clone());
+        Ok(profile)
+    }
+
     pub fn select(&mut self, id: &str) -> Result<()> {
-        self.get(id)?;
+        if self.get(id)?.draft {
+            return Err(Error::Invalid(format!("profile {id} is empty: paste a config into it and save")));
+        }
         self.index.current = Some(id.into());
         Ok(())
     }
@@ -214,7 +265,7 @@ mod tests {
     }
 
     fn local(id: &str) -> Profile {
-        Profile { id: id.into(), name: id.into(), source: Source::Local, updated: None, interval_hours: None, usage: None, etag: None, last_error: None }
+        Profile { id: id.into(), name: id.into(), source: Source::Local, updated: None, interval_hours: None, usage: None, etag: None, last_error: None, draft: false }
     }
 
     #[test]
@@ -251,6 +302,26 @@ mod tests {
         let o = Overrides::load(s.paths(), "p1").unwrap();
         assert!(o.rules.is_empty() && o.proxies.is_empty() && o.merge.is_none());
         assert_eq!(o.groups.prepend.len(), 1);
+    }
+
+    #[test]
+    fn drafts_are_not_selected() {
+        let (_d, mut s) = store();
+        let d = s.create_draft("New").unwrap();
+        assert!(d.draft && s.index.current.is_none());
+        assert!(s.select(&d.id).is_err());
+        let text = s.text(&d.id).unwrap();
+        assert!(parse_mapping(&text, "t").unwrap().is_empty(), "template parses as empty");
+        assert_eq!(name_hint(&text).as_deref(), Some("New"));
+        s.insert(local("a"));
+        assert_eq!(s.index.current.as_deref(), Some("a"));
+    }
+
+    #[test]
+    fn name_hint_only_in_leading_comments() {
+        assert_eq!(name_hint("\n#  name:  Home \nproxies: []\n").as_deref(), Some("Home"));
+        assert_eq!(name_hint("proxies: []\n# name: Late\n"), None);
+        assert_eq!(name_hint("# name:\n"), None);
     }
 
     #[test]

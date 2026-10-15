@@ -20,6 +20,9 @@ pub struct State {
     events: broadcast::Sender<Arc<Published>>,
     listeners: Mutex<HashMap<&'static str, usize>>,
     refresh: Notify,
+    /// Last TUN failure the core logged; cleared once TUN is up.
+    pub tun_error: Mutex<Option<String>>,
+    pub core_install: Mutex<crate::health::Install>,
 }
 
 impl State {
@@ -29,6 +32,7 @@ impl State {
             protocol: PROTOCOL_VERSION,
             core: CoreStatus { socket: core.socket().display().to_string(), ..Default::default() },
             config: Default::default(),
+            issues: Vec::new(),
         };
         Self {
             core,
@@ -39,6 +43,8 @@ impl State {
             events: broadcast::channel(256).0,
             listeners: Mutex::default(),
             refresh: Notify::new(),
+            tun_error: Mutex::default(),
+            core_install: Mutex::default(),
         }
     }
 
@@ -61,6 +67,20 @@ impl State {
                 return false;
             }
             s.config = config;
+            true
+        });
+        if changed {
+            self.publish(topic::STATUS, &self.status());
+        }
+    }
+
+    /// Store the current setup issues; announce them only when they changed.
+    pub fn set_issues(&self, issues: Vec<omm_proto::Issue>) {
+        let changed = self.status.send_if_modified(|s| {
+            if s.issues == issues {
+                return false;
+            }
+            s.issues = issues;
             true
         });
         if changed {

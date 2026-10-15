@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import "ProblemModels.js" as ProblemModels
 
 // Choose how a resource is routed: scope (host / domain with subdomains /
 // IP) and target (DIRECT or a group of the current profile). Nothing is
@@ -12,6 +13,8 @@ Item {
 
   readonly property var problem: panel.editing && panel.editing.problem ? panel.editing.problem : null
   readonly property var rule: panel.editing && panel.editing.rule ? panel.editing.rule : null
+  readonly property var group: panel.editing ? panel.editing.group || null : null
+  readonly property var groupRules: group ? ProblemModels.groupScopes(group) : []
 
   property var scopes: []
   property int scopeIndex: 0
@@ -38,7 +41,10 @@ Item {
 
   function buildScopes() {
     var out = []
-    if (rule) {
+    if (group) {
+      var single = groupRules.length === 1 ? groupRules[0] : null
+      out.push({ kind: "group", value: "", title: single ? single.value : I18n.t("problemAddresses").arg(group.items.length), sub: single ? I18n.matchKindLong(single.kind) : I18n.t("groupScopeHint") })
+    } else if (rule) {
       out.push({ kind: rule.kind, value: rule.value, title: rule.value, sub: I18n.matchKindLong(rule.kind) })
     } else if (problem) {
       var h = problem.host
@@ -60,6 +66,7 @@ Item {
   // Host to probe: the concrete resource, not the suffix.
   function testHost() {
     if (!scope) return ""
+    if (group) return problem.domain_hint || problem.host
     if (scope.kind === "ip-cidr") return scope.value.split("/")[0]
     if (problem && !isIp(problem.host)) return problem.host
     return scope.value
@@ -111,6 +118,11 @@ Item {
 
   function refreshPreview() {
     if (!scope || !target) return
+    if (group) {
+      preview = groupRules.map(function(r) { return I18n.matchKind(r.kind) + " " + r.value + " → " + target }).join("\n")
+      existing = null
+      return
+    }
     svc.request("rules.preview", { kind: scope.kind, value: scope.value, target: target }, function(r, err) {
       if (err) { preview = ""; error = err.message; return }
       error = ""
@@ -128,13 +140,14 @@ Item {
     var done = function(r, err) {
       saving = false
       if (err) { error = err.message; return }
-      var msg = I18n.t("savedToast").arg(r.rule ? r.rule.value : scope.value).arg(target)
+      var msg = group ? I18n.t("groupSaved").arg(group.items.length).arg(target) : I18n.t("savedToast").arg(r.rule ? r.rule.value : scope.value).arg(target)
       if (r.closed > 0) msg += " · " + I18n.t("closedConns").arg(r.closed)
       if (r.apply && !r.apply.reloaded) msg += " · " + I18n.t("notReloaded")
       panel.notify(msg)
       panel.showPage(rule ? "rules" : "problems")
     }
-    if (rule && rule.kind === scope.kind && rule.value === scope.value) svc.request("rules.update", { id: rule.id, target: target, enabled: true, test: test }, done)
+    if (group) svc.request("rules.save_many", { rules: groupRules, target: target }, done)
+    else if (rule && rule.kind === scope.kind && rule.value === scope.value) svc.request("rules.update", { id: rule.id, target: target, enabled: true, test: test }, done)
     else svc.request("rules.save", params, done)
   }
 
@@ -162,9 +175,9 @@ Item {
       Btn { icon: Icons.back; anchors.verticalCenter: parent.verticalCenter; onClicked: root.panel.showPage(root.rule ? "rules" : "problems") }
       Column {
         spacing: Style.space(3)
-        Txt { text: root.rule ? I18n.t("editRuleTitle") : I18n.t("editorTitle"); bold: true; font.pixelSize: Style.font.heading }
+        Txt { text: root.group ? I18n.t("groupEditorTitle") : root.rule ? I18n.t("editRuleTitle") : I18n.t("editorTitle"); bold: true; font.pixelSize: Style.font.heading }
         Txt {
-          text: (root.rule ? I18n.t("navRules") : I18n.t("navProblems")) + " › " + (root.problem ? root.problem.host : (root.rule ? root.rule.value : ""))
+          text: (root.rule ? I18n.t("navRules") : I18n.t("navProblems")) + " › " + (root.group ? I18n.t("problemAddresses").arg(root.group.items.length) : root.problem ? root.problem.host : (root.rule ? root.rule.value : ""))
           dim: true; font.pixelSize: Style.font.bodySmall
         }
       }
@@ -172,7 +185,7 @@ Item {
 
     // What we know about the failures.
     Rectangle {
-      visible: root.problem !== null
+      visible: root.problem !== null && root.group === null
       width: parent.width
       height: facts.implicitHeight + Style.space(20)
       radius: Style.cornerRadius
@@ -200,6 +213,22 @@ Item {
           }
         }
       }
+    }
+
+    Banner {
+      visible: root.group !== null
+      width: parent.width
+      text: I18n.t("groupProbeHint").arg(root.testHost())
+    }
+
+    Flickable {
+      visible: root.group !== null
+      width: parent.width
+      height: visible ? Math.min(Style.space(72), groupHosts.implicitHeight) : 0
+      contentHeight: groupHosts.implicitHeight
+      clip: true
+      Txt { id: groupHosts; width: parent.width; text: root.group ? root.group.items.map(function(p) { return p.host + (p.domain_hint ? " (" + p.domain_hint + ")" : "") }).join(", ") : ""; wrapMode: Text.Wrap; font.pixelSize: Style.font.bodySmall; dim: true }
+      ScrollBar.vertical: ScrollBar {}
     }
 
     Txt { text: I18n.t("scopeLabel"); faint: true; bold: true; font.pixelSize: Style.font.caption; font.letterSpacing: 1 }
@@ -317,12 +346,20 @@ Item {
       }
     }
 
-    Txt {
+    Flickable {
       visible: root.preview !== ""
       width: parent.width
-      text: root.preview + "   " + (root.existing && !root.rule ? I18n.t("replacesExisting").arg(root.existing.target) : I18n.t("abovePreview"))
-      dim: true
-      font.pixelSize: Style.font.caption
+      height: Math.min(Style.space(60), previewText.implicitHeight)
+      contentHeight: previewText.implicitHeight
+      clip: true
+      Txt {
+        id: previewText
+        width: parent.width
+        text: root.preview + "   " + (root.existing && !root.rule ? I18n.t("replacesExisting").arg(root.existing.target) : I18n.t("abovePreview"))
+        dim: true
+        font.pixelSize: Style.font.caption
+      }
+      ScrollBar.vertical: ScrollBar {}
     }
 
     Row {

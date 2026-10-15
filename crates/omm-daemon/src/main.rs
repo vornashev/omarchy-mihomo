@@ -1,5 +1,6 @@
 mod config;
 mod core;
+mod health;
 mod ipc;
 mod methods;
 mod problems;
@@ -66,6 +67,8 @@ async fn main() -> Result<()> {
     let listener = ipc::bind(&args.socket)?;
     tokio::spawn(core::watch(state.clone()));
     tokio::spawn(core::pump_traffic(state.clone()));
+    tokio::spawn(config::watch_files(state.clone()));
+    tokio::spawn(health::auto(state.clone()));
     let recorded = Arc::default();
     tokio::spawn(problems::collect(state.clone(), Arc::clone(&recorded)));
     tokio::spawn(problems::flush(state.clone(), recorded));
