@@ -126,7 +126,7 @@ fn in_bar(plugin: &str) -> bool {
 
 /// Turn off site-autotune (it rewrote Clash Verge's rules on its own; its
 /// picks are now plain user rules) and the old proxy widgets in the bar.
-fn switch_off_extras() -> Result<()> {
+fn switch_off_extras(plugins: bool) -> Result<()> {
     let mut done = Switched::default();
     for unit in [AUTOTUNE_TIMER, AUTOTUNE_COLLECTOR] {
         if host::unit_active(true, unit) || host::unit_query(true, "is-enabled", unit) == "enabled" {
@@ -135,7 +135,7 @@ fn switch_off_extras() -> Result<()> {
             done.units.push(unit.into());
         }
     }
-    for plugin in OLD_PLUGINS.iter().filter(|p| in_bar(p)) {
+    for plugin in OLD_PLUGINS.iter().filter(|p| plugins && in_bar(p)) {
         say(&format!("removing {plugin} from the bar"));
         let ok = Command::new("omarchy").args(["plugin", "disable", plugin]).stdout(std::process::Stdio::null()).status().is_ok_and(|s| s.success());
         if ok {
@@ -237,8 +237,21 @@ pub fn migrate_cvr(socket: &PathBuf) -> Result<()> {
         bail!("the core did not come up: journalctl --user -u {CORE_UNIT}");
     }
     println!("core running · TUN {}", if status.core.tun { "on" } else { "off" });
-    switch_off_extras()?;
+    switch_off_extras(true)?;
     println!("\nClash Verge is switched off but not removed. To go back: omm migrate cvr --undo");
+    Ok(())
+}
+
+/// site-autotune's picks become user rules; the tool itself goes quiet.
+pub fn migrate_autotune(socket: &PathBuf) -> Result<()> {
+    let mut conn = Conn::open(socket)?;
+    let r: Value = conn.call("migrate.autotune", Value::Null)?;
+    match r["moved"].as_u64() {
+        Some(0) | None => println!("no site-autotune rules left in the profiles' overrides"),
+        Some(n) => println!("moved {n} site-autotune rule(s) to your rules (omm rules list)"),
+    }
+    switch_off_extras(false)?;
+    refresh(socket);
     Ok(())
 }
 

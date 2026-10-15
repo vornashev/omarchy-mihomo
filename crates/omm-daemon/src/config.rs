@@ -524,6 +524,39 @@ impl Manager {
         Ok(serde_json::json!({ "imported": imported, "skipped": skipped, "rules": autotune.len(), "warnings": warnings }))
     }
 
+    /// Move site-autotune's `AUTO-*` rules out of every profile's rules
+    /// override into the user's rules, then apply. For profiles imported
+    /// before the import learned to do this; a second run finds nothing.
+    pub async fn migrate_autotune(&self, state: &State) -> Result<Value, RpcError> {
+        let moved = {
+            let mut inner = self.inner.lock().await;
+            let ids: Vec<String> = inner.store.index.items.iter().map(|p| p.id.clone()).collect();
+            let now = crate::problems::now_ms();
+            let mut moved = 0;
+            for id in ids {
+                let path = self.paths.overrides(&id).join("rules.yaml");
+                let Some(text) = omm_config::paths::read_optional(&path).map_err(cfg_err)? else { continue };
+                let (rest, rules) = omm_config::cvr::split_autotune(&text).map_err(cfg_err)?;
+                if rules.is_empty() {
+                    continue;
+                }
+                for r in &rules {
+                    if inner.rules.find(r.kind, &r.value).map_err(db_err)?.is_none() {
+                        let new = crate::user_rules::NewRule { kind: r.kind, value: r.value.clone(), target: r.target.clone(), note: None, source: "site-autotune".into(), test: None };
+                        inner.rules.upsert(new, now).map_err(db_err)?;
+                        moved += 1;
+                    }
+                }
+                omm_config::paths::write_atomic(&path, rest.unwrap_or_default().as_bytes()).map_err(cfg_err)?;
+            }
+            moved
+        };
+        if moved > 0 {
+            self.apply(state).await?;
+        }
+        Ok(serde_json::json!({ "moved": moved }))
+    }
+
     // ------------------------------------------------------------ user rules
 
     pub async fn rules(&self) -> Result<(Vec<crate::user_rules::Stored>, Vec<i64>), RpcError> {

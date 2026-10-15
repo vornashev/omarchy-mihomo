@@ -94,6 +94,9 @@ enum MigrateCmd {
         #[arg(long)]
         undo: bool,
     },
+    /// Turn site-autotune's AUTO-* rules into your own rules and switch
+    /// site-autotune off.
+    Autotune,
 }
 
 #[derive(Debug, Subcommand)]
@@ -270,6 +273,7 @@ fn run(cli: Cli) -> Result<()> {
             };
         }
         Some(Cmd::Fix { id }) => return fix::run(&cli.socket, id.as_deref()),
+        Some(Cmd::Migrate(MigrateCmd::Autotune)) => return fix::migrate_autotune(&cli.socket),
         Some(Cmd::Migrate(MigrateCmd::Cvr { undo })) => {
             return if *undo { fix::undo_cvr(&cli.socket) } else { fix::migrate_cvr(&cli.socket) };
         }

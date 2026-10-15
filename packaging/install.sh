@@ -116,7 +116,7 @@ if [[ $cvr_running == 0 ]]; then
   systemctl --user enable omarchy-mihomo-core.service >/dev/null 2>&1 || true
   if [[ -f $data_dir/runtime/config.yaml ]]; then
     say "starting the core"
-    systemctl --user restart omarchy-mihomo-core.service
+    systemctl --user start omarchy-mihomo-core.service
   fi
 fi
 

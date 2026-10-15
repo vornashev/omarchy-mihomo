@@ -121,6 +121,7 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
         }
         // After `omm fix` changed the system behind the daemon's back.
         "health.refresh" => refreshed(state),
+        "migrate.autotune" => state.config.migrate_autotune(state).await,
         "migrate.cvr_import" => state.config.import_cvr(state).await,
 
         "profiles.list" => Ok(state.config.list().await),
