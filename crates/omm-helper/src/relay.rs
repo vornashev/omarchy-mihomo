@@ -139,7 +139,8 @@ pub async fn reload(socket: &Path) -> Result<()> {
             std::time::Duration::from_secs(5),
             Limited::new(response.into_body(), 64 * 1024).collect(),
         )
-        .await??
+        .await?
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?
         .to_bytes();
         bail!(
             "Mihomo rejected the reload ({status}): {}",
