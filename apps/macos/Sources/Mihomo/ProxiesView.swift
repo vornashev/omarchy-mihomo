@@ -97,7 +97,7 @@ struct ProxyEditor: View {
         }
     }
     private var params: JSON {
-        var p:JSON = ["profile_id":context["profile_id"],"revision":context["revision"],"name":node["name"],"member_of":.array(members.sorted().map(JSON.string))]
+        var p:JSON = ["profile_id":context["profile_id"],"revision":context["revision"],"name":.string(node["name"].string),"member_of":.array(members.sorted().map(JSON.string))]
         if raw {p["yaml"] = .string(yaml)} else {p["definition"] = definition}
         if !replacement.isEmpty {p["replacement"] = .string(replacement)}
         return p

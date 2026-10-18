@@ -22,18 +22,26 @@ jobs:
         run: |
           swift test --package-path apps/macos
           packaging/macos/build.sh
+      - name: Smoke test installed macOS services
+        if: runner.os == 'macOS'
+        run: packaging/macos/smoke-test.sh
+      - name: Archive local macOS build
+        if: runner.os == 'macOS'
+        run: ditto -c -k --sequesterRsrc --keepParent target/macos/Mihomo.app target/macos/Mihomo-arm64-local.zip
       - name: Upload local macOS build
+        continue-on-error: true
         if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
           name: Mihomo-arm64-local
-          path: target/macos/Mihomo.app
+          path: target/macos/Mihomo-arm64-local.zip
+          retention-days: 3
   qml:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: jurplel/install-qt-action@v4
         with:
-          version: '6.8.3'
+          version: '6.10.2'
           cache: true
       - run: QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen qmltestrunner -input tests/qml -import tests/qml/stubs

@@ -126,14 +126,11 @@ enum Page: String, CaseIterable, Identifiable {
             UserDefaults.standard.set(enable, forKey: "sessionWanted")
         }
     }
-    func quit() {
+    func quit() { NSApplication.shared.terminate(nil) }
+    func shutdown() async {
         guard !stopping else { return }; stopping = true; timer?.cancel()
-        Task {
-            // Preserve wanted settings for the next launch; stop releases actual network state.
-            if connected { _ = try? await rpc.call("session.stop", timeout: 12) }
-            rpc.disconnect(notify: false)
-            (NSApplication.shared.delegate as? AppDelegate)?.terminating = true
-            NSApplication.shared.terminate(nil)
-        }
+        // Preserve wanted settings for the next launch; stop releases actual network state.
+        if connected { _ = try? await rpc.call("session.stop", timeout: 12) }
+        rpc.disconnect(notify: false)
     }
 }

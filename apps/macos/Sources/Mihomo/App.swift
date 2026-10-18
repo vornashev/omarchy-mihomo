@@ -7,11 +7,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var terminating = false
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if terminating { return .terminateNow }
+        if terminating { return .terminateLater }
+        guard let model else { return .terminateNow }
         terminating = true
-        Task { @MainActor in model?.quit() }
-        return .terminateCancel
+        Task { @MainActor in
+            await model.shutdown()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
+
 }
 @main @MainActor struct MihomoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate

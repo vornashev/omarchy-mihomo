@@ -1,7 +1,7 @@
 //! Unix-socket server speaking the newline-delimited JSON protocol.
 
 use std::fs;
-use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
+use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -21,6 +21,11 @@ pub fn bind(path: &Path) -> Result<UnixListener> {
     omm_platform::validate_socket(path)?;
     if let Some(dir) = path.parent() {
         fs::DirBuilder::new().recursive(true).mode(0o700).create(dir).with_context(|| format!("create {}", dir.display()))?;
+        let metadata = fs::symlink_metadata(dir)?;
+        if metadata.file_type().is_symlink() || metadata.uid() != omm_platform::uid() {
+            bail!("socket directory must belong to the current user and must not be a symlink");
+        }
+        fs::set_permissions(dir, fs::Permissions::from_mode(0o700))?;
     }
     if path.exists() {
         if std::os::unix::net::UnixStream::connect(path).is_ok() {
@@ -63,6 +68,7 @@ async fn client(stream: UnixStream, state: Arc<State>) {
     let mut lines = BufReader::new(read).lines();
     let mut events: Option<tokio::task::JoinHandle<()>> = None;
     while let Ok(Some(line)) = lines.next_line().await {
+        while requests.try_join_next().is_some() {}
         let line = line.trim();
         if line.is_empty() {
             continue;
@@ -227,6 +233,35 @@ mod tests {
         assert_eq!(reopened["data"]["lines"].as_array().unwrap().len(), 2);
         assert_eq!(next(&mut frames).await["id"], 3);
         task.abort();
+    }
+
+    #[tokio::test]
+    async fn ui_ownership_is_exclusive_and_released_on_disconnect() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = omm_config::paths::Paths::new(dir.path());
+        let state = Arc::new(State::new(
+            mihomo_api::Client::new(dir.path().join("core.sock")),
+            crate::config::Manager::open(paths, None).unwrap(),
+            omm_problems::Collector::open(&dir.path().join("state.db")).unwrap(),
+            crate::system_proxy::Manager::open(dir.path().join("proxy.json")).unwrap(),
+        ));
+        let (one, server) = UnixStream::pair().unwrap();
+        let task = tokio::spawn(client(server, state.clone()));
+        let (read, mut write) = one.into_split();
+        let mut frames = BufReader::new(read).lines();
+        write.write_all(b"{\"id\":1,\"method\":\"session.open\"}\n").await.unwrap();
+        assert_eq!(next(&mut frames).await["result"]["ok"], true);
+        let (two, server) = UnixStream::pair().unwrap();
+        let task2 = tokio::spawn(client(server, state.clone()));
+        let (read2, mut write2) = two.into_split();
+        let mut frames2 = BufReader::new(read2).lines();
+        write2.write_all(b"{\"id\":2,\"method\":\"session.open\"}\n").await.unwrap();
+        assert_eq!(next(&mut frames2).await["error"]["code"], "conflict");
+        drop(write); drop(frames);
+        tokio::time::timeout(std::time::Duration::from_secs(3), task).await.unwrap().unwrap();
+        write2.write_all(b"{\"id\":3,\"method\":\"session.open\"}\n").await.unwrap();
+        assert_eq!(next(&mut frames2).await["result"]["ok"], true);
+        task2.abort();
     }
 
     async fn next(frames: &mut tokio::io::Lines<BufReader<tokio::net::unix::OwnedReadHalf>>) -> Value {
