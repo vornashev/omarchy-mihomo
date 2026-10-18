@@ -125,14 +125,26 @@ pub async fn reload(socket: &Path) -> Result<()> {
         .uri("/configs")
         .header("Host", "mihomo")
         .header("Content-Type", "application/json")
-        .body(Full::new(Bytes::from_static(b"{\"path\":\"config.yaml\"}")))?;
+        // An omitted path reloads the fixed -f config supplied at core startup.
+        // Mihomo rejects relative paths in this API, even inside its home.
+        .body(Full::new(Bytes::from_static(b"{}")))?;
     let response = tokio::time::timeout(
         std::time::Duration::from_secs(60),
         sender.send_request(request),
     )
     .await??;
     if !response.status().is_success() {
-        bail!("Mihomo rejected the reload");
+        let status = response.status();
+        let body = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            Limited::new(response.into_body(), 64 * 1024).collect(),
+        )
+        .await??
+        .to_bytes();
+        bail!(
+            "Mihomo rejected the reload ({status}): {}",
+            String::from_utf8_lossy(&body)
+        );
     }
     Ok(())
 }
