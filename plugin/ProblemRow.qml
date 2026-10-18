@@ -86,6 +86,6 @@ Rectangle {
       Txt { anchors.right: parent.right; text: root.svc ? I18n.t("since").arg(root.svc.clock(root.problem.first_seen)) : ""; faint: true; font.pixelSize: Style.font.caption }
     }
     Btn { visible: !root.compact; anchors.verticalCenter: parent.verticalCenter; icon: Icons.route; text: I18n.t("route"); onClicked: root.routeClicked() }
-    Btn { visible: !root.compact; anchors.verticalCenter: parent.verticalCenter; ghost: true; icon: root.problem.hidden ? Icons.show : Icons.hide; onClicked: root.hideClicked() }
+    Btn { visible: !root.compact; anchors.verticalCenter: parent.verticalCenter; ghost: true; icon: root.problem.hidden ? Icons.show : Icons.hide; tooltip: I18n.t(root.problem.hidden ? "hintShowProblem" : "hintHideProblem"); onClicked: root.hideClicked() }
   }
 }

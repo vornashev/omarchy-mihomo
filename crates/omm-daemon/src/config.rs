@@ -1,4 +1,6 @@
 //! Profiles, settings and the generated runtime config.
+#[path = "proxy_config.rs"]
+mod proxy_config;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -89,6 +91,7 @@ impl Manager {
 
     async fn apply_locked(&self, inner: &mut Inner, state: &State) -> Result<ApplyReport, RpcError> {
         let profile = inner.store.current().cloned().ok_or_else(|| RpcError::new(ErrorCode::NotFound, "no profile yet: add one first"))?;
+        let _operation = state.begin_operation("applying", &profile.name);
         let text = inner.store.text(&profile.id).map_err(cfg_err)?;
         let global = Overrides::load(&self.paths, GLOBAL).map_err(cfg_err)?;
         let overrides = Overrides::load(&self.paths, &profile.id).map_err(cfg_err)?;
@@ -505,6 +508,7 @@ impl Manager {
                     note: None,
                     source: "site-autotune".into(),
                     test: None,
+                    lifetime: Default::default(),
                 };
                 if inner.rules.find(r.kind, &r.value).map_err(db_err)?.is_none() {
                     inner.rules.upsert(new, now).map_err(db_err)?;
@@ -542,7 +546,7 @@ impl Manager {
                 }
                 for r in &rules {
                     if inner.rules.find(r.kind, &r.value).map_err(db_err)?.is_none() {
-                        let new = crate::user_rules::NewRule { kind: r.kind, value: r.value.clone(), target: r.target.clone(), note: None, source: "site-autotune".into(), test: None };
+                        let new = crate::user_rules::NewRule { kind: r.kind, value: r.value.clone(), target: r.target.clone(), note: None, source: "site-autotune".into(), test: None, lifetime: Default::default() };
                         inner.rules.upsert(new, now).map_err(db_err)?;
                         moved += 1;
                     }
@@ -564,6 +568,11 @@ impl Manager {
         Ok((inner.rules.all().map_err(db_err)?, inner.status.orphans.clone()))
     }
 
+    pub async fn rule_redirects(&self) -> Result<omm_config::nodes::Managed, RpcError> {
+        let inner = self.inner.lock().await;
+        inner.store.current().map(|p| omm_config::nodes::Managed::load(&self.paths, &p.id).map_err(cfg_err)).transpose().map(Option::unwrap_or_default)
+    }
+
     pub async fn rule_history(&self, limit: usize) -> Result<Vec<crate::user_rules::Change>, RpcError> {
         self.inner.lock().await.rules.history(limit).map_err(db_err)
     }
@@ -582,6 +591,7 @@ impl Manager {
     ) -> Result<(T, ApplyReport), RpcError> {
         let mut inner = self.inner.lock().await;
         let known = inner.targets.clone();
+        let managed = inner.store.current().map(|p| omm_config::nodes::Managed::load(&self.paths, &p.id).map_err(cfg_err)).transpose()?.unwrap_or_default();
         let (value, changes) = f(&mut inner.rules)?;
         // Refuse unknown targets up front when we know the current profile.
         let unknown: Vec<&str> = changes
@@ -589,7 +599,7 @@ impl Manager {
             .filter_map(|c| c.after.as_ref())
             .filter(|a| strict && a.rule.enabled)
             .map(|a| a.rule.target.as_str())
-            .filter(|t| !known.is_empty() && !known.iter().any(|k| k == t))
+            .filter(|t| !known.is_empty() && !known.contains(&managed.target(t)))
             .collect();
         if !unknown.is_empty() {
             let msg = format!("no group or proxy named {} in the current profile", unknown.join(", "));
@@ -721,6 +731,46 @@ fn stamp(path: &std::path::Path) -> Option<FileStamp> {
 ///
 /// Polling keeps this free of inotify plumbing and copes with every way
 /// editors save: in place, or a new file renamed over the old one.
+/// Switch off temporary rules whose time is up (or whose boot is over),
+/// then let the affected connections reconnect through the usual route.
+pub async fn expire_rules(state: Arc<State>) {
+    let boot = crate::user_rules::boot_id();
+    let mut tick = tokio::time::interval(Duration::from_secs(30));
+    loop {
+        tick.tick().await;
+        let now = crate::problems::now_ms();
+        let Ok((rules, _)) = state.config.rules().await else { continue };
+        let due: Vec<crate::user_rules::Stored> = rules.into_iter().filter(|s| s.expired(now, &boot)).collect();
+        if due.is_empty() {
+            continue;
+        }
+        let result = state
+            .config
+            .change_rules(&state, false, |store| {
+                let mut changes = Vec::new();
+                for s in &due {
+                    let patch = crate::user_rules::Patch { enabled: Some(false), ..Default::default() };
+                    if let Some((_, c)) = store.update(s.rule.id, patch, now).map_err(db_err)? {
+                        changes.push(c);
+                    }
+                }
+                Ok(((), changes))
+            })
+            .await;
+        match result {
+            Ok(((), report)) => {
+                tracing::info!("switched off {} expired rule(s)", due.len());
+                if report.reloaded {
+                    for s in &due {
+                        crate::route_check::close_matching(&state, &s.rule).await;
+                    }
+                }
+            }
+            Err(e) => tracing::warn!("expiring rules: {}", e.message),
+        }
+    }
+}
+
 pub async fn watch_files(state: Arc<State>) {
     let mut seen: HashMap<String, FileStamp> = HashMap::new();
     loop {

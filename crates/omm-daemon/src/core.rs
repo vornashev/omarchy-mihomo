@@ -18,6 +18,12 @@ pub async fn watch(state: Arc<State>) {
         let status = probe(&state).await;
         let running = status.running;
         state.set_core_status(status);
+        {
+            let mut proxy = state.system_proxy.lock().await;
+            let core = state.status().core;
+            let port = if core.running { core.mixed_port } else { 0 };
+            state.set_system_proxy_status(proxy.refresh(port).await);
+        }
         state.set_issues(crate::health::check(&state).await);
         let wait = if running { POLL_UP } else { POLL_DOWN };
         tokio::select! {
@@ -37,17 +43,68 @@ async fn probe(state: &State) -> CoreStatus {
             version: Some(v.version),
             mode: Some(mode_name(c.mode).into()),
             tun: c.tun.enable,
+            tun_stack: c.tun.stack,
             mixed_port: c.mixed_port,
             error: None,
             tun_issue: tun_issue(state, c.tun.enable).await,
-        },
-        (Err(e), _) | (_, Err(e)) => CoreStatus {
-            running: false,
-            socket,
-            // Absent core is the normal "off" state, not an error worth showing.
-            error: (!e.is_unreachable()).then(|| e.to_string()),
             ..Default::default()
         },
+        (Err(e), _) | (_, Err(e)) => {
+            let mut core = CoreStatus {
+                socket,
+                error: (!e.is_unreachable()).then(|| e.to_string()),
+                ..Default::default()
+            };
+            if state.config.owns_core(state) {
+                let settings = state.config.settings().await;
+                core.tun_stack = settings.tun.stack;
+                core.mixed_port = settings.mixed_port;
+                let output = tokio::time::timeout(Duration::from_secs(2), tokio::process::Command::new("systemctl")
+                    .args(["--user", "show", omm_config::host::CORE_UNIT,
+                        "--property=ActiveState,SubState,NRestarts,ExecMainExitTimestampMonotonic"])
+                    .output()).await;
+                if let Ok(Ok(out)) = output && out.status.success() {
+                    let uptime = std::fs::read_to_string("/proc/uptime").ok()
+                        .and_then(|s| s.split_whitespace().next()?.parse::<f64>().ok());
+                    apply_lifecycle(&mut core, &String::from_utf8_lossy(&out.stdout), uptime, crate::problems::now_ms().max(0) as u64);
+                }
+            }
+            core
+        }
+    }
+}
+
+fn apply_lifecycle(core: &mut CoreStatus, properties: &str, uptime: Option<f64>, now: u64) {
+    let values: std::collections::HashMap<_, _> = properties.lines().filter_map(|s| s.split_once('=')).collect();
+    let sub = values.get("SubState").copied().unwrap_or_default();
+    core.restarting = sub == "auto-restart" || sub == "auto-restart-queued";
+    core.starting = !core.restarting && matches!(values.get("ActiveState"), Some(&"activating") | Some(&"active"));
+    core.restart_count = values.get("NRestarts").and_then(|s| s.parse().ok()).unwrap_or_default();
+    let exit_us = values.get("ExecMainExitTimestampMonotonic").and_then(|s| s.parse::<u64>().ok()).unwrap_or_default();
+    if core.restarting && exit_us > 0 && let Some(uptime) = uptime {
+        let ago_ms = (uptime * 1000.0 - exit_us as f64 / 1000.0).max(0.0) as u64;
+        core.crashed_at = Some(now.saturating_sub(ago_ms));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lifecycle_distinguishes_restart_start_and_stop() {
+        let mut core = CoreStatus::default();
+        apply_lifecycle(&mut core, "ActiveState=activating\nSubState=auto-restart\nNRestarts=2\nExecMainExitTimestampMonotonic=60000000", Some(100.0), 200_000);
+        assert!(core.restarting);
+        assert!(!core.starting);
+        assert_eq!(core.restart_count, 2);
+        assert_eq!(core.crashed_at, Some(160_000));
+        let mut core = CoreStatus::default();
+        apply_lifecycle(&mut core, "ActiveState=active\nSubState=running", None, 0);
+        assert!(core.starting);
+        let mut core = CoreStatus::default();
+        apply_lifecycle(&mut core, "ActiveState=failed\nSubState=failed\nNRestarts=5", None, 0);
+        assert!(!core.restarting && !core.starting);
     }
 }
 

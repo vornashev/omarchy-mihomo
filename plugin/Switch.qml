@@ -4,15 +4,17 @@ import qs.Commons
 Rectangle {
   id: root
   property bool checked: false
+  property bool compact: false
+  readonly property real inset: Style.space(compact ? 2 : 3)
   signal toggled()
-  implicitWidth: Style.space(32)
-  implicitHeight: Style.space(18)
+  implicitWidth: Style.space(compact ? 26 : 32)
+  implicitHeight: Style.space(compact ? 14 : 18)
   radius: height / 2
   color: checked ? Color.accent : Util.alpha(Color.popups.text, 0.18)
   Rectangle {
-    width: parent.height - Style.space(6); height: width; radius: width / 2
+    width: parent.height - 2 * root.inset; height: width; radius: width / 2
     anchors.verticalCenter: parent.verticalCenter
-    x: root.checked ? parent.width - width - Style.space(3) : Style.space(3)
+    x: root.checked ? parent.width - width - root.inset : root.inset
     color: Color.background
     Behavior on x { NumberAnimation { duration: 120 } }
   }

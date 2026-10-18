@@ -67,8 +67,8 @@ pub async fn close_matching(state: &State, rule: &UserRule) -> usize {
         .into_iter()
         .filter(|c| {
             let m = &c.metadata;
-            let ip = m.destination_ip.parse::<IpAddr>().ok();
-            rule.matches(&m.host, ip) || (!m.sniff_host.is_empty() && rule.matches(&m.sniff_host, ip))
+            let conn = crate::suggest::conn(m);
+            rule.matches(&conn) == Some(true) || (!m.sniff_host.is_empty() && rule.matches(&omm_config::rules::Conn { host: &m.sniff_host, ..conn }) == Some(true))
         })
         .map(|c| c.id)
         .collect();

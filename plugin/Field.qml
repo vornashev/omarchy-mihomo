@@ -26,6 +26,7 @@ Rectangle {
   }
   TextInput {
     id: input
+    activeFocusOnTab: true
     anchors.left: ic.visible ? ic.right : parent.left
     anchors.leftMargin: Style.space(ic.visible ? 7 : 9)
     anchors.right: parent.right; anchors.rightMargin: Style.space(9)

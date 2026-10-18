@@ -188,7 +188,13 @@ Item {
           required property var modelData
           showDot: false
           text: I18n.ignoreKind(modelData.kind) + ": " + modelData.value + "  " + Icons.close
+          Hint {
+            visible: unhideHover.containsMouse && !unhideHover.pressed
+            text: I18n.t("hintShowProblem")
+          }
           MouseArea {
+            id: unhideHover
+            hoverEnabled: true
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             onClicked: root.svc.request("problems.unhide", { id: modelData.id }, function() { root.reload() })

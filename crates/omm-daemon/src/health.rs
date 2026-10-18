@@ -116,6 +116,7 @@ struct Host {
 
 /// Run an unprivileged fix.
 pub async fn run(state: &Arc<State>, id: &str) -> Result<Value, RpcError> {
+    let _operation = matches!(id, START_CORE | RESTART_CORE).then(|| state.begin_operation("starting", ""));
     let result = match id {
         INSTALL_CORE => install_core(state).await,
         START_CORE => systemctl(&["enable", "--now", CORE_UNIT]).await,
@@ -149,19 +150,21 @@ async fn install_core(state: &State) -> Result<(), RpcError> {
     }
     state.request_refresh();
     let port = state.config.settings().await.mixed_port;
+    let operation = state.begin_operation("downloading", core_bin::PINNED_VERSION);
     let proxy = format!("http://127.0.0.1:{port}");
     let dest = core_bin::default_path();
     let mut result = Err(String::new());
     for via in [None, Some(proxy.as_str())] {
         result = async {
             let rel = core_bin::resolve(None, via).await.map_err(|e| e.to_string())?;
-            core_bin::install(&rel, &dest, via).await.map_err(|e| e.to_string())
+            core_bin::install_with_progress(&rel, &dest, via, |n, total| operation.progress(n, total)).await.map_err(|e| e.to_string())
         }
         .await;
         if result.is_ok() {
             break;
         }
     }
+    drop(operation);
     match result {
         Ok(version) => {
             tracing::info!(%version, "core installed");
@@ -195,6 +198,7 @@ pub async fn start_core_if_free(state: &State) {
     if !free {
         return;
     }
+    let _operation = state.begin_operation("starting", "");
     match systemctl(&["enable", "--now", CORE_UNIT]).await {
         Ok(()) => tracing::info!("core started"),
         Err(e) => tracing::warn!("starting the core: {}", e.message),

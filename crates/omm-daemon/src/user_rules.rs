@@ -26,6 +26,40 @@ pub struct Stored {
     /// Latest route check before saving.
     #[serde(default)]
     pub test: Option<Check>,
+    /// Unix milliseconds after which the rule switches itself off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub expires: Option<i64>,
+    /// Kernel boot id: the rule switches itself off after a reboot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub boot: Option<String>,
+}
+
+impl Stored {
+    /// An enabled temporary rule whose time is up.
+    pub fn expired(&self, now: i64, boot_id: &str) -> bool {
+        self.rule.enabled && (self.expires.is_some_and(|e| e <= now) || self.boot.as_deref().is_some_and(|b| b != boot_id))
+    }
+}
+
+/// How long a rule stays on.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize)]
+#[serde(default)]
+pub struct Lifetime {
+    /// Unix milliseconds.
+    pub expires: Option<i64>,
+    pub until_reboot: bool,
+}
+
+impl Lifetime {
+    fn apply(&self, s: &mut Stored) {
+        s.expires = self.expires;
+        s.boot = self.until_reboot.then(boot_id);
+    }
+}
+
+/// This boot of the machine.
+pub fn boot_id() -> String {
+    std::fs::read_to_string("/proc/sys/kernel/random/boot_id").map(|s| s.trim().to_owned()).unwrap_or_default()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -70,6 +104,7 @@ pub struct NewRule {
     pub note: Option<String>,
     pub source: String,
     pub test: Option<Check>,
+    pub lifetime: Lifetime,
 }
 
 /// Partial update; `None` leaves a field as is.
@@ -79,6 +114,9 @@ pub struct Patch {
     pub enabled: Option<bool>,
     pub note: Option<String>,
     pub test: Option<Check>,
+    /// Replaces the rule's lifetime. Switching a rule on without one makes
+    /// it permanent.
+    pub lifetime: Option<Lifetime>,
 }
 
 pub struct Store {
@@ -174,20 +212,23 @@ impl Store {
     /// Add a rule, or retarget the existing rule for the same match.
     pub fn upsert(&mut self, new: NewRule, now: i64) -> Result<(Stored, Change)> {
         if let Some(existing) = self.find(new.kind, &new.value)? {
-            let patch = Patch { target: Some(new.target), enabled: Some(true), note: new.note, test: new.test };
+            let patch = Patch { target: Some(new.target), enabled: Some(true), note: new.note, test: new.test, lifetime: Some(new.lifetime) };
             return self.update(existing.rule.id, patch, now).map(|o| o.expect("row exists"));
         }
         let tx = self.db.savepoint()?;
         tx.execute("INSERT INTO user_rules (kind, value, data) VALUES (?1, ?2, '{}')", params![kind_str(new.kind), new.value])?;
         let id = tx.last_insert_rowid();
-        let stored = Stored {
+        let mut stored = Stored {
             rule: UserRule { id, kind: new.kind, value: new.value, target: new.target, enabled: true },
-            note: new.note,
+            note: new.note.filter(|n| !n.trim().is_empty()),
             source: new.source,
             created: now,
             updated: now,
             test: new.test,
+            expires: None,
+            boot: None,
         };
+        new.lifetime.apply(&mut stored);
         tx.execute("UPDATE user_rules SET data = ?2 WHERE id = ?1", params![id, json(&stored)])?;
         let change = journal(&tx, now, Action::Add, id, None, Some(&stored), None)?;
         tx.commit()?;
@@ -201,7 +242,13 @@ impl Store {
             after.rule.target = t;
         }
         if let Some(e) = patch.enabled {
+            if e && !before.rule.enabled && patch.lifetime.is_none() {
+                Lifetime::default().apply(&mut after);
+            }
             after.rule.enabled = e;
+        }
+        if let Some(l) = &patch.lifetime {
+            l.apply(&mut after);
         }
         if let Some(n) = patch.note {
             after.note = Some(n).filter(|n| !n.trim().is_empty());
@@ -317,11 +364,7 @@ fn json(s: &Stored) -> String {
 }
 
 fn kind_str(k: MatchKind) -> &'static str {
-    match k {
-        MatchKind::Domain => "domain",
-        MatchKind::DomainSuffix => "domain-suffix",
-        MatchKind::IpCidr => "ip-cidr",
-    }
+    k.as_str()
 }
 
 #[cfg(test)]
@@ -329,7 +372,7 @@ mod tests {
     use super::*;
 
     fn new(kind: MatchKind, value: &str, target: &str) -> NewRule {
-        NewRule { kind, value: value.into(), target: target.into(), note: None, source: "user".into(), test: None }
+        NewRule { kind, value: value.into(), target: target.into(), note: None, source: "user".into(), test: None, lifetime: Lifetime::default() }
     }
 
     fn summary(s: &Store) -> Vec<(String, String, bool)> {
@@ -418,6 +461,26 @@ mod tests {
         s.discard_since(c.id).unwrap();
         assert_eq!(summary(&s), [("keep.com".into(), "AI".into(), true)]);
         assert_eq!(s.history(10).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn temporary_rules_expire_and_become_permanent_when_switched_back_on() {
+        let mut s = Store::in_memory().unwrap();
+        let mut rule = new(MatchKind::DomainSuffix, "x.com", "AI");
+        rule.lifetime = Lifetime { expires: Some(100), until_reboot: false };
+        let (a, _) = s.upsert(rule, 1).unwrap();
+        assert!(!a.expired(99, "boot"));
+        assert!(a.expired(100, "boot"));
+        let mut rule = new(MatchKind::Domain, "y.com", "AI");
+        rule.lifetime = Lifetime { expires: None, until_reboot: true };
+        let (b, _) = s.upsert(rule, 1).unwrap();
+        assert!(!b.expired(1, &boot_id()));
+        assert!(b.expired(1, "another boot"));
+
+        let (off, _) = s.update(a.rule.id, Patch { enabled: Some(false), ..Default::default() }, 2).unwrap().unwrap();
+        assert!(!off.expired(1000, "boot"), "a disabled rule is not expired again");
+        let (on, _) = s.update(a.rule.id, Patch { enabled: Some(true), ..Default::default() }, 3).unwrap().unwrap();
+        assert_eq!((on.expires, on.boot), (None, None));
     }
 
     #[test]

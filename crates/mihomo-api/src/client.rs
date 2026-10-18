@@ -149,6 +149,10 @@ impl Client {
         self.get("/rules").await
     }
 
+    pub async fn rule_providers(&self) -> Result<RuleProviders> {
+        self.get("/providers/rules").await
+    }
+
     pub async fn connections(&self) -> Result<Connections> {
         self.get("/connections").await
     }

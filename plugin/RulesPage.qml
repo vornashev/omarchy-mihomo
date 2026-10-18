@@ -17,8 +17,8 @@ Item {
   readonly property bool typing: false
 
   readonly property var shown: rules.filter(function(r) {
-    if (tab === "direct") return r.enabled && r.target === "DIRECT"
-    if (tab === "proxy") return r.enabled && r.target !== "DIRECT"
+    if (tab === "direct") return r.enabled && (r.effective_target || r.target) === "DIRECT"
+    if (tab === "proxy") return r.enabled && (r.effective_target || r.target) !== "DIRECT"
     if (tab === "off") return !r.enabled
     return true
   })
@@ -57,12 +57,17 @@ Item {
     cursor = Math.max(0, Math.min(shown.length - 1, cursor + dy))
     list.positionViewAtIndex(cursor, ListView.Contain)
   }
-  function activate() { if (shown[cursor]) panel.openEditor({ rule: shown[cursor] }) }
+  function edit(rule) { panel.openRule({ from: "rules", rule: rule }) }
+  function add() { panel.openRule({ from: "rules" }) }
+  function duplicate(rule) { panel.openRule({ from: "rules", rule: rule, duplicate: true }) }
+  function activate() { if (shown[cursor]) edit(shown[cursor]) }
   function remove() { if (shown[cursor]) del(shown[cursor]) }
   function textKey(t) {
     if (t === " " || t === "o") { if (shown[cursor]) toggle(shown[cursor]) }
     else if (t === "u") undoLast()
     else if (t === "H") showHistory = !showHistory
+    else if (t === "n" || t === "a") add()
+    else if (t === "d" && shown[cursor]) duplicate(shown[cursor])
   }
 
   onTabChanged: cursor = 0
@@ -91,15 +96,31 @@ Item {
       Btn { id: histBtn; anchors.verticalCenter: parent.verticalCenter; icon: Icons.history; text: I18n.t("history"); onClicked: root.showHistory = !root.showHistory }
     }
 
+    Item {
+      width: parent.width
+      height: Math.max(seg.height, addBtn.height)
     Seg {
+      id: seg
+      anchors.verticalCenter: parent.verticalCenter
       current: root.tab
       model: [
         { key: "all", label: I18n.t("tabAll") + " " + root.rules.length },
-        { key: "direct", label: "DIRECT " + root.rules.filter(function(r) { return r.enabled && r.target === "DIRECT" }).length },
-        { key: "proxy", label: I18n.t("tabProxy") + " " + root.rules.filter(function(r) { return r.enabled && r.target !== "DIRECT" }).length },
+        { key: "direct", label: "DIRECT " + root.rules.filter(function(r) { return r.enabled && (r.effective_target || r.target) === "DIRECT" }).length },
+        { key: "proxy", label: I18n.t("tabProxy") + " " + root.rules.filter(function(r) { return r.enabled && (r.effective_target || r.target) !== "DIRECT" }).length },
         { key: "off", label: I18n.t("tabOff") + " " + root.rules.filter(function(r) { return !r.enabled }).length }
       ]
       onPicked: function(k) { root.tab = k }
+    }
+    Btn {
+      id: addBtn
+      objectName: "addRule"
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      icon: Icons.add
+      text: I18n.t("addRule")
+      keyHint: "N"
+      onClicked: root.add()
+    }
     }
 
     Banner {
@@ -110,7 +131,7 @@ Item {
       icon: Icons.orphan
       text: I18n.t("orphanBanner").arg(root.orphanRules.map(function(r) { return r.target }).filter(function(v, i, a) { return a.indexOf(v) === i }).join(", ")).arg(root.orphanRules.length)
       action: I18n.t("fix")
-      onActionClicked: root.panel.openEditor({ rule: root.orphanRules[0] })
+      onActionClicked: root.edit(root.orphanRules[0])
     }
   }
 
@@ -137,7 +158,7 @@ Item {
       selected: index === root.cursor
       onClicked: root.cursor = index
       onToggled: root.toggle(modelData)
-      onEditClicked: root.panel.openEditor({ rule: modelData })
+      onEditClicked: root.edit(modelData)
       onRemoveClicked: root.del(modelData)
     }
     Column {

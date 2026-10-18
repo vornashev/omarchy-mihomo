@@ -39,6 +39,7 @@ pub async fn collect(state: Arc<State>, recorded: Arc<std::sync::atomic::AtomicU
             Ok(s) => s,
             Err(e) => {
                 tracing::debug!("log stream: {e}");
+                state.request_refresh();
                 tokio::time::sleep(Duration::from_secs(2)).await;
                 continue;
             }
@@ -47,15 +48,15 @@ pub async fn collect(state: Arc<State>, recorded: Arc<std::sync::atomic::AtomicU
         loop {
             match stream.next::<LogLine>().await {
                 Ok(Some(l)) => {
-                    if state.listeners(topic::LOGS) > 0 {
-                        state.publish(topic::LOGS, &l);
-                    }
+                    let entry = state.logs.lock().unwrap().push(l.clone(), now_ms());
+                    state.publish(topic::LOGS, &entry);
                     // "Start TUN listening error: configure tun interface: operation not permitted"
                     if l.level == "error" && l.payload.contains("TUN") {
                         *state.tun_error.lock().unwrap() = Some(l.payload.clone());
                         state.request_refresh();
                     }
                     let Some(line) = parse::parse(&l.payload) else { continue };
+                    state.seen.lock().unwrap().record(&line, now_ms());
                     let mut c = state.problems.lock().unwrap();
                     if c.ingest(&line, now_ms()) {
                         recorded.fetch_add(1, Ordering::Relaxed);
@@ -68,6 +69,9 @@ pub async fn collect(state: Arc<State>, recorded: Arc<std::sync::atomic::AtomicU
                 }
             }
         }
+        // A closed log stream is often the first signal of a crashed core.
+        // Probe immediately so the footer can show systemd's restart delay.
+        state.request_refresh();
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 }

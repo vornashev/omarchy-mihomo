@@ -115,7 +115,7 @@ Item {
         Txt { text: I18n.t("profilesTitle"); bold: true; font.pixelSize: Style.font.heading }
         Txt { text: I18n.t("profilesSubtitle"); dim: true; font.pixelSize: Style.font.bodySmall }
       }
-      Btn { id: globalBtn; icon: Icons.edit; text: I18n.t("globalOverrides"); onClicked: root.editOverrides(null) }
+      Btn { id: globalBtn; icon: Icons.edit; text: I18n.t("globalOverrides"); tooltip: I18n.t("hintGlobalOverrides"); onClicked: root.editOverrides(null) }
       Item { width: Style.space(8); height: 1 }
       Btn { id: updAll; icon: Icons.refresh; text: I18n.t("updateAll"); busy: !!root.busy["*"]; onClicked: root.update(null) }
     }
@@ -184,10 +184,10 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.space(4)
         Btn { visible: !isCurrent && !modelData.draft; text: I18n.t("use"); onClicked: root.use(modelData) }
-        Btn { visible: modelData.source.type === "local"; ghost: true; icon: Icons.file; tooltip: I18n.t("editFile"); onClicked: root.editFile(modelData) }
-        Btn { visible: modelData.source.type === "remote"; ghost: true; icon: Icons.refresh; busy: !!root.busy[modelData.id]; onClicked: root.update(modelData) }
-        Btn { ghost: true; icon: Icons.edit; tooltip: I18n.t("editOverrides"); onClicked: root.editOverrides(modelData) }
-        Btn { visible: !isCurrent; ghost: true; icon: Icons.remove; onClicked: root.del(modelData) }
+        Btn { visible: modelData.source.type === "local"; ghost: true; icon: Icons.file; tooltip: I18n.t("hintProfileFile"); onClicked: root.editFile(modelData) }
+        Btn { visible: modelData.source.type === "remote"; ghost: true; icon: Icons.refresh; tooltip: I18n.t("hintProfileUpdate"); busy: !!root.busy[modelData.id]; onClicked: root.update(modelData) }
+        Btn { ghost: true; icon: Icons.edit; tooltip: I18n.t("hintProfileOverrides"); onClicked: root.editOverrides(modelData) }
+        Btn { enabled: !isCurrent; disabledTooltip: I18n.t("hintActiveProfileDelete"); ghost: true; icon: Icons.remove; tooltip: I18n.t("hintProfileDelete"); onClicked: root.del(modelData) }
       }
     }
     Txt { visible: root.items.length === 0; anchors.centerIn: parent; text: I18n.t("noProfiles"); dim: true }

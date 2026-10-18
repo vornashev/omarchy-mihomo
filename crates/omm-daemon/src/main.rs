@@ -1,11 +1,17 @@
 mod config;
 mod core;
+mod geosite;
 mod health;
 mod ipc;
+mod logs;
 mod methods;
 mod problems;
+mod procs;
 mod route_check;
+mod seen;
 mod state;
+mod suggest;
+mod system_proxy;
 mod user_rules;
 
 use std::io::IsTerminal;
@@ -60,18 +66,20 @@ async fn main() -> Result<()> {
         tracing::warn!("no mihomo binary found; configs cannot be validated or applied");
     }
     let collector = omm_problems::Collector::open(&paths.root.join("state.db"))?;
+    let system_proxy = system_proxy::Manager::open(paths.root.join("system-proxy.json"))?;
     let manager = Manager::open(paths, binary)?;
-    let state = Arc::new(State::new(mihomo_api::Client::new(&core_socket), manager, collector));
+    let state = Arc::new(State::new(mihomo_api::Client::new(&core_socket), manager, collector, system_proxy));
     tracing::info!(core = %core_socket.display(), data = %args.data_dir.display(), "starting");
 
     let listener = ipc::bind(&args.socket)?;
-    tokio::spawn(core::watch(state.clone()));
+    let core_watcher = tokio::spawn(core::watch(state.clone()));
     tokio::spawn(core::pump_traffic(state.clone()));
     tokio::spawn(config::watch_files(state.clone()));
     tokio::spawn(health::auto(state.clone()));
     let recorded = Arc::default();
     tokio::spawn(problems::collect(state.clone(), Arc::clone(&recorded)));
     tokio::spawn(problems::flush(state.clone(), recorded));
+    tokio::spawn(config::expire_rules(state.clone()));
     {
         let state = state.clone();
         tokio::spawn(async move {
@@ -87,6 +95,10 @@ async fn main() -> Result<()> {
         tracing::warn!("saving problems: {e}");
     }
     server.abort();
+    core_watcher.abort();
+    if let Err(e) = state.system_proxy.lock().await.shutdown().await {
+        tracing::warn!("restoring system proxy: {e}");
+    }
     let _ = std::fs::remove_file(&args.socket);
     Ok(())
 }

@@ -64,6 +64,8 @@ pub struct Proxy {
     /// Members, for groups.
     pub all: Option<Vec<String>>,
     pub alive: Option<bool>,
+    #[serde(rename = "provider-name")]
+    pub provider_name: String,
     pub udp: bool,
     pub hidden: Option<bool>,
     pub history: Vec<DelayRecord>,
@@ -161,6 +163,8 @@ pub struct Metadata {
     pub sniff_host: String,
     pub process: String,
     pub process_path: String,
+    /// Owner of the local process; 0 also when the core could not tell.
+    pub uid: u32,
 }
 
 impl Metadata {
@@ -205,6 +209,24 @@ pub struct RuleExtra {
     pub miss_count: u64,
 }
 
+/// `GET /providers/rules`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RuleProviders {
+    pub providers: std::collections::BTreeMap<String, RuleProvider>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct RuleProvider {
+    pub name: String,
+    /// `domain`, `ipcidr` or `classical`.
+    pub behavior: String,
+    pub rule_count: u64,
+    pub vehicle_type: String,
+    pub updated_at: String,
+}
+
 fn null_as_default<'de, D, T>(de: D) -> Result<T, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -224,6 +246,13 @@ mod tests {
         assert_eq!(c.connections.len(), 1);
         assert_eq!(c.connections[0].metadata.target(), "chatgpt.com");
         assert_eq!(c.connections[0].chains, ["FI", "AI"]);
+        assert_eq!(c.connections[0].metadata.uid, 0);
+    }
+
+    #[test]
+    fn parses_rule_providers() {
+        let p: RuleProviders = serde_json::from_str(r#"{"providers":{"ru-blocked":{"behavior":"Domain","format":"MrsRule","name":"ru-blocked","ruleCount":51234,"type":"Rule","updatedAt":"2026-10-14T21:48:00Z","vehicleType":"HTTP"}}}"#).unwrap();
+        assert_eq!(p.providers["ru-blocked"].rule_count, 51234);
     }
 
     #[test]

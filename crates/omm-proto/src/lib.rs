@@ -64,6 +64,8 @@ impl std::error::Error for RpcError {}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
+    /// Optimistic concurrency: profile, rules or subscription changed.
+    Conflict,
     /// Malformed frame or params.
     BadRequest,
     UnknownMethod,
@@ -125,11 +127,26 @@ pub struct Status {
     pub daemon_version: String,
     pub protocol: u32,
     pub core: CoreStatus,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub core_operation: Option<CoreOperation>,
+    #[serde(default)]
+    pub system_proxy: SystemProxyStatus,
     #[serde(default)]
     pub config: ConfigStatus,
     /// What stands in the way, each with its fix when there is one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub issues: Vec<Issue>,
+}
+
+/// Desktop proxy state, independent from TUN and routing mode.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct SystemProxyStatus {
+    pub available: bool,
+    pub enabled: bool,
+    pub wanted: bool,
+    pub port: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 /// A problem with the setup. Clients word it from `id` (and `detail`);
@@ -197,12 +214,35 @@ pub struct CoreStatus {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mode: Option<String>,
     pub tun: bool,
+    #[serde(default)]
+    pub tun_stack: String,
+    /// systemd lifecycle, populated while our controller is unavailable.
+    #[serde(default)]
+    pub restarting: bool,
+    #[serde(default)]
+    pub starting: bool,
+    #[serde(default)]
+    pub restart_count: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub crashed_at: Option<u64>,
     pub mixed_port: u16,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     /// Set while the settings ask for TUN but the core runs without it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tun_issue: Option<TunIssue>,
+}
+
+/// In-flight work, separate from the last confirmed controller state.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct CoreOperation {
+    pub kind: String,
+    #[serde(default)]
+    pub detail: String,
+    #[serde(default)]
+    pub downloaded: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub total: Option<u64>,
 }
 
 /// Why TUN is off although the settings turn it on.

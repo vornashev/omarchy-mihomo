@@ -50,6 +50,8 @@ enum Cmd {
     Mode { mode: ModeArg },
     /// Toggle TUN.
     Tun { state: OnOff },
+    /// Toggle the desktop HTTP/HTTPS/SOCKS proxy.
+    SystemProxy { state: OnOff },
     /// List active connections.
     Conns,
     /// Manage profiles (subscriptions and local configs).
@@ -202,6 +204,10 @@ enum RulesCmd {
         /// Only this exact host, not its subdomains.
         #[arg(long)]
         exact: bool,
+        /// Any rule type: process-name, dst-port, geosite, and, ...
+        /// (`omm rules add firefox --kind process-name --via PROXY`).
+        #[arg(long, conflicts_with = "exact")]
+        kind: Option<String>,
         /// Check the route first and refuse to save if it fails.
         #[arg(long)]
         check: bool,
@@ -310,6 +316,14 @@ fn run(cli: Cli) -> Result<()> {
             } else {
                 println!("core    not running ({})", c.error.as_deref().unwrap_or(&c.socket));
             }
+            let proxy = &s.system_proxy;
+            if let Some(error) = &proxy.error {
+                println!("proxy   unavailable: {error}");
+            } else if proxy.enabled {
+                println!("proxy   on · 127.0.0.1:{}", proxy.port);
+            } else {
+                println!("proxy   {}", if proxy.wanted { "waiting for core" } else { "off" });
+            }
         }
         Cmd::Proxies { group } => {
             let groups: Vec<ProxyGroup> = conn.call("proxies.list", Value::Null)?;
@@ -353,6 +367,9 @@ fn run(cli: Cli) -> Result<()> {
         }
         Cmd::Tun { state } => {
             conn.call::<Value>("tun.set", json!({ "enable": matches!(state, OnOff::On) }))?;
+        }
+        Cmd::SystemProxy { state } => {
+            conn.call::<Value>("system_proxy.set", json!({ "enable": matches!(state, OnOff::On) }))?;
         }
         Cmd::Conns => {
             let r: Value = conn.call("connections.list", Value::Null)?;
@@ -651,9 +668,17 @@ fn rules(conn: &mut Conn, cmd: RulesCmd, json: bool) -> Result<()> {
                 println!("#{:<4} {:<6} {:<48} {:<10} {}", x["id"], state, x["line"].as_str().unwrap_or(""), hits, x["source"].as_str().filter(|s| *s != "user").unwrap_or(""));
             }
         }
-        RulesCmd::Add { value, via, exact, check, note } => {
+        RulesCmd::Add { value, via, exact, kind, check, note } => {
             let is_ip = value.trim_matches(['[', ']']).split('/').next().is_some_and(|v| v.parse::<std::net::IpAddr>().is_ok());
-            let kind = if is_ip { "ip-cidr" } else if exact { "domain" } else { "domain-suffix" };
+            let kind = match kind.as_deref() {
+                Some(k) => k,
+                None if is_ip => "ip-cidr",
+                None if exact => "domain",
+                None => "domain-suffix",
+            };
+            if check && !matches!(kind, "domain" | "domain-suffix" | "ip-cidr") {
+                bail!("--check needs a domain or an address");
+            }
             let preview: Value = conn.call("rules.preview", json!({ "kind": kind, "value": value, "target": via }))?;
             let mut test = Value::Null;
             if check {

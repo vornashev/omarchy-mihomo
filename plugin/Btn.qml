@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import qs.Commons
 
 // Button: `primary` filled with the accent, `ghost` without a border.
@@ -10,11 +11,25 @@ Rectangle {
   property bool ghost: false
   property bool busy: false
   property bool hasCursor: false
-  property string tooltip: ""
+  property string tooltip: text
+  property string disabledTooltip: ""
+  property string keyHint: ""
+  HoverHandler { id: hintHover; enabled: true }
+  Hint {
+    visible: hintHover.hovered && !ma.pressed && root.visible && text !== ""
+    text: !root.enabled && root.disabledTooltip ? root.disabledTooltip : root.tooltip
+    keyHint: root.keyHint
+  }
+  Accessible.role: Accessible.Button
+  Accessible.name: tooltip || text
+  Accessible.onPressAction: if (enabled && !busy) clicked()
   signal clicked()
+  activeFocusOnTab: true
+  Keys.onReturnPressed: if (enabled && !busy) clicked()
+  Keys.onSpacePressed: if (enabled && !busy) clicked()
 
   readonly property color fg: primary ? Color.background : Color.popups.text
-  readonly property bool hot: (ma.containsMouse || hasCursor) && enabled
+  readonly property bool hot: (ma.containsMouse || hasCursor || activeFocus) && enabled
 
   implicitWidth: row.implicitWidth + Style.space(text === "" ? 12 : 22)
   implicitHeight: Style.space(28)

@@ -19,6 +19,10 @@ Panel {
   // Problem (or rule) being routed in the editor.
   property var editing: null
   property string toast: ""
+  // An unsaved form survives popup dismissal, in memory only.
+  property var proxyDraft: null
+  // Text the logs page filters by when it opens next.
+  property string logFilter: ""
 
   readonly property var pages: [
     { key: "overview", icon: Icons.overview, label: I18n.t("navOverview") },
@@ -38,7 +42,8 @@ Panel {
   Binding { target: I18n; property: "language"; value: String(root.setting("locale", "ru")) }
 
   function showPage(key) {
-    if (key !== "editor") editing = null
+    if (key !== page && pageLoader.item && pageLoader.item.canLeave && !pageLoader.item.canLeave()) return
+    if (key !== "editor" && key !== "rule") editing = null
     page = key
     if (!opened) open()
   }
@@ -46,6 +51,18 @@ Panel {
   function openEditor(target) {
     editing = target
     page = "editor"
+  }
+
+  // Rule form: { from, origin?, rule?, kind?, value?, full?, duplicate? }.
+  function openRule(spec) {
+    editing = spec
+    page = "rule"
+    if (!opened) open()
+  }
+
+  function showLogs(filter) {
+    logFilter = filter
+    showPage("logs")
   }
 
   // Give the keyboard back to panel navigation (after a text field).
@@ -65,6 +82,7 @@ Panel {
   Service {
     id: svc
     settings: root.settings
+    panelVisible: root.opened
   }
 
   IpcHandler {
@@ -140,8 +158,8 @@ Panel {
     open: root.opened
     focusTarget: keyCatcher
     padding: 0
-    contentWidth: panel.fittedContentWidth(Style.space(860))
-    contentHeight: panel.fittedContentHeight(Style.space(660))
+    contentWidth: panel.fittedContentWidth(Style.space(root.page === "proxies" ? 820 : 860) + rail.width - Style.space(190))
+    contentHeight: panel.fittedContentHeight(Style.space(root.page === "proxies" ? 680 : 660))
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -152,7 +170,9 @@ Panel {
       onActivateRequested: if (pageLoader.item && pageLoader.item.activate) pageLoader.item.activate()
       onDeleteRequested: if (pageLoader.item && pageLoader.item.remove) pageLoader.item.remove()
       onCloseRequested: {
+        if (pageLoader.item && pageLoader.item.canLeave && !pageLoader.item.canLeave()) return
         if (root.page === "editor") root.showPage("problems")
+        else if (root.page === "rule") root.showPage(root.editing && root.editing.from ? root.editing.from : "rules")
         else root.close()
       }
       onTabRequested: function(direction) { root.switchPanel(direction) }
@@ -167,7 +187,7 @@ Panel {
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        width: Style.space(190)
+        width: Math.max(Style.space(190), navStatus.implicitWidth + Style.space(20))
         color: Util.alpha(Color.popups.background, 0.6)
         radius: Style.cornerRadius
 
@@ -202,32 +222,20 @@ Panel {
               keyHint: String(index + 1)
               badge: modelData.key === "problems" ? svc.newProblems : (modelData.key === "rules" ? svc.orphans.length : 0)
               selected: root.page === modelData.key || (root.page === "editor" && modelData.key === "problems")
+                || (root.page === "rule" && modelData.key === (root.editing && root.editing.from ? root.editing.from : "rules"))
               onClicked: root.showPage(modelData.key)
             }
           }
         }
 
-        Column {
+        NavStatus {
+          id: navStatus
           anchors.left: parent.left
           anchors.right: parent.right
           anchors.bottom: parent.bottom
           anchors.margins: Style.space(10)
-          leftPadding: Style.space(10)
-          spacing: Style.space(4)
-          Rectangle { width: parent.width - Style.space(10); height: 1; color: Util.alpha(Color.popups.text, 0.1) }
-          Txt {
-            topPadding: Style.space(6)
-            text: (svc.coreRunning ? "● " : "○ ") + (svc.coreRunning ? I18n.t("coreRunning") : (svc.connected ? I18n.t("coreStopped") : I18n.t("noDaemon")))
-            color: svc.coreRunning ? svc.green : Color.urgent
-            font.pixelSize: Style.font.caption
-          }
-          Txt {
-            visible: svc.coreRunning
-            text: svc.tunIssue ? I18n.t("tunFailedShort") : "TUN " + (svc.tun ? I18n.t("on") : I18n.t("off"))
-            color: svc.tunIssue ? svc.red : Util.alpha(Color.popups.text, 0.42)
-            font.pixelSize: Style.font.caption
-          }
-          Txt { visible: svc.profileName !== ""; text: svc.profileName; faint: true; font.pixelSize: Style.font.caption; width: parent.width - Style.space(10) }
+          service: svc
+          panel: root
         }
       }
 
@@ -258,7 +266,7 @@ Panel {
           property string loaded: ""
           function load() {
             var files = {
-              overview: "OverviewPage.qml", problems: "ProblemsPage.qml", editor: "RouteEditor.qml",
+              overview: "OverviewPage.qml", problems: "ProblemsPage.qml", editor: "RouteEditor.qml", rule: "RuleEditor.qml",
               rules: "RulesPage.qml", proxies: "ProxiesPage.qml", profiles: "ProfilesPage.qml",
               connections: "ConnectionsPage.qml", logs: "LogsPage.qml", settings: "SettingsPage.qml"
             }
@@ -272,7 +280,7 @@ Panel {
           Connections {
             target: root
             function onPageChanged() { pageLoader.load() }
-            function onEditingChanged() { if (root.page === "editor") { pageLoader.loaded = ""; pageLoader.load() } }
+            function onEditingChanged() { if (root.page === "editor" || root.page === "rule") { pageLoader.loaded = ""; pageLoader.load() } }
           }
         }
 

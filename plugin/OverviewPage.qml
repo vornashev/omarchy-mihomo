@@ -1,4 +1,5 @@
 import QtQuick
+import "." as Mihomo
 import qs.Commons
 
 Item {
@@ -41,9 +42,13 @@ Item {
     else if (t === "u") updateProfile()
   }
 
-  Component.onCompleted: { svc.want("traffic", true); reload() }
-  Component.onDestruction: svc.want("traffic", false)
+  Component.onCompleted: reload()
   Timer { interval: 3000; running: true; repeat: true; onTriggered: root.svc.request("connections.list", null, function(r) { root.connCount = r && r.connections ? r.connections.length : 0 }) }
+
+  Connections {
+    target: root.svc
+    function onSystemProxyFailed(message) { root.panel.notify(message) }
+  }
 
   Column {
     anchors.fill: parent
@@ -121,8 +126,10 @@ Item {
         Txt { text: "TUN" }
         Txt { text: I18n.t("tunHint"); dim: true; font.pixelSize: Style.font.caption }
       }
-      Switch { id: tunSwitch; anchors.verticalCenter: parent.verticalCenter; checked: root.svc.tun; onToggled: root.svc.request("tun.set", { enable: !root.svc.tun }, null) }
+      Mihomo.Switch { id: tunSwitch; anchors.verticalCenter: parent.verticalCenter; checked: root.svc.tun; onToggled: root.svc.request("tun.set", { enable: !root.svc.tun }, null) }
     }
+
+    SystemProxyControl { width: parent.width; svc: root.svc }
 
     Rectangle {
       visible: root.profile !== null

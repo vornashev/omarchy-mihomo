@@ -74,9 +74,10 @@ Rectangle {
         dim: !root.header && root.recovered
         font.pixelSize: root.header ? Style.font.caption : Style.font.bodySmall
       }
-      ToolTip.visible: hostHover.containsMouse && !root.header
-      ToolTip.delay: 600
-      ToolTip.text: (root.problem.host || "") + (root.problem.domain_hint ? " · " + root.problem.domain_hint : "")
+      Hint {
+        visible: hostHover.containsMouse && !root.header
+        text: (root.problem.host || "") + (root.problem.domain_hint ? " · " + root.problem.domain_hint : "")
+      }
       MouseArea { id: hostHover; anchors.fill: parent; acceptedButtons: Qt.NoButton; hoverEnabled: true }
     }
 
@@ -96,9 +97,10 @@ Rectangle {
           }
         }
       }
-      ToolTip.visible: kindHover.containsMouse && !root.header
-      ToolTip.delay: 300
-      ToolTip.text: root.kinds.map(function(k) { return I18n.kind(k) + " ×" + root.problem.kinds[k] }).join("\n")
+      Hint {
+        visible: kindHover.containsMouse && !root.header
+        text: root.kinds.map(function(k) { return I18n.kind(k) + " ×" + root.problem.kinds[k] }).join("\n")
+      }
       MouseArea { id: kindHover; anchors.fill: parent; acceptedButtons: Qt.NoButton; hoverEnabled: true }
     }
 
@@ -110,9 +112,10 @@ Rectangle {
       faint: root.header || root.grouped || !root.apps.length
       dim: !faint
       font.pixelSize: root.header || root.grouped ? Style.font.caption : Style.font.bodySmall
-      ToolTip.visible: appHover.containsMouse && !root.header
-      ToolTip.delay: 600
-      ToolTip.text: root.apps.join(", ") || I18n.t("unknownApp")
+      Hint {
+        visible: appHover.containsMouse && !root.header
+        text: root.apps.join(", ") || I18n.t("unknownApp")
+      }
       MouseArea { id: appHover; anchors.fill: parent; acceptedButtons: Qt.NoButton; hoverEnabled: true }
     }
 
@@ -122,9 +125,10 @@ Rectangle {
       text: root.header ? I18n.t("problemRoute") : (root.route.rule ? root.route.rule + " → " : "") + (root.route.target || "—")
       faint: root.header; dim: !root.header
       font.pixelSize: root.header ? Style.font.caption : Style.font.bodySmall
-      ToolTip.visible: routeHover.containsMouse && !root.header
-      ToolTip.delay: 600
-      ToolTip.text: [root.route.rule, root.route.payload, root.route.target].filter(function(v) { return !!v }).join(" · ")
+      Hint {
+        visible: routeHover.containsMouse && !root.header
+        text: [root.route.rule, root.route.payload, root.route.target].filter(function(v) { return !!v }).join(" · ")
+      }
       MouseArea { id: routeHover; anchors.fill: parent; acceptedButtons: Qt.NoButton; hoverEnabled: true }
     }
 
@@ -163,8 +167,8 @@ Rectangle {
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.space(4)
-        Btn { visible: !root.grouped; width: Style.space(24); height: width; icon: Icons.route; onClicked: root.routeClicked() }
-        Btn { width: Style.space(24); height: width; ghost: root.grouped; icon: root.problem.hidden ? Icons.show : Icons.hide; onClicked: root.hideClicked() }
+        Btn { visible: !root.grouped; width: Style.space(24); height: width; icon: Icons.route; tooltip: I18n.t("hintRoute"); onClicked: root.routeClicked() }
+        Btn { width: Style.space(24); height: width; ghost: root.grouped; icon: root.problem.hidden ? Icons.show : Icons.hide; tooltip: I18n.t(root.problem.hidden ? "hintShowProblem" : "hintHideProblem"); onClicked: root.hideClicked() }
       }
     }
   }

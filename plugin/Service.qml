@@ -11,6 +11,11 @@ Item {
   id: root
 
   property var settings: ({})
+  property bool panelVisible: false
+  onPanelVisibleChanged: {
+    if (connected) subscribe()
+    if (!panelVisible) traffic = { up: 0, down: 0 }
+  }
 
   readonly property string socketPath: {
     var custom = settings && settings.socketPath ? String(settings.socketPath) : ""
@@ -24,8 +29,30 @@ Item {
   readonly property bool connected: sock.connected
   property var status: null
   readonly property bool coreRunning: !!(status && status.core && status.core.running)
+  onCoreRunningChanged: if (!coreRunning) traffic = { up: 0, down: 0 }
   readonly property string mode: status && status.core && status.core.mode ? status.core.mode : ""
   readonly property bool tun: !!(status && status.core && status.core.tun)
+  readonly property var systemProxyStatus: status && status.system_proxy ? status.system_proxy : null
+  readonly property bool systemProxy: !!(systemProxyStatus && systemProxyStatus.enabled)
+  readonly property bool systemProxyWanted: !!(systemProxyStatus && systemProxyStatus.wanted)
+  readonly property bool systemProxyAvailable: !!(systemProxyStatus && systemProxyStatus.available)
+  readonly property string systemProxyError: systemProxyStatus && systemProxyStatus.error ? systemProxyStatus.error : ""
+  property bool systemProxyBusy: false
+  signal systemProxyFailed(string message)
+
+  function toggleSystemProxy() {
+    if (systemProxyBusy || !connected) return
+    systemProxyBusy = true
+    request("system_proxy.set", { enable: !(systemProxy || systemProxyWanted) }, function(r, err) {
+      systemProxyBusy = false
+      if (r && root.status) {
+        var next = Object.assign({}, root.status)
+        next.system_proxy = r
+        root.status = next
+      }
+      if (err) root.systemProxyFailed(err.message)
+    }, true)
+  }
   // TUN is on in the settings, yet the core runs without it.
   readonly property var tunIssue: status && status.core && status.core.tun_issue ? status.core.tun_issue : null
   // Setup problems, each with the fix the daemon offers.
@@ -131,6 +158,7 @@ Item {
 
   function subscribe() {
     var topics = ["status", "problems", "profiles"].concat(extraTopics)
+    if (panelVisible && topics.indexOf("traffic") === -1) topics.push("traffic")
     request("events.subscribe", { topics: topics }, null)
   }
 
@@ -159,8 +187,12 @@ Item {
           p.error ? I18n.t("profileSaveFailed").arg(p.name) : I18n.t("profileSaved").arg(p.name), p.error || ""])
         root.profileSaved(p)
       }
-      else if (msg.event === "traffic") root.traffic = msg.data
+      else if (msg.event === "traffic" && connected && coreRunning && panelVisible) root.traffic = msg.data
       else if (msg.event === "logs") {
+        if (Array.isArray(msg.data.lines)) {
+          root.logLines = msg.data.lines.slice(-root.maxLogLines)
+          return
+        }
         var lines = root.logLines.slice(Math.max(0, root.logLines.length - root.maxLogLines + 1))
         lines.push(msg.data)
         root.logLines = lines

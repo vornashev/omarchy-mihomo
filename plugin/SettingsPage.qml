@@ -1,4 +1,5 @@
 import QtQuick
+import "." as Mihomo
 import qs.Commons
 
 // Managed settings: applied on top of every profile.
@@ -62,7 +63,7 @@ Item {
           Txt { text: modelData.label }
           Txt { text: modelData.hint; dim: true; font.pixelSize: Style.font.caption }
         }
-        Switch {
+        Mihomo.Switch {
           id: sw
           anchors.verticalCenter: parent.verticalCenter
           checked: modelData.on

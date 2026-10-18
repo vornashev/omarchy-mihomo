@@ -102,8 +102,9 @@ impl Profile {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct Overrides {
+    pub nodes: crate::nodes::Managed,
     pub merge: Option<Mapping>,
     pub rules: SeqOverride,
     pub proxies: SeqOverride,
@@ -138,7 +139,7 @@ impl Overrides {
                 _ => Ok(SeqOverride::default()),
             }
         };
-        Ok(Self { merge, rules: seq("rules.yaml")?, proxies: seq("proxies.yaml")?, groups: seq("groups.yaml")? })
+        Ok(Self { nodes: crate::nodes::Managed::load(paths, scope)?, merge, rules: seq("rules.yaml")?, proxies: seq("proxies.yaml")?, groups: seq("groups.yaml")? })
     }
 }
 

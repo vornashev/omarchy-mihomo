@@ -37,6 +37,15 @@ impl Output {
 }
 
 pub fn build(i: &Inputs) -> Result<Output> {
+    build_inner(i, true)
+}
+
+/// Read an editable document even when a new subscription breaks managed refs.
+pub fn inspect(i: &Inputs) -> Result<Output> {
+    build_inner(i, false)
+}
+
+fn build_inner(i: &Inputs, validate_managed: bool) -> Result<Output> {
     let parsed = yaml::parse_mapping(i.profile, i.profile_name)?;
     // Keys are case-insensitive for mihomo but not for merging.
     let mut config: Mapping = parsed
@@ -54,9 +63,12 @@ pub fn build(i: &Inputs) -> Result<Output> {
         crate::merge::apply(&mut config, merge);
     }
 
+    i.overrides.nodes.apply(&mut config);
+
     let groups: Vec<String> = yaml::names(&config, "proxy-groups").map(str::to_owned).collect();
     let targets: HashSet<&str> = groups.iter().map(String::as_str).chain(yaml::names(&config, "proxies")).collect();
-    let rendered = rules::render(i.user_rules, &targets);
+    let user_rules: Vec<_> = i.user_rules.iter().cloned().map(|mut r| { r.target = i.overrides.nodes.target(&r.target); r }).collect();
+    let rendered = rules::render(&user_rules, &targets);
     let mut all_targets: Vec<String> = rules::BUILTIN_TARGETS.iter().map(|s| (*s).to_owned()).chain(targets.iter().map(|s| (*s).to_owned())).collect();
     all_targets.sort();
     all_targets.dedup();
@@ -69,7 +81,12 @@ pub fn build(i: &Inputs) -> Result<Output> {
     }
 
     i.settings.enforce(&mut config);
-    prune_group_members(&mut config);
+    // Managed edits must fail on dangling references, never silently prune them.
+    if i.overrides.nodes.nodes.is_empty() && i.overrides.nodes.groups.is_empty() && i.overrides.nodes.redirects.is_empty() {
+        prune_group_members(&mut config);
+    } else if validate_managed {
+        crate::nodes::validate(&config)?;
+    }
 
     Ok(Output {
         config: sorted(config),

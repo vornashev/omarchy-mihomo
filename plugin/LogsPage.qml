@@ -2,16 +2,24 @@ import QtQuick
 import QtQuick.Controls
 import qs.Commons
 
-// Core log tail; the stream is open only while this page is.
+// Recent core logs, followed by live events while this page is open.
 Item {
   id: root
   property var svc
   property var panel
 
-  property string level: "warning"   // all | warning | error
+  property string level: "all"   // all | warning | error
   property bool follow: true
   property string search: ""
   readonly property bool typing: filter.input.activeFocus
+  readonly property string emptyText: !svc.connected ? I18n.t("daemonDown")
+    : !svc.coreRunning ? I18n.t("logsCoreStopped")
+    : svc.logLines.length > 0 ? I18n.t("logsNoMatches") : I18n.t("logsWaiting")
+
+  function timestamp(ms) {
+    return ms ? Qt.formatDateTime(new Date(ms), "hh:mm:ss") + " " : ""
+  }
+  function scrollToEnd() { if (follow) list.positionViewAtEnd() }
 
   readonly property var shown: svc.logLines.filter(function(l) {
     if (level === "warning" && l.type !== "warning" && l.type !== "error") return false
@@ -27,7 +35,8 @@ Item {
 
   Component.onCompleted: svc.want("logs", true)
   Component.onDestruction: svc.want("logs", false)
-  onShownChanged: if (follow) Qt.callLater(function() { list.positionViewAtEnd() })
+  onShownChanged: Qt.callLater(scrollToEnd)
+  onFollowChanged: Qt.callLater(scrollToEnd)
 
   Row {
     id: head
@@ -43,19 +52,20 @@ Item {
       id: seg
       anchors.verticalCenter: parent.verticalCenter
       current: root.level
-      model: [{ key: "all", label: I18n.t("lvlAll") }, { key: "warning", label: I18n.t("lvlWarn") }, { key: "error", label: I18n.t("lvlError") }]
+      model: [{ key: "all", label: I18n.t("lvlAll") }, { key: "warning", label: I18n.t("lvlWarnShort") }, { key: "error", label: I18n.t("lvlError") }]
       onPicked: function(k) { root.level = k }
     }
     Field {
       id: filter
-      width: Style.space(160)
+      width: Style.space(130)
       anchors.verticalCenter: parent.verticalCenter
       icon: Icons.search
       placeholder: I18n.t("filter")
       onTextChanged: root.search = text
       onEscaped: { text = ""; input.focus = false; root.panel.forceKeys() }
+      Component.onCompleted: if (root.panel && root.panel.logFilter) { text = root.panel.logFilter; root.panel.logFilter = "" }
     }
-    Btn { id: clearBtn; anchors.verticalCenter: parent.verticalCenter; ghost: true; icon: Icons.remove; onClicked: root.svc.logLines = [] }
+    Btn { id: clearBtn; objectName: "clearLogs"; anchors.verticalCenter: parent.verticalCenter; ghost: true; icon: Icons.remove; tooltip: I18n.t("logsClear"); keyHint: "c"; onClicked: root.svc.logLines = [] }
   }
 
   Rectangle {
@@ -63,27 +73,60 @@ Item {
     anchors.topMargin: Style.space(12)
     anchors.left: parent.left
     anchors.right: parent.right
-    anchors.bottom: parent.bottom
+    anchors.bottom: footer.top
+    anchors.bottomMargin: Style.space(12)
     radius: Style.cornerRadius
     color: Util.alpha(Color.popups.text, 0.03)
     ListView {
       id: list
-      anchors.fill: parent
-      anchors.margins: Style.space(8)
+      objectName: "logList"
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      height: Math.min(contentHeight, parent.height - Style.space(24))
+      anchors.margins: Style.space(12)
       clip: true
       model: root.shown
+      spacing: Style.space(3)
+      onContentHeightChanged: Qt.callLater(root.scrollToEnd)
       ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
       onMovementStarted: root.follow = false
       delegate: Txt {
         required property var modelData
         width: list.width - Style.space(8)
-        text: modelData.payload
+        text: root.timestamp(modelData.timestamp) + modelData.payload
+        textFormat: Text.PlainText
         wrapMode: Text.WrapAnywhere
-        maximumLineCount: 3
+        elide: Text.ElideNone
+        lineHeight: 1.45
         font.pixelSize: Style.font.caption
         color: modelData.type === "error" ? root.svc.red : (modelData.type === "warning" ? root.svc.yellow : Util.alpha(Color.popups.text, 0.68))
       }
-      Txt { visible: root.shown.length === 0; anchors.centerIn: parent; text: I18n.t("noLogs"); faint: true }
+    }
+    Txt { visible: root.shown.length === 0; anchors.centerIn: parent; width: parent.width - Style.space(24); horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap; text: root.emptyText; faint: true }
+  }
+
+  Row {
+    id: footer
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    height: Style.space(24)
+    Btn {
+      id: followBtn
+      objectName: "followLogs"
+      ghost: true
+      icon: root.follow ? Icons.check : Icons.down
+      text: I18n.t(root.follow ? "logsFollowing" : "logsFollow")
+      onClicked: root.follow = !root.follow
+    }
+    Item { width: Math.max(0, footer.width - followBtn.width - shortcuts.width); height: 1 }
+    Txt {
+      id: shortcuts
+      anchors.verticalCenter: parent.verticalCenter
+      text: I18n.t("logsShortcuts")
+      faint: true
+      font.pixelSize: Style.font.caption
     }
   }
 }

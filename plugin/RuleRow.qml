@@ -1,4 +1,5 @@
 import QtQuick
+import "." as Mihomo
 import qs.Commons
 
 Rectangle {
@@ -13,7 +14,8 @@ Rectangle {
 
   readonly property bool orphan: !!rule.orphan
   readonly property bool on: !!rule.enabled
-  readonly property color targetColor: orphan ? (svc ? svc.yellow : Color.urgent) : (!on ? Color.muted : (rule.target === "DIRECT" ? (svc ? svc.green : Color.accent) : Color.accent))
+  readonly property string effectiveTarget: rule.effective_target || rule.target || ""
+  readonly property color targetColor: orphan ? (svc ? svc.yellow : Color.urgent) : (!on ? Color.muted : (effectiveTarget === "DIRECT" ? (svc ? svc.green : Color.accent) : Color.accent))
 
   implicitHeight: Style.space(46)
   radius: Style.cornerRadius
@@ -23,11 +25,11 @@ Rectangle {
 
   MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; onClicked: root.clicked(); onDoubleClicked: root.editClicked() }
 
-  Switch {
+  Mihomo.Switch {
     id: sw
     anchors.left: parent.left; anchors.leftMargin: Style.space(10)
     anchors.verticalCenter: parent.verticalCenter
-    width: Style.space(28); height: Style.space(15)
+    compact: true
     checked: root.on
     onToggled: root.toggled()
   }
@@ -40,7 +42,13 @@ Rectangle {
     Row {
       spacing: Style.space(8)
       Txt { text: I18n.matchKind(root.rule.kind); color: root.svc ? root.svc.mauve : Color.accent; bold: true; font.pixelSize: Style.font.caption }
-      Txt { text: root.rule.value; bold: true; font.strikeout: !root.on; dim: !root.on }
+      Txt {
+        width: Math.min(implicitWidth, root.width - Style.space(260))
+        text: root.rule.parts && root.rule.parts.length
+          ? root.rule.parts.map(function(p) { return I18n.matchKind(p.kind) + " " + p.value }).join(root.rule.kind === "or" ? "  |  " : "  &  ")
+          : root.rule.value
+        bold: true; font.strikeout: !root.on; dim: !root.on
+      }
     }
     Txt {
       width: parent.width
@@ -54,6 +62,8 @@ Rectangle {
         else if (root.svc) parts.push(I18n.t("added").arg(root.svc.clock(root.rule.created)))
         if (root.rule.test && root.rule.test.ok) parts.push(I18n.t("checkedMs").arg(root.rule.test.delay))
         if (root.rule.hits !== null && root.rule.hits !== undefined) parts.push(I18n.t("hits").arg(root.rule.hits))
+        if (root.rule.boot) parts.push(Icons.timer + " " + I18n.t("ruleUntilBoot"))
+        else if (root.rule.expires && root.svc) parts.push(Icons.timer + " " + I18n.t("ruleUntil").arg(root.svc.clock(root.rule.expires)))
         if (root.rule.note) parts.push(root.rule.note)
         return parts.join("  ·  ")
       }
@@ -75,10 +85,14 @@ Rectangle {
         anchors.centerIn: parent
         spacing: Style.space(5)
         Txt { text: root.orphan ? Icons.orphan : Icons.arrow; color: root.targetColor }
-        Txt { text: root.rule.target; color: root.targetColor; bold: true }
+        Txt { text: root.effectiveTarget; color: root.targetColor; bold: true }
       }
-      MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.editClicked() }
+      Hint {
+        visible: routeHover.containsMouse && !routeHover.pressed
+        text: I18n.t("hintEditRule")
+      }
+      MouseArea { id: routeHover; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.editClicked() }
     }
-    Btn { anchors.verticalCenter: parent.verticalCenter; ghost: true; icon: Icons.remove; onClicked: root.removeClicked() }
+    Btn { anchors.verticalCenter: parent.verticalCenter; ghost: true; icon: Icons.remove; tooltip: I18n.t("hintDeleteRule"); onClicked: root.removeClicked() }
   }
 }

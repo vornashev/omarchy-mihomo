@@ -1,0 +1,7711 @@
+{
+  "version": "v1.19.32",
+  "archive_sha256": "ab130b7fab3893d01aa44c0d39be34a26da716c1d36832fbac9fa054a1d862a0",
+  "nodes": [
+    {
+      "type": "ss",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "password",
+          "required": true,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "cipher",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "plugin",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "plugin-opts",
+          "required": false,
+          "kind": "map",
+          "item": {
+            "kind": "json"
+          }
+        },
+        {
+          "key": "udp-over-tcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "udp-over-tcp-version",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "client-fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/shadowsocks.go"
+    },
+    {
+      "type": "ssr",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "password",
+          "required": true,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "cipher",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "obfs",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "obfs-param",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "protocol",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "protocol-param",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/shadowsocksr.go"
+    },
+    {
+      "type": "socks5",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "username",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "password",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "private-key",
+          "required": false,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "tls",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "skip-cert-verify",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "name-cert-verify",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "certificate",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/socks5.go"
+    },
+    {
+      "type": "http",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "username",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "password",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "private-key",
+          "required": false,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "tls",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "sni",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "skip-cert-verify",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "name-cert-verify",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "certificate",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "headers",
+          "required": false,
+          "kind": "map",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/http.go"
+    },
+    {
+      "type": "vmess",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "uuid",
+          "required": true,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "cipher",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "private-key",
+          "required": false,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "network",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "tcp",
+            "ws",
+            "grpc",
+            "h2",
+            "http",
+            "kcp",
+            "mekya"
+          ]
+        },
+        {
+          "key": "tls",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "servername",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "reality-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "public-key",
+              "required": true,
+              "kind": "string"
+            },
+            {
+              "key": "short-id",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "support-x25519mlkem768",
+              "required": false,
+              "kind": "boolean"
+            }
+          ]
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "alterId",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "alpn",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "skip-cert-verify",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "name-cert-verify",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "certificate",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "ech-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enable",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "config",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "query-server-name",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "shadow-tls-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "password",
+              "required": false,
+              "kind": "string",
+              "secret": true
+            },
+            {
+              "key": "version",
+              "required": false,
+              "kind": "number"
+            }
+          ]
+        },
+        {
+          "key": "restls-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "password",
+              "required": false,
+              "kind": "string",
+              "secret": true
+            },
+            {
+              "key": "version-hint",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "restls-script",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "jls-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "username",
+              "required": true,
+              "kind": "string"
+            },
+            {
+              "key": "password",
+              "required": true,
+              "kind": "string",
+              "secret": true
+            }
+          ]
+        },
+        {
+          "key": "tlsmirror-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "primary-key",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "explicit-nonce-ciphersuites",
+              "required": false,
+              "kind": "list",
+              "item": {
+                "kind": "number"
+              }
+            },
+            {
+              "key": "defer-instance-derived-write-time",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "base-nanoseconds",
+                  "required": false,
+                  "kind": "number"
+                },
+                {
+                  "key": "uniform-random-multiplier-nanoseconds",
+                  "required": false,
+                  "kind": "number"
+                }
+              ]
+            },
+            {
+              "key": "transport-layer-padding",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                }
+              ]
+            },
+            {
+              "key": "connection-enrolment",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "primary-ingress-outbound",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "primary-egress-outbound",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            },
+            {
+              "key": "embedded-traffic-generator",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "steps",
+                  "required": false,
+                  "kind": "list",
+                  "item": {
+                    "kind": "object",
+                    "fields": [
+                      {
+                        "key": "name",
+                        "required": false,
+                        "kind": "string"
+                      },
+                      {
+                        "key": "host",
+                        "required": false,
+                        "kind": "string"
+                      },
+                      {
+                        "key": "path",
+                        "required": false,
+                        "kind": "string"
+                      },
+                      {
+                        "key": "method",
+                        "required": false,
+                        "kind": "string"
+                      },
+                      {
+                        "key": "headers",
+                        "required": false,
+                        "kind": "list",
+                        "item": {
+                          "kind": "object",
+                          "fields": [
+                            {
+                              "key": "name",
+                              "required": false,
+                              "kind": "string"
+                            },
+                            {
+                              "key": "value",
+                              "required": false,
+                              "kind": "string"
+                            },
+                            {
+                              "key": "values",
+                              "required": false,
+                              "kind": "list",
+                              "item": {
+                                "kind": "string"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "key": "next-step",
+                        "required": false,
+                        "kind": "list",
+                        "item": {
+                          "kind": "object",
+                          "fields": [
+                            {
+                              "key": "weight",
+                              "required": false,
+                              "kind": "number"
+                            },
+                            {
+                              "key": "goto-location",
+                              "required": false,
+                              "kind": "number"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "key": "connection-ready",
+                        "required": false,
+                        "kind": "boolean"
+                      },
+                      {
+                        "key": "connection-recall-exit",
+                        "required": false,
+                        "kind": "boolean"
+                      },
+                      {
+                        "key": "wait-time",
+                        "required": false,
+                        "kind": "object",
+                        "fields": [
+                          {
+                            "key": "base-nanoseconds",
+                            "required": false,
+                            "kind": "number"
+                          },
+                          {
+                            "key": "uniform-random-multiplier-nanoseconds",
+                            "required": false,
+                            "kind": "number"
+                          }
+                        ]
+                      },
+                      {
+                        "key": "h2-do-not-wait-for-download-finish",
+                        "required": false,
+                        "kind": "boolean"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "key": "sequence-watermarking-enabled",
+              "required": false,
+              "kind": "boolean"
+            }
+          ]
+        },
+        {
+          "key": "mekya-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "url",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "h2-pool-size",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-write-delay",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-request-size",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "polling-interval-initial",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-write-size",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-write-duration-ms",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-simultaneous-write-connection",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "packet-writing-buffer",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "kcp",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "mtu",
+                  "required": false,
+                  "kind": "number"
+                },
+                {
+                  "key": "tti",
+                  "required": false,
+                  "kind": "number"
+                },
+                {
+                  "key": "uplink-capacity",
+                  "required": false,
+                  "kind": "number"
+                },
+                {
+                  "key": "downlink-capacity",
+                  "required": false,
+                  "kind": "number"
+                },
+                {
+                  "key": "congestion",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "write-buffer",
+                  "required": false,
+                  "kind": "number"
+                },
+                {
+                  "key": "read-buffer",
+                  "required": false,
+                  "kind": "number"
+                },
+                {
+                  "key": "seed",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "header",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ],
+          "when": {
+            "network": "mekya"
+          }
+        },
+        {
+          "key": "mkcp-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "mtu",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "tti",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "uplink-capacity",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "downlink-capacity",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "congestion",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "write-buffer",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "read-buffer",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "seed",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "header",
+              "required": false,
+              "kind": "string"
+            }
+          ],
+          "when": {
+            "network": "kcp"
+          }
+        },
+        {
+          "key": "http-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "method",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "path",
+              "required": false,
+              "kind": "list",
+              "item": {
+                "kind": "string"
+              }
+            },
+            {
+              "key": "headers",
+              "required": false,
+              "kind": "map",
+              "item": {
+                "kind": "list",
+                "item": {
+                  "kind": "string"
+                }
+              }
+            }
+          ],
+          "when": {
+            "network": "http"
+          }
+        },
+        {
+          "key": "h2-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "host",
+              "required": false,
+              "kind": "list",
+              "item": {
+                "kind": "string"
+              }
+            },
+            {
+              "key": "path",
+              "required": false,
+              "kind": "string"
+            }
+          ],
+          "when": {
+            "network": "h2"
+          }
+        },
+        {
+          "key": "grpc-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "grpc-service-name",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "grpc-user-agent",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "ping-interval",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            }
+          ],
+          "when": {
+            "network": "grpc"
+          }
+        },
+        {
+          "key": "ws-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "path",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "headers",
+              "required": false,
+              "kind": "map",
+              "item": {
+                "kind": "string"
+              }
+            },
+            {
+              "key": "max-early-data",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "early-data-header-name",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "v2ray-http-upgrade",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "v2ray-http-upgrade-fast-open",
+              "required": false,
+              "kind": "boolean"
+            }
+          ],
+          "when": {
+            "network": "ws"
+          }
+        },
+        {
+          "key": "packet-addr",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "xudp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "packet-encoding",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "global-padding",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "authenticated-length",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "client-fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/vmess.go"
+    },
+    {
+      "type": "vless",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "uuid",
+          "required": true,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "private-key",
+          "required": false,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "network",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "tcp",
+            "ws",
+            "grpc",
+            "h2",
+            "http",
+            "xhttp"
+          ]
+        },
+        {
+          "key": "tls",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "servername",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "reality-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "public-key",
+              "required": true,
+              "kind": "string"
+            },
+            {
+              "key": "short-id",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "support-x25519mlkem768",
+              "required": false,
+              "kind": "boolean"
+            }
+          ]
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "flow",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "",
+            "xtls-rprx-vision"
+          ]
+        },
+        {
+          "key": "alpn",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "packet-addr",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "xudp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "packet-encoding",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "encryption",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "ech-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enable",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "config",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "query-server-name",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "shadow-tls-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "password",
+              "required": false,
+              "kind": "string",
+              "secret": true
+            },
+            {
+              "key": "version",
+              "required": false,
+              "kind": "number"
+            }
+          ]
+        },
+        {
+          "key": "restls-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "password",
+              "required": false,
+              "kind": "string",
+              "secret": true
+            },
+            {
+              "key": "version-hint",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "restls-script",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "jls-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "username",
+              "required": true,
+              "kind": "string"
+            },
+            {
+              "key": "password",
+              "required": true,
+              "kind": "string",
+              "secret": true
+            }
+          ]
+        },
+        {
+          "key": "http-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "method",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "path",
+              "required": false,
+              "kind": "list",
+              "item": {
+                "kind": "string"
+              }
+            },
+            {
+              "key": "headers",
+              "required": false,
+              "kind": "map",
+              "item": {
+                "kind": "list",
+                "item": {
+                  "kind": "string"
+                }
+              }
+            }
+          ],
+          "when": {
+            "network": "http"
+          }
+        },
+        {
+          "key": "h2-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "host",
+              "required": false,
+              "kind": "list",
+              "item": {
+                "kind": "string"
+              }
+            },
+            {
+              "key": "path",
+              "required": false,
+              "kind": "string"
+            }
+          ],
+          "when": {
+            "network": "h2"
+          }
+        },
+        {
+          "key": "grpc-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "grpc-service-name",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "grpc-user-agent",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "ping-interval",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            }
+          ],
+          "when": {
+            "network": "grpc"
+          }
+        },
+        {
+          "key": "ws-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "path",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "headers",
+              "required": false,
+              "kind": "map",
+              "item": {
+                "kind": "string"
+              }
+            },
+            {
+              "key": "max-early-data",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "early-data-header-name",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "v2ray-http-upgrade",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "v2ray-http-upgrade-fast-open",
+              "required": false,
+              "kind": "boolean"
+            }
+          ],
+          "when": {
+            "network": "ws"
+          }
+        },
+        {
+          "key": "xhttp-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "path",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "host",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "mode",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "headers",
+              "required": false,
+              "kind": "map",
+              "item": {
+                "kind": "string"
+              }
+            },
+            {
+              "key": "no-grpc-header",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "x-padding-bytes",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "x-padding-obfs-mode",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "x-padding-key",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "x-padding-header",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "x-padding-placement",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "x-padding-method",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "uplink-http-method",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "session-placement",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "session-key",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "session-table",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "session-length",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "seq-placement",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "seq-key",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "uplink-data-placement",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "uplink-data-key",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "uplink-chunk-size",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "sc-max-each-post-bytes",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "sc-min-posts-interval-ms",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "reuse-settings",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "max-concurrency",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "max-connections",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "c-max-reuse-times",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "h-max-request-times",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "h-max-reusable-secs",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "h-keep-alive-period",
+                  "required": false,
+                  "kind": "number"
+                }
+              ]
+            },
+            {
+              "key": "download-settings",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "path",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "host",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "headers",
+                  "required": false,
+                  "kind": "map",
+                  "item": {
+                    "kind": "string"
+                  }
+                },
+                {
+                  "key": "reuse-settings",
+                  "required": false,
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "max-concurrency",
+                      "required": false,
+                      "kind": "string"
+                    },
+                    {
+                      "key": "max-connections",
+                      "required": false,
+                      "kind": "string"
+                    },
+                    {
+                      "key": "c-max-reuse-times",
+                      "required": false,
+                      "kind": "string"
+                    },
+                    {
+                      "key": "h-max-request-times",
+                      "required": false,
+                      "kind": "string"
+                    },
+                    {
+                      "key": "h-max-reusable-secs",
+                      "required": false,
+                      "kind": "string"
+                    },
+                    {
+                      "key": "h-keep-alive-period",
+                      "required": false,
+                      "kind": "number"
+                    }
+                  ]
+                },
+                {
+                  "key": "server",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "port",
+                  "required": false,
+                  "kind": "number"
+                },
+                {
+                  "key": "tls",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "alpn",
+                  "required": false,
+                  "kind": "list",
+                  "item": {
+                    "kind": "string"
+                  }
+                },
+                {
+                  "key": "ech-opts",
+                  "required": false,
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "enable",
+                      "required": false,
+                      "kind": "boolean"
+                    },
+                    {
+                      "key": "config",
+                      "required": false,
+                      "kind": "string"
+                    },
+                    {
+                      "key": "query-server-name",
+                      "required": false,
+                      "kind": "string"
+                    }
+                  ]
+                },
+                {
+                  "key": "shadow-tls-opts",
+                  "required": false,
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "password",
+                      "required": false,
+                      "kind": "string",
+                      "secret": true
+                    },
+                    {
+                      "key": "version",
+                      "required": false,
+                      "kind": "number"
+                    }
+                  ]
+                },
+                {
+                  "key": "restls-opts",
+                  "required": false,
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "password",
+                      "required": false,
+                      "kind": "string",
+                      "secret": true
+                    },
+                    {
+                      "key": "version-hint",
+                      "required": false,
+                      "kind": "string"
+                    },
+                    {
+                      "key": "restls-script",
+                      "required": false,
+                      "kind": "string"
+                    }
+                  ]
+                },
+                {
+                  "key": "jls-opts",
+                  "required": false,
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "username",
+                      "required": true,
+                      "kind": "string"
+                    },
+                    {
+                      "key": "password",
+                      "required": true,
+                      "kind": "string",
+                      "secret": true
+                    }
+                  ]
+                },
+                {
+                  "key": "reality-opts",
+                  "required": false,
+                  "kind": "object",
+                  "fields": [
+                    {
+                      "key": "public-key",
+                      "required": true,
+                      "kind": "string"
+                    },
+                    {
+                      "key": "short-id",
+                      "required": false,
+                      "kind": "string"
+                    },
+                    {
+                      "key": "support-x25519mlkem768",
+                      "required": false,
+                      "kind": "boolean"
+                    }
+                  ]
+                },
+                {
+                  "key": "skip-cert-verify",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "name-cert-verify",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "fingerprint",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "certificate",
+                  "required": false,
+                  "kind": "string",
+                  "multiline": true
+                },
+                {
+                  "key": "private-key",
+                  "required": false,
+                  "kind": "string",
+                  "secret": true,
+                  "multiline": true
+                },
+                {
+                  "key": "servername",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "client-fingerprint",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ],
+          "when": {
+            "network": "xhttp"
+          }
+        },
+        {
+          "key": "ws-headers",
+          "required": false,
+          "kind": "map",
+          "item": {
+            "kind": "string"
+          },
+          "when": {
+            "network": "ws"
+          }
+        },
+        {
+          "key": "skip-cert-verify",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "name-cert-verify",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "certificate",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "client-fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/vless.go"
+    },
+    {
+      "type": "snell",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "psk",
+          "required": true,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "version",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "reuse",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "obfs-opts",
+          "required": false,
+          "kind": "map",
+          "item": {
+            "kind": "json"
+          }
+        },
+        {
+          "key": "client-fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/snell.go"
+    },
+    {
+      "type": "trojan",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "password",
+          "required": true,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "private-key",
+          "required": false,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "network",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "tcp",
+            "ws",
+            "grpc"
+          ]
+        },
+        {
+          "key": "sni",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "reality-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "public-key",
+              "required": true,
+              "kind": "string"
+            },
+            {
+              "key": "short-id",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "support-x25519mlkem768",
+              "required": false,
+              "kind": "boolean"
+            }
+          ]
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "alpn",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "skip-cert-verify",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "name-cert-verify",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "certificate",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "ech-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enable",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "config",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "query-server-name",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "shadow-tls-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "password",
+              "required": false,
+              "kind": "string",
+              "secret": true
+            },
+            {
+              "key": "version",
+              "required": false,
+              "kind": "number"
+            }
+          ]
+        },
+        {
+          "key": "restls-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "password",
+              "required": false,
+              "kind": "string",
+              "secret": true
+            },
+            {
+              "key": "version-hint",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "restls-script",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "jls-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "username",
+              "required": true,
+              "kind": "string"
+            },
+            {
+              "key": "password",
+              "required": true,
+              "kind": "string",
+              "secret": true
+            }
+          ]
+        },
+        {
+          "key": "grpc-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "grpc-service-name",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "grpc-user-agent",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "ping-interval",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            }
+          ],
+          "when": {
+            "network": "grpc"
+          }
+        },
+        {
+          "key": "ws-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "path",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "headers",
+              "required": false,
+              "kind": "map",
+              "item": {
+                "kind": "string"
+              }
+            },
+            {
+              "key": "max-early-data",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "early-data-header-name",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "v2ray-http-upgrade",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "v2ray-http-upgrade-fast-open",
+              "required": false,
+              "kind": "boolean"
+            }
+          ],
+          "when": {
+            "network": "ws"
+          }
+        },
+        {
+          "key": "ss-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "method",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "password",
+              "required": false,
+              "kind": "string",
+              "secret": true
+            }
+          ]
+        },
+        {
+          "key": "client-fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/trojan.go"
+    },
+    {
+      "type": "hysteria",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "private-key",
+          "required": false,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "sni",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "ports",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "protocol",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "obfs-protocol",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "up",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "up-speed",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "down",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "down-speed",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "auth",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "auth-str",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "obfs",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "ech-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enable",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "config",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "query-server-name",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "skip-cert-verify",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "name-cert-verify",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "certificate",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "alpn",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "recv-window-conn",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "recv-window",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "disable-mtu-discovery",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "fast-open",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "hop-interval",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/hysteria.go"
+    },
+    {
+      "type": "hysteria2",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "password",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "private-key",
+          "required": false,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "sni",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "ports",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "hop-interval",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "up",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "down",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "obfs",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "obfs-password",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "obfs-min-packet-size",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "obfs-max-packet-size",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ech-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enable",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "config",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "query-server-name",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "skip-cert-verify",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "name-cert-verify",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "certificate",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "alpn",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "cwnd",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "bbr-profile",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "udp-mtu",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "handshake-timeout",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "realm-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enable",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "server-url",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "token",
+              "required": false,
+              "kind": "string",
+              "secret": true
+            },
+            {
+              "key": "realm-id",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "stun-servers",
+              "required": false,
+              "kind": "list",
+              "item": {
+                "kind": "string"
+              }
+            },
+            {
+              "key": "sni",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "skip-cert-verify",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "name-cert-verify",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "fingerprint",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "certificate",
+              "required": false,
+              "kind": "string",
+              "multiline": true
+            },
+            {
+              "key": "private-key",
+              "required": false,
+              "kind": "string",
+              "secret": true,
+              "multiline": true
+            },
+            {
+              "key": "alpn",
+              "required": false,
+              "kind": "list",
+              "item": {
+                "kind": "string"
+              }
+            }
+          ]
+        },
+        {
+          "key": "initial-stream-receive-window",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "max-stream-receive-window",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "initial-connection-receive-window",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "max-connection-receive-window",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/hysteria2.go"
+    },
+    {
+      "type": "wireguard",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "private-key",
+          "required": true,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "public-key",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "ip",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "ipv6",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "amnezia-wg-option",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "version",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "jc",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "jmin",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "jmax",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "s1",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "s2",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "s3",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "s4",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "h1",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "h2",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "h3",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "h4",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "i1",
+              "required": false,
+              "kind": "string",
+              "multiline": true
+            },
+            {
+              "key": "i2",
+              "required": false,
+              "kind": "string",
+              "multiline": true
+            },
+            {
+              "key": "i3",
+              "required": false,
+              "kind": "string",
+              "multiline": true
+            },
+            {
+              "key": "i4",
+              "required": false,
+              "kind": "string",
+              "multiline": true
+            },
+            {
+              "key": "i5",
+              "required": false,
+              "kind": "string",
+              "multiline": true
+            },
+            {
+              "key": "j1",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "j2",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "j3",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "itime",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "header-protection-key",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "content-padding-addition",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "rekey-after-time",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "rekey-timeout",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "reject-after-time",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "keepalive-timeout",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-handshake-attempts",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "random-trailers",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "disable-cookies",
+              "required": false,
+              "kind": "boolean"
+            }
+          ]
+        },
+        {
+          "key": "peers",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "object",
+            "fields": [
+              {
+                "key": "server",
+                "required": false,
+                "kind": "string"
+              },
+              {
+                "key": "port",
+                "required": false,
+                "kind": "number"
+              },
+              {
+                "key": "public-key",
+                "required": false,
+                "kind": "string"
+              },
+              {
+                "key": "pre-shared-key",
+                "required": false,
+                "kind": "string",
+                "secret": true
+              },
+              {
+                "key": "reserved",
+                "required": false,
+                "kind": "list",
+                "item": {
+                  "kind": "number"
+                }
+              },
+              {
+                "key": "allowed-ips",
+                "required": false,
+                "kind": "list",
+                "item": {
+                  "kind": "string"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "pre-shared-key",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "reserved",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "number"
+          }
+        },
+        {
+          "key": "allowed-ips",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "workers",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "mtu",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "persistent-keepalive",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-stack",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "mode",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "congestion-controller",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "remote-dns-resolve",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "dns",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "refresh-server-ip-interval",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/wireguard.go"
+    },
+    {
+      "type": "tuic",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "uuid",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "password",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "private-key",
+          "required": false,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "ip",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "sni",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "token",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "heartbeat-interval",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "alpn",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "reduce-rtt",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "request-timeout",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "udp-relay-mode",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "congestion-controller",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "disable-sni",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "max-udp-relay-packet-size",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "fast-open",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "max-open-streams",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "cwnd",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "bbr-profile",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "skip-cert-verify",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "name-cert-verify",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "certificate",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "recv-window-conn",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "recv-window",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "disable-mtu-discovery",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "max-datagram-frame-size",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ech-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enable",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "config",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "query-server-name",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "udp-over-stream",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "udp-over-stream-version",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/tuic.go"
+    },
+    {
+      "type": "shadowquic",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "username",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "password",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "sni",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "alpn",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "quic-versions",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "udp-over-stream",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "zero-rtt",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "keep-alive-interval",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "congestion-controller",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "up",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "down",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "cwnd",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "bbr-profile",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "recv-window-conn",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "recv-window",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "disable-mtu-discovery",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "max-datagram-frame-size",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "max-open-streams",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/shadowquic.go"
+    },
+    {
+      "type": "gost-relay",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "username",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "password",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "private-key",
+          "required": false,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "tls",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "sni",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "forward",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mux",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "skip-cert-verify",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "name-cert-verify",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "certificate",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "client-fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/gost_relay.go"
+    },
+    {
+      "type": "direct",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        }
+      ],
+      "source": "adapter/outbound/direct.go"
+    },
+    {
+      "type": "dns",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        }
+      ],
+      "source": "adapter/outbound/dns.go"
+    },
+    {
+      "type": "reject",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        }
+      ],
+      "source": "adapter/outbound/reject.go"
+    },
+    {
+      "type": "rematch",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "target-rematch-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "target-sub-rule",
+          "required": false,
+          "kind": "string"
+        }
+      ],
+      "source": "adapter/outbound/rematch.go"
+    },
+    {
+      "type": "ssh",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "username",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "password",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "private-key",
+          "required": false,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "private-key-passphrase",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "host-key",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "host-key-algorithms",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/ssh.go"
+    },
+    {
+      "type": "mieru",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "username",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "password",
+          "required": true,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "port-range",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "transport",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "multiplexing",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "handshake-mode",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "traffic-pattern",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/mieru.go"
+    },
+    {
+      "type": "anytls",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "password",
+          "required": true,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "private-key",
+          "required": false,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "sni",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "alpn",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "ech-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enable",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "config",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "query-server-name",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "shadow-tls-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "password",
+              "required": false,
+              "kind": "string",
+              "secret": true
+            },
+            {
+              "key": "version",
+              "required": false,
+              "kind": "number"
+            }
+          ]
+        },
+        {
+          "key": "restls-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "password",
+              "required": false,
+              "kind": "string",
+              "secret": true
+            },
+            {
+              "key": "version-hint",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "restls-script",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "jls-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "username",
+              "required": true,
+              "kind": "string"
+            },
+            {
+              "key": "password",
+              "required": true,
+              "kind": "string",
+              "secret": true
+            }
+          ]
+        },
+        {
+          "key": "client-fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "skip-cert-verify",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "name-cert-verify",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "certificate",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "client-metadata",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "idle-session-check-interval",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "idle-session-timeout",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "min-idle-session",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "disable-reuse",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/anytls.go"
+    },
+    {
+      "type": "sudoku",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "key",
+          "required": true,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "aead-method",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "padding-min",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "padding-max",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "table-type",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "enable-pure-downlink",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "http-mask",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "http-mask-mode",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "http-mask-tls",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "http-mask-host",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "path-root",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "multiplex",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "http-mask-multiplex",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "httpmask",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "disable",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "mode",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "tls",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "host",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "path-root",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "multiplex",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "custom-table",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "custom-tables",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/sudoku.go"
+    },
+    {
+      "type": "masque",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "private-key",
+          "required": true,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "public-key",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "ip",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "ipv6",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "network",
+          "required": false,
+          "kind": "string",
+          "choices": []
+        },
+        {
+          "key": "sni",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "uri",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "mtu",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "handshake-timeout",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "skip-cert-verify",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "name-cert-verify",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "congestion-controller",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "cwnd",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "bbr-profile",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "ip-stack",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "mode",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "congestion-controller",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "remote-dns-resolve",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "dns",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/masque.go"
+    },
+    {
+      "type": "trusttunnel",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "username",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "password",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "private-key",
+          "required": false,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "sni",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "alpn",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "ech-opts",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enable",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "config",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "query-server-name",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "client-fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "skip-cert-verify",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "name-cert-verify",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "fingerprint",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "certificate",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "health-check",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "quic",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "congestion-controller",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "cwnd",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "bbr-profile",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "max-connections",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "min-streams",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "max-streams",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/trusttunnel.go"
+    },
+    {
+      "type": "openvpn",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "server",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "port",
+          "required": true,
+          "kind": "number"
+        },
+        {
+          "key": "username",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "password",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "cipher",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "proto",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "dev",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "data-ciphers",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "data-ciphers-fallback",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "auth",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "comp-lzo",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "ca",
+          "required": true,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "cert",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "key",
+          "required": false,
+          "kind": "string",
+          "secret": true,
+          "multiline": true
+        },
+        {
+          "key": "tls-auth",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "key-direction",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "tls-crypt",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "tls-crypt-v2",
+          "required": false,
+          "kind": "string",
+          "multiline": true
+        },
+        {
+          "key": "peer-info",
+          "required": false,
+          "kind": "map",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "ping",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ping-restart",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "tran-window",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "handshake-timeout",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "mtu",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "ip-stack",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "mode",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "congestion-controller",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "remote-dns-resolve",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "dns",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/openvpn.go"
+    },
+    {
+      "type": "tailscale",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "hostname",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "auth-key",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "control-url",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "state-dir",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "ephemeral",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "accept-routes",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "exit-node",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "exit-node-allow-lan-access",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/tailscale_stub.go"
+    },
+    {
+      "type": "zerotier",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "network",
+          "required": true,
+          "kind": "string",
+          "choices": []
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "state-dir",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "identity-secret",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "planet",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "mtu",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-stack",
+          "required": false,
+          "kind": "object",
+          "fields": [
+            {
+              "key": "mode",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "congestion-controller",
+              "required": false,
+              "kind": "string"
+            }
+          ]
+        },
+        {
+          "key": "physical-mtu",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "remote-dns-resolve",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "dns",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "low-bandwidth",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "encrypted-hello",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "primary-port",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "secondary-port",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "tcp-fallback-mode",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "tcp-fallback-relay",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "orbit",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "object",
+            "fields": [
+              {
+                "key": "world",
+                "required": true,
+                "kind": "string"
+              },
+              {
+                "key": "seed",
+                "required": true,
+                "kind": "string"
+              }
+            ]
+          }
+        },
+        {
+          "key": "remote-trace-target",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "remote-trace-level",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/zerotier_stub.go"
+    },
+    {
+      "type": "easytier",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "peers",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "tfo",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mptcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "interface-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "routing-mark",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "ip-version",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "dual",
+            "ipv4",
+            "ipv6",
+            "ipv4-prefer",
+            "ipv6-prefer"
+          ]
+        },
+        {
+          "key": "dialer-proxy",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "network-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "network-secret",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "hostname",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "ipv4",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "dhcp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "listeners",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "no-listener",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mapped-listeners",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "exit-nodes",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "proxy-networks",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "instance-name",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "state-dir",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "accept-dns",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "enable-exit-node",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "enable-encryption",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "encryption-algorithm",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "private-mode",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "latency-first",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "disable-p2p",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "enable-kcp-proxy",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "disable-kcp-input",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "enable-quic-proxy",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "disable-quic-input",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "mtu",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "tld-dns-zone",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "secure-mode",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "local-private-key",
+          "required": false,
+          "kind": "string",
+          "secret": true
+        },
+        {
+          "key": "local-public-key",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "smux",
+          "kind": "object",
+          "fields": [
+            {
+              "key": "enabled",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "protocol",
+              "required": false,
+              "kind": "string"
+            },
+            {
+              "key": "max-connections",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "min-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "max-streams",
+              "required": false,
+              "kind": "number"
+            },
+            {
+              "key": "padding",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "statistic",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "only-tcp",
+              "required": false,
+              "kind": "boolean"
+            },
+            {
+              "key": "brutal-opts",
+              "required": false,
+              "kind": "object",
+              "fields": [
+                {
+                  "key": "enabled",
+                  "required": false,
+                  "kind": "boolean"
+                },
+                {
+                  "key": "up",
+                  "required": false,
+                  "kind": "string"
+                },
+                {
+                  "key": "down",
+                  "required": false,
+                  "kind": "string"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source": "adapter/outbound/easytier_stub.go"
+    }
+  ],
+  "groups": [
+    {
+      "type": "select",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "proxies",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "use",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "url",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "interval",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "timeout",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "max-failed-times",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "empty-fallback",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "lazy",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "disable-udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "filter",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "exclude-filter",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "exclude-type",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "expected-status",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "include-all",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "include-all-proxies",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "include-all-providers",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "hidden",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "icon",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "default-selected",
+          "required": false,
+          "kind": "string"
+        }
+      ]
+    },
+    {
+      "type": "url-test",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "proxies",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "use",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "url",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "interval",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "timeout",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "max-failed-times",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "empty-fallback",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "lazy",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "disable-udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "filter",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "exclude-filter",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "exclude-type",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "expected-status",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "include-all",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "include-all-proxies",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "include-all-providers",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "hidden",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "icon",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "tolerance",
+          "required": false,
+          "kind": "number"
+        }
+      ]
+    },
+    {
+      "type": "fallback",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "proxies",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "use",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "url",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "interval",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "timeout",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "max-failed-times",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "empty-fallback",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "lazy",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "disable-udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "filter",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "exclude-filter",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "exclude-type",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "expected-status",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "include-all",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "include-all-proxies",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "include-all-providers",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "hidden",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "icon",
+          "required": false,
+          "kind": "string"
+        }
+      ]
+    },
+    {
+      "type": "load-balance",
+      "fields": [
+        {
+          "key": "name",
+          "required": true,
+          "kind": "string"
+        },
+        {
+          "key": "proxies",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "use",
+          "required": false,
+          "kind": "list",
+          "item": {
+            "kind": "string"
+          }
+        },
+        {
+          "key": "url",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "interval",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "timeout",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "max-failed-times",
+          "required": false,
+          "kind": "number"
+        },
+        {
+          "key": "empty-fallback",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "lazy",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "disable-udp",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "filter",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "exclude-filter",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "exclude-type",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "expected-status",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "include-all",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "include-all-proxies",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "include-all-providers",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "hidden",
+          "required": false,
+          "kind": "boolean"
+        },
+        {
+          "key": "icon",
+          "required": false,
+          "kind": "string"
+        },
+        {
+          "key": "strategy",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "consistent-hashing",
+            "round-robin",
+            "sticky-sessions"
+          ]
+        },
+        {
+          "key": "hash-key",
+          "required": false,
+          "kind": "string",
+          "choices": [
+            "",
+            "in-user"
+          ]
+        }
+      ]
+    }
+  ]
+}

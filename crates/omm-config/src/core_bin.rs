@@ -126,15 +126,28 @@ pub async fn resolve(version: Option<&str>, proxy: Option<&str>) -> Result<Relea
 /// Download, verify, unpack, smoke-test and atomically replace `dest`.
 /// Returns the version line the new binary prints.
 pub async fn install(rel: &Release, dest: &Path, proxy: Option<&str>) -> Result<String> {
-    let bytes = client(proxy)?
+    install_with_progress(rel, dest, proxy, |_, _| {}).await
+}
+
+pub async fn install_with_progress(rel: &Release, dest: &Path, proxy: Option<&str>, mut progress: impl FnMut(u64, Option<u64>) + Send) -> Result<String> {
+    let mut response = client(proxy)?
         .get(&rel.url)
         .send()
         .await
         .and_then(|r| r.error_for_status())
-        .map_err(|e| Error::Fetch(e.to_string()))?
-        .bytes()
-        .await
         .map_err(|e| Error::Fetch(e.to_string()))?;
+    let total = response.content_length();
+    let mut bytes = Vec::new();
+    let mut reported = std::time::Instant::now();
+    progress(0, total);
+    while let Some(chunk) = response.chunk().await.map_err(|e| Error::Fetch(e.to_string()))? {
+        bytes.extend_from_slice(&chunk);
+        if reported.elapsed() >= Duration::from_millis(100) {
+            progress(bytes.len() as u64, total);
+            reported = std::time::Instant::now();
+        }
+    }
+    progress(bytes.len() as u64, total);
     let got = hex(&Sha256::digest(&bytes));
     if !got.eq_ignore_ascii_case(&rel.sha256) {
         return Err(Error::Invalid(format!("{} checksum mismatch: expected {}, got {got}", rel.asset, rel.sha256)));
@@ -198,5 +211,46 @@ mod tests {
     #[test]
     fn hex_encoding() {
         assert_eq!(hex(&Sha256::digest(b"abc")), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+    }
+
+    #[tokio::test]
+    async fn streamed_install_reports_bytes_and_keeps_checksum_validation() {
+        use std::io::Write;
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+        let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gzip.write_all(b"#!/bin/sh\necho 'Mihomo test'\n").unwrap();
+        let bytes = gzip.finish().unwrap();
+        for (chunked, valid_hash) in [(false, true), (true, true), (false, false)] {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let url = format!("http://{}/core.gz", listener.local_addr().unwrap());
+            let body = bytes.clone();
+            let server = tokio::spawn(async move {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let mut request = Vec::new();
+                while !request.ends_with(b"\r\n\r\n") { request.push(socket.read_u8().await.unwrap()); }
+                let headers = if chunked { "Transfer-Encoding: chunked".into() } else { format!("Content-Length: {}", body.len()) };
+                socket.write_all(format!("HTTP/1.1 200 OK\r\n{headers}\r\nConnection: close\r\n\r\n").as_bytes()).await.unwrap();
+                if chunked { socket.write_all(format!("{:x}\r\n", body.len()).as_bytes()).await.unwrap(); }
+                socket.write_all(&body).await.unwrap();
+                if chunked { socket.write_all(b"\r\n0\r\n\r\n").await.unwrap(); }
+            });
+            let dir = tempfile::tempdir().unwrap();
+            let dest = dir.path().join("mihomo");
+            std::fs::write(&dest, "previous binary").unwrap();
+            let rel = Release { version: "test".into(), asset: "test.gz".into(), url, sha256: if valid_hash { hex(&Sha256::digest(&bytes)) } else { "bad".into() } };
+            let mut progress = Vec::new();
+            let result = install_with_progress(&rel, &dest, None, |n, total| progress.push((n, total))).await;
+            server.await.unwrap();
+            let total = (!chunked).then_some(bytes.len() as u64);
+            assert_eq!(progress.first(), Some(&(0, total)));
+            assert_eq!(progress.last(), Some(&(bytes.len() as u64, total)));
+            if valid_hash {
+                assert_eq!(result.unwrap(), "Mihomo test");
+            } else {
+                assert!(result.unwrap_err().to_string().contains("checksum mismatch"));
+                assert_eq!(std::fs::read_to_string(&dest).unwrap(), "previous binary");
+            }
+        }
     }
 }

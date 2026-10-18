@@ -1,0 +1,25 @@
+{
+  "masque": {
+    "server": "example.net",
+    "port": 443,
+    "ip": "172.16.0.2",
+    "private-key": "MHcCAQEEIGAKHAqfwvrN/vAYW3Phsb8zPjGXCjEPew8YmWH/Z4AXoAoGCCqGSM49AwEHoUQDQgAEopXTPOB91wyJypHbbMoFRkQDzPlceFemhUT3lJRahKF6TuPs1SYZRO26TJf6s5aHrwUeVfvM7a4/VE51PiQ9CA==",
+    "public-key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEopXTPOB91wyJypHbbMoFRkQDzPlceFemhUT3lJRahKF6TuPs1SYZRO26TJf6s5aHrwUeVfvM7a4/VE51PiQ9CA=="
+  },
+  "openvpn": {
+    "server": "example.net",
+    "port": 443,
+    "ca": "-----BEGIN CERTIFICATE-----\nMIIBlzCCAT2gAwIBAgIUH6GQl5tFMJSn8GWAxOBcxTSWn0owCgYIKoZIzj0EAwIw\nITEfMB0GA1UEAwwWbWlob21vLWZpeHR1cmUuaW52YWxpZDAeFw0yNjEwMTUwNzQy\nMDFaFw0zNjEwMTIwNzQyMDFaMCExHzAdBgNVBAMMFm1paG9tby1maXh0dXJlLmlu\ndmFsaWQwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASildM84H3XDInKkdtsygVG\nRAPM+Vx4V6aFRPeUlFqEoXpO4+zVJhlE7bpMl/qzloevBR5V+8ztrj9UTnU+JD0I\no1MwUTAdBgNVHQ4EFgQUTDSSBeBOUDt2v7np0oYkYHo4ySAwHwYDVR0jBBgwFoAU\nTDSSBeBOUDt2v7np0oYkYHo4ySAwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQD\nAgNIADBFAiBzCCuz0pfrl3nPvsQu5/w7CVHPQXXUYRp657xvJNF18gIhAPeQCp98\nsOBosugjRDtIfBYSiIZT3e5MzsjEhozinB1Z\n-----END CERTIFICATE-----\n",
+    "username": "test",
+    "password": "test"
+  },
+  "zerotier": {
+    "network": "8056c2e21c000001"
+  },
+  "easytier": {
+    "network-name": "test",
+    "peers": [
+      "tcp://127.0.0.1:11010"
+    ]
+  }
+}

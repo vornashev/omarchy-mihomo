@@ -14,8 +14,12 @@ pub struct Published {
 
 pub struct State {
     pub core: mihomo_api::Client,
+    pub system_proxy: tokio::sync::Mutex<crate::system_proxy::Manager>,
     pub config: crate::config::Manager,
     pub problems: crate::problems::Shared,
+    pub logs: Mutex<crate::logs::Tail>,
+    /// Hosts and processes logged recently, for rule suggestions.
+    pub seen: Mutex<crate::seen::Seen>,
     status: watch::Sender<Status>,
     events: broadcast::Sender<Arc<Published>>,
     listeners: Mutex<HashMap<&'static str, usize>>,
@@ -23,21 +27,27 @@ pub struct State {
     /// Last TUN failure the core logged; cleared once TUN is up.
     pub tun_error: Mutex<Option<String>>,
     pub core_install: Mutex<crate::health::Install>,
+    operation_serial: Mutex<u64>,
 }
 
 impl State {
-    pub fn new(core: mihomo_api::Client, config: crate::config::Manager, problems: omm_problems::Collector) -> Self {
+    pub fn new(core: mihomo_api::Client, config: crate::config::Manager, problems: omm_problems::Collector, system_proxy: crate::system_proxy::Manager) -> Self {
         let status = Status {
             daemon_version: env!("CARGO_PKG_VERSION").into(),
             protocol: PROTOCOL_VERSION,
             core: CoreStatus { socket: core.socket().display().to_string(), ..Default::default() },
+            core_operation: None,
             config: Default::default(),
+            system_proxy: Default::default(),
             issues: Vec::new(),
         };
         Self {
             core,
+            system_proxy: tokio::sync::Mutex::new(system_proxy),
             config,
             problems: std::sync::Mutex::new(problems),
+            logs: Mutex::default(),
+            seen: Mutex::default(),
             status: watch::channel(status).0,
             // Slow clients lag and skip events rather than stall the daemon.
             events: broadcast::channel(256).0,
@@ -45,11 +55,29 @@ impl State {
             refresh: Notify::new(),
             tun_error: Mutex::default(),
             core_install: Mutex::default(),
+            operation_serial: Mutex::default(),
         }
     }
 
     pub fn status(&self) -> Status {
         self.status.borrow().clone()
+    }
+
+    pub fn begin_operation(&self, kind: &str, detail: &str) -> CoreOperationGuard<'_> {
+        let mut serial = self.operation_serial.lock().unwrap();
+        *serial += 1;
+        self.set_operation(Some(omm_proto::CoreOperation { kind: kind.into(), detail: detail.into(), ..Default::default() }));
+        CoreOperationGuard { state: self, serial: *serial }
+    }
+
+    fn set_operation(&self, operation: Option<omm_proto::CoreOperation>) {
+        if self.status.send_if_modified(|s| {
+            if s.core_operation == operation { return false; }
+            s.core_operation = operation;
+            true
+        }) {
+            self.publish(topic::STATUS, &self.status());
+        }
     }
 
     pub fn core_running(&self) -> bool {
@@ -102,6 +130,19 @@ impl State {
         }
     }
 
+    pub fn set_system_proxy_status(&self, proxy: omm_proto::SystemProxyStatus) {
+        let changed = self.status.send_if_modified(|s| {
+            if s.system_proxy == proxy {
+                return false;
+            }
+            s.system_proxy = proxy;
+            true
+        });
+        if changed {
+            self.publish(topic::STATUS, &self.status());
+        }
+    }
+
     pub fn publish(&self, topic: &'static str, data: &impl Serialize) {
         if self.listeners(topic) == 0 {
             return;
@@ -134,6 +175,32 @@ impl State {
     }
 }
 
+/// Clears transient state on success, error and cancellation. A completed
+/// older request must never clear a newer operation's status.
+pub struct CoreOperationGuard<'a> {
+    state: &'a State,
+    serial: u64,
+}
+
+impl CoreOperationGuard<'_> {
+    pub fn progress(&self, downloaded: u64, total: Option<u64>) {
+        let serial = self.state.operation_serial.lock().unwrap();
+        if *serial != self.serial { return; }
+        if let Some(mut op) = self.state.status().core_operation {
+            op.downloaded = downloaded;
+            op.total = total;
+            self.state.set_operation(Some(op));
+        }
+    }
+}
+
+impl Drop for CoreOperationGuard<'_> {
+    fn drop(&mut self) {
+        let serial = self.state.operation_serial.lock().unwrap();
+        if *serial == self.serial { self.state.set_operation(None); }
+    }
+}
+
 pub struct Subscription {
     pub rx: broadcast::Receiver<Arc<Published>>,
     pub topics: Vec<&'static str>,
@@ -154,5 +221,38 @@ impl Drop for Subscription {
                 *n = n.saturating_sub(1);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn operation_progress_survives_probes_and_old_completion() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = omm_config::paths::Paths::new(dir.path());
+        paths.ensure().unwrap();
+        let state = State::new(
+            mihomo_api::Client::new(dir.path().join("core.sock")),
+            crate::config::Manager::open(paths, None).unwrap(),
+            omm_problems::Collector::open(&dir.path().join("state.db")).unwrap(),
+            crate::system_proxy::Manager::open(dir.path().join("proxy.json")).unwrap(),
+        );
+        let older = state.begin_operation("starting", "");
+        let download = state.begin_operation("downloading", "v1.19.32");
+        download.progress(14, Some(22));
+        drop(older);
+        state.set_core_status(CoreStatus { running: true, ..Default::default() });
+        let current = state.status().core_operation.unwrap();
+        assert_eq!(current.kind, "downloading");
+        assert_eq!(current.downloaded, 14);
+        assert_eq!(current.total, Some(22));
+        drop(download);
+        assert!(state.status().core_operation.is_none());
+        {
+            let _failed = state.begin_operation("applying", "Config.yml");
+        }
+        assert!(state.status().core_operation.is_none());
     }
 }

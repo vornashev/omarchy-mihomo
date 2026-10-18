@@ -24,6 +24,46 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
         "ping" => Ok(json!({ "pong": true })),
         "status" => to_value(state.status()),
 
+        "proxy_providers.get" | "proxy_catalog.get" | "proxy_nodes.list" | "proxy_nodes.get" | "proxy_groups.list" | "proxy_groups.get" => {
+            state.config.proxy_read(state, method, params).await
+        }
+        "proxy_nodes.history" | "proxy_groups.history" => state.config.proxy_history(method, params).await,
+        "proxy_config.convert" => {
+            let definition = if let Some(text) = params.get("yaml").and_then(Value::as_str) {
+                omm_config::yaml::parse_mapping(text, "editor")
+                    .map_err(|_| RpcError::new(ErrorCode::BadRequest, "Invalid YAML; check syntax and anchors"))?
+            } else {
+                let value = params.get("definition").cloned()
+                    .ok_or_else(|| RpcError::new(ErrorCode::BadRequest, "Supply definition or yaml"))?;
+                serde_json::from_value::<omm_config::yaml::Mapping>(value)
+                    .map_err(|_| RpcError::new(ErrorCode::BadRequest, "Expected a mapping"))?
+            };
+            let yaml = omm_config::yaml::to_string(&definition).map_err(crate::config::cfg_err)?;
+            Ok(json!({ "yaml": yaml, "definition": definition }))
+        }
+        "proxy_import.preview" => {
+            #[derive(Deserialize)]
+            struct P { content: Option<String>, path: Option<std::path::PathBuf> }
+            let p: P = parse(params)?;
+            let content = match (p.content, p.path) {
+                (Some(text), None) => text,
+                (None, Some(path)) => {
+                    let meta = std::fs::metadata(&path)
+                        .map_err(|_| RpcError::new(ErrorCode::BadRequest, "Cannot open import file"))?;
+                    if !meta.is_file() || meta.len() > 1024 * 1024 {
+                        return Err(RpcError::new(ErrorCode::BadRequest, "Choose a file no larger than 1 MiB"));
+                    }
+                    std::fs::read_to_string(path)
+                        .map_err(|_| RpcError::new(ErrorCode::BadRequest, "Cannot read import file"))?
+                }
+                _ => return Err(RpcError::new(ErrorCode::BadRequest, "Supply content or path")),
+            };
+            to_value(omm_config::proxy_import::preview(&content).map_err(crate::config::cfg_err)?)
+        }
+        "proxy_providers.save" | "proxy_nodes.save" | "proxy_nodes.remove" | "proxy_nodes.reset" | "proxy_groups.save" | "proxy_groups.remove" | "proxy_groups.reset" | "proxy_config.preview" | "proxy_import.commit" => {
+            state.config.proxy_change(state, method, params).await
+        }
+
         "mode.set" => {
             #[derive(Deserialize)]
             struct P {
@@ -44,6 +84,30 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             state.core.patch_configs(json!({ "tun": { "enable": p.enable } })).await.map_err(core_err)?;
             state.config.persist(|s| s.tun.enable = p.enable).await?;
             refreshed(state)
+        }
+
+        "system_proxy.set" => {
+            #[derive(Deserialize)]
+            struct P { enable: bool }
+            let p: P = parse(params)?;
+            let mut proxy = state.system_proxy.lock().await;
+            // Fetch live configs; cached status may still refer to a stopped
+            // core or to a port that was just changed.
+            let port = if p.enable {
+                state.core.configs().await.map_err(core_err)?.mixed_port
+            } else {
+                state.status().core.mixed_port
+            };
+            match proxy.set(p.enable, port).await {
+                Ok(status) => {
+                    state.set_system_proxy_status(status.clone());
+                    to_value(status)
+                }
+                Err(error) => {
+                    state.request_refresh();
+                    Err(RpcError::new(ErrorCode::Config, error.to_string()))
+                }
+            }
         }
 
         "proxies.list" => {
@@ -231,18 +295,25 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
 
         "rules.list" => {
             let (rules, orphans) = state.config.rules().await?;
+            let redirects = state.config.rule_redirects().await?;
             // Hit counters from the core, for rules it has loaded.
             let hits: std::collections::HashMap<(String, String, String), u64> = match state.core.rules().await {
-                Ok(r) => r.rules.into_iter().map(|x| ((x.kind.clone(), x.payload.clone(), x.proxy.clone()), x.hits())).collect(),
+                Ok(r) => r.rules.into_iter().map(|x| ((x.kind.clone(), x.payload.to_lowercase(), x.proxy.clone()), x.hits())).collect(),
                 Err(_) => Default::default(),
             };
             let items: Vec<Value> = rules
                 .into_iter()
                 .map(|s| {
-                    let key = (s.rule.core_type().to_owned(), s.rule.value.clone(), s.rule.target.clone());
+                    let mut effective = s.rule.clone();
+                    effective.target = redirects.target(&s.rule.target);
+                    let key = (effective.core_type().to_owned(), effective.value.to_lowercase(), effective.target.clone());
                     let mut v = serde_json::to_value(&s).unwrap_or_default();
+                    if s.rule.kind.is_logic() {
+                        v["parts"] = json!(omm_config::rules::logic_parts(&s.rule.value).unwrap_or_default());
+                    }
                     v["orphan"] = json!(orphans.contains(&s.rule.id));
-                    v["line"] = json!(s.rule.line());
+                    v["effective_target"] = json!(effective.target);
+                    v["line"] = json!(effective.line());
                     v["hits"] = json!(hits.get(&key));
                     v
                 })
@@ -255,7 +326,27 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             let rule = UserRule { id: 0, kind: p.kind, value: value.clone(), target: p.target.unwrap_or_else(|| "DIRECT".into()), enabled: true };
             let (rules, _) = state.config.rules().await?;
             let existing = rules.iter().find(|s| s.rule.kind == p.kind && s.rule.value == value);
-            Ok(json!({ "value": value, "line": rule.line(), "existing": existing }))
+            let conns = state.core.connections().await.map(|c| c.connections).unwrap_or_default();
+            let seen = state.seen.lock().unwrap().hosts(crate::problems::now_ms());
+            let coverage = crate::suggest::coverage(&rule, &conns, &seen);
+            let parts = if p.kind.is_logic() { omm_config::rules::logic_parts(&value).unwrap_or_default() } else { Vec::new() };
+            Ok(json!({ "value": value, "line": rule.line(), "existing": existing, "coverage": coverage, "parts": parts }))
+        }
+        "rules.suggest" => {
+            #[derive(Deserialize)]
+            struct P {
+                kind: MatchKind,
+                #[serde(default)]
+                query: String,
+            }
+            let p: P = parse(params)?;
+            to_value(crate::suggest::suggest(state, p.kind, &p.query).await)
+        }
+        "rules.scopes" => {
+            let o: crate::suggest::Origin = parse(params)?;
+            let conns = state.core.connections().await.map(|c| c.connections).unwrap_or_default();
+            let seen = state.seen.lock().unwrap().hosts(crate::problems::now_ms());
+            to_value(crate::suggest::scopes(&o, &conns, &seen))
         }
         "rules.test" => {
             #[derive(Deserialize)]
@@ -281,20 +372,33 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
                 test: Option<crate::user_rules::Check>,
                 #[serde(default = "user_source")]
                 source: String,
+                #[serde(default)]
+                lifetime: crate::user_rules::Lifetime,
+                /// Close the connections the rule covers so they reconnect
+                /// through the new route.
+                #[serde(default = "yes")]
+                reconnect: bool,
+                /// Rule this one replaces (its match was edited).
+                replace: Option<i64>,
             }
             let p: P = parse(params)?;
             let value = normalize(p.input.kind, &p.input.value)?;
             let target = p.input.target.filter(|t| !t.trim().is_empty()).ok_or_else(|| RpcError::new(ErrorCode::BadRequest, "target is required"))?;
-            let new = crate::user_rules::NewRule { kind: p.input.kind, value, target, note: p.note, source: p.source, test: p.test };
+            let new = crate::user_rules::NewRule { kind: p.input.kind, value, target, note: p.note, source: p.source, test: p.test, lifetime: p.lifetime };
             let now = crate::problems::now_ms();
             let (stored, report) = state
                 .config
                 .change_rules(state, true, |store| {
+                    let mut changes = Vec::new();
+                    if let Some(old) = p.replace.filter(|id| store.find(new.kind, &new.value).ok().flatten().is_none_or(|s| s.rule.id != *id)) {
+                        changes.extend(store.delete(old, now).map_err(crate::config::db_err)?);
+                    }
                     let (stored, change) = store.upsert(new, now).map_err(crate::config::db_err)?;
-                    Ok((stored, vec![change]))
+                    changes.push(change);
+                    Ok((stored, changes))
                 })
                 .await?;
-            let closed = if report.reloaded { crate::route_check::close_matching(state, &stored.rule).await } else { 0 };
+            let closed = if report.reloaded && p.reconnect { crate::route_check::close_matching(state, &stored.rule).await } else { 0 };
             Ok(json!({ "rule": stored, "apply": report, "closed": closed }))
         }
         "rules.save_many" => {
@@ -320,6 +424,7 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
                         note: None,
                         source: user_source(),
                         test: None,
+                        lifetime: Default::default(),
                     })
                 })
                 .collect::<Result<Vec<_>, RpcError>>()?;
@@ -341,6 +446,8 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
                 id: i64,
                 #[serde(flatten)]
                 patch: crate::user_rules::Patch,
+                #[serde(default = "yes")]
+                reconnect: bool,
             }
             let p: P = parse(params)?;
             let now = crate::problems::now_ms();
@@ -351,7 +458,7 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
                     None => Err(RpcError::new(ErrorCode::NotFound, format!("no rule #{}", p.id))),
                 })
                 .await?;
-            let closed = if report.reloaded { crate::route_check::close_matching(state, &stored.rule).await } else { 0 };
+            let closed = if report.reloaded && p.reconnect { crate::route_check::close_matching(state, &stored.rule).await } else { 0 };
             Ok(json!({ "rule": stored, "apply": report, "closed": closed }))
         }
         "rules.delete" => {
@@ -398,6 +505,7 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
 
         "core.start" | "core.stop" | "core.restart" => {
             let verb = method.trim_start_matches("core.");
+            let _operation = (verb != "stop").then(|| state.begin_operation("starting", ""));
             let out = tokio::process::Command::new("systemctl")
                 .args(["--user", verb, CORE_UNIT])
                 .output()
@@ -430,6 +538,10 @@ struct NumId {
 
 fn user_source() -> String {
     "user".into()
+}
+
+fn yes() -> bool {
+    true
 }
 
 fn normalize(kind: MatchKind, value: &str) -> Result<String, RpcError> {

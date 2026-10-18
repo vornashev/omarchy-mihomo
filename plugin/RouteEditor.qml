@@ -31,7 +31,7 @@ Item {
   readonly property bool typing: false
 
   readonly property var scope: scopes[scopeIndex] || null
-  readonly property string currentTarget: problem && problem.route ? problem.route.target : (rule ? rule.target : "")
+  readonly property string currentTarget: problem && problem.route ? problem.route.target : (rule ? (rule.effective_target || rule.target) : "")
 
   function isIp(s) { return /^[0-9.]+$/.test(s) || s.indexOf(":") !== -1 }
   function parentDomain(h) {
@@ -84,10 +84,11 @@ Item {
         if (groups[i].name === "GLOBAL") continue
         list.push({ name: groups[i].name, kind: groups[i].kind, now: groups[i].now || "" })
       }
+      if (rule && currentTarget && !list.some(function(t) { return t.name === currentTarget })) list.push({ name: currentTarget, kind: "Proxy", now: "" })
       targets = list
       if (target === "") {
         // Default to a different route than the failing one.
-        target = rule ? rule.target : (currentTarget === "DIRECT" && list.length > 1 ? list[1].name : "DIRECT")
+        target = rule ? currentTarget : (currentTarget === "DIRECT" && list.length > 1 ? list[1].name : "DIRECT")
       }
       cursor = Math.max(0, indexOfTarget(target))
       testAll()
@@ -147,7 +148,7 @@ Item {
       panel.showPage(rule ? "rules" : "problems")
     }
     if (group) svc.request("rules.save_many", { rules: groupRules, target: target }, done)
-    else if (rule && rule.kind === scope.kind && rule.value === scope.value) svc.request("rules.update", { id: rule.id, target: target, enabled: true, test: test }, done)
+    else if (rule && rule.kind === scope.kind && rule.value === scope.value) svc.request("rules.update", { id: rule.id, target: target === rule.effective_target ? rule.target : target, enabled: true, test: test }, done)
     else svc.request("rules.save", params, done)
   }
 
@@ -172,7 +173,7 @@ Item {
 
     Row {
       spacing: Style.space(12)
-      Btn { icon: Icons.back; anchors.verticalCenter: parent.verticalCenter; onClicked: root.panel.showPage(root.rule ? "rules" : "problems") }
+      Btn { icon: Icons.back; tooltip: I18n.t("hintBack"); anchors.verticalCenter: parent.verticalCenter; onClicked: root.panel.showPage(root.rule ? "rules" : "problems") }
       Column {
         spacing: Style.space(3)
         Txt { text: root.group ? I18n.t("groupEditorTitle") : root.rule ? I18n.t("editRuleTitle") : I18n.t("editorTitle"); bold: true; font.pixelSize: Style.font.heading }

@@ -81,6 +81,15 @@ async fn client(stream: UnixStream, state: Arc<State>) {
                         old.abort();
                     }
                     let sub = state.subscribe(topics.clone());
+                    // Capture the tail before yielding, then enqueue it before live
+                    // events. The current-thread runtime keeps this handoff atomic.
+                    if topics.contains(&topic::LOGS) {
+                        let snapshot = serde_json::json!({
+                            "event": topic::LOGS,
+                            "data": { "lines": state.logs.lock().unwrap().snapshot() }
+                        });
+                        let _ = tx.send(encode(&snapshot)).await;
+                    }
                     events = Some(tokio::spawn(forward(sub, tx.clone())));
                     // Send the current status right away so clients need no extra round trip.
                     if topics.contains(&topic::STATUS) {
@@ -152,4 +161,51 @@ fn parse_topics(params: &Value) -> Result<Vec<&'static str>, RpcError> {
 
 fn encode(v: &impl serde::Serialize) -> String {
     serde_json::to_string(v).expect("frame serializes")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mihomo_api::model::LogLine;
+
+    #[tokio::test]
+    async fn logs_subscription_delivers_history_then_live_and_reopens_without_duplicates() {
+        let dir = tempfile::tempdir().unwrap();
+        let paths = omm_config::paths::Paths::new(dir.path());
+        paths.ensure().unwrap();
+        let state = Arc::new(State::new(
+            mihomo_api::Client::new(dir.path().join("core.sock")),
+            crate::config::Manager::open(paths, None).unwrap(),
+            omm_problems::Collector::open(&dir.path().join("state.db")).unwrap(),
+            crate::system_proxy::Manager::open(dir.path().join("proxy.json")).unwrap(),
+        ));
+        state.logs.lock().unwrap().push(LogLine { level: "info".into(), payload: "before opening".into() }, 1);
+        let (peer, server) = UnixStream::pair().unwrap();
+        let task = tokio::spawn(client(server, state.clone()));
+        let (read, mut write) = peer.into_split();
+        let mut frames = BufReader::new(read).lines();
+        write.write_all(b"{\"id\":1,\"method\":\"events.subscribe\",\"params\":{\"topics\":[\"logs\"]}}\n").await.unwrap();
+        let first = next(&mut frames).await;
+        assert_eq!(first["data"]["lines"][0]["payload"], "before opening");
+        assert_eq!(next(&mut frames).await["id"], 1);
+
+        let entry = state.logs.lock().unwrap().push(LogLine { level: "warning".into(), payload: "live".into() }, 2);
+        state.publish(topic::LOGS, &entry);
+        let live = next(&mut frames).await;
+        assert_eq!(live["data"]["payload"], "live");
+        assert_eq!(live["data"]["timestamp"], 2);
+
+        write.write_all(b"{\"id\":2,\"method\":\"events.subscribe\",\"params\":{\"topics\":[]}}\n").await.unwrap();
+        assert_eq!(next(&mut frames).await["id"], 2);
+        write.write_all(b"{\"id\":3,\"method\":\"events.subscribe\",\"params\":{\"topics\":[\"logs\"]}}\n").await.unwrap();
+        let reopened = next(&mut frames).await;
+        assert_eq!(reopened["data"]["lines"].as_array().unwrap().len(), 2);
+        assert_eq!(next(&mut frames).await["id"], 3);
+        task.abort();
+    }
+
+    async fn next(frames: &mut tokio::io::Lines<BufReader<tokio::net::unix::OwnedReadHalf>>) -> Value {
+        let line = tokio::time::timeout(std::time::Duration::from_secs(2), frames.next_line()).await.unwrap().unwrap().unwrap();
+        serde_json::from_str(&line).unwrap()
+    }
 }

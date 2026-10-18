@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import qs.Commons
 
 Rectangle {
@@ -9,6 +10,11 @@ Rectangle {
   property int badge: 0
   property bool selected: false
   signal clicked()
+  Hint {
+    visible: ma.containsMouse && !ma.pressed
+    text: root.label
+    keyHint: root.keyHint
+  }
 
   implicitHeight: Style.space(30)
   radius: Style.cornerRadius
