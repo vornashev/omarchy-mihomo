@@ -6,6 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+omm-platform.workspace = true
 bytes.workspace = true
 http-body-util.workspace = true
 hyper.workspace = true

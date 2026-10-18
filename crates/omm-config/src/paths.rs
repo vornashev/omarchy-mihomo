@@ -29,11 +29,7 @@ impl Paths {
 
     /// `$XDG_DATA_HOME/omarchy-mihomo`, falling back to `~/.local/share`.
     pub fn default_root() -> PathBuf {
-        std::env::var_os("XDG_DATA_HOME")
-            .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/share")))
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("omarchy-mihomo")
+        omm_platform::data_root()
     }
 
     pub fn settings(&self) -> PathBuf {
@@ -55,7 +51,8 @@ impl Paths {
         self.runtime().join("config.yaml")
     }
     pub fn controller_socket(&self) -> PathBuf {
-        self.runtime().join(crate::settings::CONTROLLER_SOCKET)
+        if omm_platform::IS_MACOS { omm_platform::core_socket() }
+        else { self.runtime().join(crate::settings::CONTROLLER_SOCKET) }
     }
     pub fn snapshots(&self) -> PathBuf {
         self.root.join("snapshots")

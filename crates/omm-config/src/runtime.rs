@@ -122,7 +122,7 @@ pub fn find_binary(explicit: Option<&Path>) -> Option<PathBuf> {
     if let Some(p) = explicit {
         return p.is_file().then(|| p.to_owned());
     }
-    let ours = std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/lib/omarchy-mihomo/mihomo"));
+    let ours = Some(crate::core_bin::default_path());
     let path_dirs = std::env::var_os("PATH").map(|p| std::env::split_paths(&p).collect::<Vec<_>>()).unwrap_or_default();
     ours.into_iter()
         .chain(path_dirs.into_iter().map(|d| d.join("mihomo")))

@@ -1,6 +1,8 @@
 //! `omm`: thin client for `omarchy-mihomod`.
 
+#[cfg_attr(target_os = "macos", path = "fix_macos.rs")]
 mod fix;
+#[cfg_attr(target_os = "macos", path = "system_macos.rs")]
 mod system;
 
 use std::collections::VecDeque;
@@ -782,7 +784,7 @@ struct Conn {
 impl Conn {
     fn open(path: &PathBuf) -> Result<Self> {
         let stream = UnixStream::connect(path).with_context(|| {
-            format!("cannot connect to {} — is omarchy-mihomod running? (systemctl --user start omarchy-mihomod)", path.display())
+            format!("cannot connect to {} — {}", path.display(), if omm_platform::IS_MACOS { "run the macOS installer and open Mihomo" } else { "start omarchy-mihomod with systemctl --user" })
         })?;
         Ok(Self { reader: BufReader::new(stream.try_clone()?), writer: stream, next_id: 1, pending: VecDeque::new() })
     }

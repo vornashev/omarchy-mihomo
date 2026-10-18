@@ -10,6 +10,7 @@ name = "omarchy-mihomod"
 path = "src/main.rs"
 
 [dependencies]
+omm-platform.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 futures-util.workspace = true

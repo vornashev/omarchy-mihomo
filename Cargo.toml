@@ -9,6 +9,7 @@ license = "MIT"
 rust-version = "1.85"
 
 [workspace.dependencies]
+omm-platform = { path = "crates/omm-platform" }
 mihomo-api = { path = "crates/mihomo-api" }
 omm-proto = { path = "crates/omm-proto" }
 omm-config = { path = "crates/omm-config" }

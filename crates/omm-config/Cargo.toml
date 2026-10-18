@@ -6,6 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+omm-platform.workspace = true
 base64 = "0.22"
 url = "2"
 percent-encoding.workspace = true

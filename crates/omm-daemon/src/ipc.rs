@@ -18,6 +18,7 @@ use crate::state::{State, Subscription};
 /// Bind the socket in a private directory, refusing to steal it from a live
 /// daemon but cleaning up after a dead one.
 pub fn bind(path: &Path) -> Result<UnixListener> {
+    omm_platform::validate_socket(path)?;
     if let Some(dir) = path.parent() {
         fs::DirBuilder::new().recursive(true).mode(0o700).create(dir).with_context(|| format!("create {}", dir.display()))?;
     }
@@ -57,6 +58,8 @@ async fn client(stream: UnixStream, state: Arc<State>) {
         }
     });
 
+    let mut attached = false;
+    let mut requests = tokio::task::JoinSet::new();
     let mut lines = BufReader::new(read).lines();
     let mut events: Option<tokio::task::JoinHandle<()>> = None;
     while let Ok(Some(line)) = lines.next_line().await {
@@ -72,6 +75,20 @@ async fn client(stream: UnixStream, state: Arc<State>) {
                 continue;
             }
         };
+
+        if req.method == "session.open" {
+            let result = if attached { Ok(serde_json::json!({"ok": true})) }
+            else if state.session.ui_attached.compare_exchange(false, true, std::sync::atomic::Ordering::AcqRel, std::sync::atomic::Ordering::Acquire).is_err() {
+                Err(RpcError::new(ErrorCode::Conflict, "another application owns the session"))
+            } else {
+                // Attach even if the helper is missing: the UI can display installation instructions.
+                attached = true;
+                Ok(serde_json::json!({"ok":true}))
+            };
+            let response = match result { Ok(v) => Response::ok(req.id, v), Err(e) => Response::err(req.id, e) };
+            let _ = tx.send(encode(&response)).await;
+            continue;
+        }
 
         // Subscriptions are per-connection state, so they are handled here.
         if req.method == "events.subscribe" {
@@ -112,7 +129,7 @@ async fn client(stream: UnixStream, state: Arc<State>) {
 
         // Requests run concurrently: a 5 s delay test must not block the UI.
         let (state, tx) = (state.clone(), tx.clone());
-        tokio::spawn(async move {
+        requests.spawn(async move {
             let resp = match methods::dispatch(&state, &req.method, req.params).await {
                 Ok(v) => Response::ok(req.id, v),
                 Err(e) => Response::err(req.id, e),
@@ -121,6 +138,14 @@ async fn client(stream: UnixStream, state: Arc<State>) {
         });
     }
 
+    if attached {
+        requests.abort_all();
+        while requests.join_next().await.is_some() {}
+        crate::session::detached(&state).await;
+    } else {
+        // Existing CLI requests may finish after their client disconnects.
+        requests.detach_all();
+    }
     if let Some(h) = events {
         h.abort();
     }

@@ -169,6 +169,26 @@ impl Manager {
         Ok(Runtime::new(self.paths.clone(), binary))
     }
 
+    pub async fn read_profile(&self, id: &str) -> Result<Value, RpcError> {
+        let inner = self.inner.lock().await;
+        inner.store.get(id).map_err(cfg_err)?;
+        let content = inner.store.text(id).map_err(cfg_err)?;
+        Ok(serde_json::json!({"content":content}))
+    }
+    pub async fn save_profile(&self, state: &State, id: &str, expected: &str, content: &str) -> Result<Value, RpcError> {
+        let inner = self.inner.lock().await;
+        inner.store.get(id).map_err(cfg_err)?;
+        if inner.store.text(id).map_err(cfg_err)? != expected {
+            return Err(RpcError::new(ErrorCode::Conflict, "Profile changed on disk; reopen it before saving"));
+        }
+        parse_mapping(content, "profile editor").map_err(cfg_err)?;
+        self.runtime()?.validate(content).await.map_err(cfg_err)?;
+        omm_config::paths::write_atomic(&self.paths.profile(id), content.as_bytes()).map_err(cfg_err)?;
+        drop(inner);
+        self.file_saved(state, id).await;
+        Ok(serde_json::json!({"ok":true}))
+    }
+
     // ------------------------------------------------------------ profiles
 
     pub async fn list(&self) -> Value {

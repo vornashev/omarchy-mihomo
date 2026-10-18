@@ -55,7 +55,7 @@ async fn probe(state: &State) -> CoreStatus {
                 error: (!e.is_unreachable()).then(|| e.to_string()),
                 ..Default::default()
             };
-            if state.config.owns_core(state) {
+            if !omm_platform::IS_MACOS && state.config.owns_core(state) {
                 let settings = state.config.settings().await;
                 core.tun_stack = settings.tun.stack;
                 core.mixed_port = settings.mixed_port;

@@ -69,6 +69,9 @@ pub enum ErrorCode {
     /// Malformed frame or params.
     BadRequest,
     UnknownMethod,
+    Unsupported,
+    HelperUnavailable,
+    PermissionDenied,
     /// The mihomo core is not running or not reachable.
     CoreUnavailable,
     /// The core answered with an error.
@@ -120,10 +123,23 @@ pub mod topic {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct HelperStatus {
+    pub available: bool,
+    pub session_active: bool,
+    pub error: Option<String>,
+}
+
 // ---------------------------------------------------------------- payloads
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Status {
+    #[serde(default)]
+    pub platform: String,
+    #[serde(default)]
+    pub capabilities: Vec<String>,
+    #[serde(default)]
+    pub helper: HelperStatus,
     pub daemon_version: String,
     pub protocol: u32,
     pub core: CoreStatus,
@@ -280,10 +296,7 @@ pub struct ProxyMember {
 
 /// `$XDG_RUNTIME_DIR/omarchy-mihomo/daemon.sock`.
 pub fn default_socket_path() -> PathBuf {
-    let runtime = std::env::var_os("XDG_RUNTIME_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
-    runtime.join("omarchy-mihomo").join("daemon.sock")
+    omm_platform::socket_path()
 }
 
 #[cfg(test)]

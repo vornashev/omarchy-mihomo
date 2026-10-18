@@ -13,6 +13,7 @@ pub struct Published {
 }
 
 pub struct State {
+    pub session: crate::session::Session,
     pub core: mihomo_api::Client,
     pub system_proxy: tokio::sync::Mutex<crate::system_proxy::Manager>,
     pub config: crate::config::Manager,
@@ -33,6 +34,9 @@ pub struct State {
 impl State {
     pub fn new(core: mihomo_api::Client, config: crate::config::Manager, problems: omm_problems::Collector, system_proxy: crate::system_proxy::Manager) -> Self {
         let status = Status {
+            platform: omm_platform::NAME.into(),
+            capabilities: vec!["profiles".into(), "rules".into(), "system_proxy".into(), "tun".into(), "process_rules".into()],
+            helper: Default::default(),
             daemon_version: env!("CARGO_PKG_VERSION").into(),
             protocol: PROTOCOL_VERSION,
             core: CoreStatus { socket: core.socket().display().to_string(), ..Default::default() },
@@ -42,6 +46,7 @@ impl State {
             issues: Vec::new(),
         };
         Self {
+            session: Default::default(),
             core,
             system_proxy: tokio::sync::Mutex::new(system_proxy),
             config,
@@ -78,6 +83,13 @@ impl State {
         }) {
             self.publish(topic::STATUS, &self.status());
         }
+    }
+
+    pub fn set_helper_status(&self, helper: omm_proto::HelperStatus) {
+        if self.status.send_if_modified(|s| {
+            if s.helper == helper { return false; }
+            s.helper = helper; true
+        }) { self.publish(topic::STATUS, &self.status()); }
     }
 
     pub fn core_running(&self) -> bool {

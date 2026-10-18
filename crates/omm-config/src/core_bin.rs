@@ -19,6 +19,7 @@ const REPO: &str = "MetaCubeX/mihomo";
 
 /// `(asset, sha256)` for the pinned version.
 const PINNED: &[(&str, &str)] = &[
+    ("mihomo-darwin-arm64-v1.19.32.gz", "3312a6780652c622890fd4357c6a853bbf865464fd047ac7b7f52dab8de18652"),
     ("mihomo-linux-amd64-v1.19.32.gz", "8451100836c9eda194331c2babfad490b2faf30cebc1a04b0e76fd8ac2d35d10"),
     ("mihomo-linux-amd64-compatible-v1.19.32.gz", "ba3ce607747a07f948fc35780e108a4a7c7f552a38b9bd4d115f313ebcb89c20"),
     ("mihomo-linux-arm64-v1.19.32.gz", "9dd862e28b46ff7d775f169cceebc28deccaa0a9e804237d421cd2571e0caba0"),
@@ -37,12 +38,16 @@ pub struct Release {
 
 /// `~/.local/lib/omarchy-mihomo/mihomo`.
 pub fn default_path() -> PathBuf {
-    std::env::var_os("HOME").map(PathBuf::from).unwrap_or_default().join(".local/lib/omarchy-mihomo/mihomo")
+    omm_platform::core_binary()
 }
 
 /// Release asset for this machine. Plain `amd64` builds need x86-64-v3
 /// (AVX2); older CPUs get the `compatible` build.
 pub fn asset_name(version: &str) -> Result<String> {
+    if omm_platform::IS_MACOS {
+        if std::env::consts::ARCH != "aarch64" { return Err(Error::Invalid("macOS builds require Apple Silicon".into())); }
+        return Ok(format!("mihomo-darwin-arm64-{version}.gz"));
+    }
     let arch = match std::env::consts::ARCH {
         "x86_64" if cpu_has_v3() => "amd64",
         "x86_64" => "amd64-compatible",
@@ -186,6 +191,7 @@ pub async fn binary_version(bin: &Path) -> Result<String> {
 
 /// Whether the binary carries the capabilities TUN needs.
 pub fn has_capabilities(bin: &Path) -> Option<bool> {
+    if omm_platform::IS_MACOS { return None; }
     let out = std::process::Command::new("getcap").arg(bin).output().ok()?;
     let s = String::from_utf8_lossy(&out.stdout);
     Some(["cap_net_admin", "cap_net_raw", "cap_net_bind_service"].iter().all(|c| s.contains(c)))

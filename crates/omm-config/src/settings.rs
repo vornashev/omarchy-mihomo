@@ -76,9 +76,9 @@ impl Default for Settings {
 impl Default for Tun {
     fn default() -> Self {
         Self {
-            enable: true,
+            enable: !omm_platform::IS_MACOS,
             stack: "gvisor".into(),
-            device: "Meta".into(),
+            device: if omm_platform::IS_MACOS { "utun" } else { "Meta" }.into(),
             auto_route: true,
             auto_detect_interface: true,
             strict_route: false,
@@ -143,6 +143,9 @@ impl Settings {
         let mut t = Value::Mapping(std::mem::take(tun));
         deep_merge(&mut t, Value::Mapping(self.tun.extra.clone()));
         let Value::Mapping(mut t) = t else { unreachable!() };
+        if omm_platform::IS_MACOS {
+            for key in ["auto-redirect", "include-uid", "exclude-uid", "include-uid-range", "exclude-uid-range", "include-android-user", "include-package", "exclude-package", "iproute2-table-index", "iproute2-rule-index", "gso"] { t.remove(key); }
+        }
         t.insert("enable".into(), self.tun.enable.into());
         t.insert("stack".into(), self.tun.stack.as_str().into());
         t.insert("device".into(), self.tun.device.as_str().into());
@@ -175,7 +178,7 @@ mod tests {
         assert!(c.get("external-controller").is_none() && c.get("secret").is_none());
         assert_eq!(c["external-controller-unix"], Value::from(CONTROLLER_SOCKET));
         assert_eq!(c["mode"], Value::from("rule"));
-        assert_eq!(c["tun"]["enable"], Value::from(true));
+        assert_eq!(c["tun"]["enable"], Value::from(!omm_platform::IS_MACOS));
         assert_eq!(c["tun"]["stack"], Value::from("gvisor"));
         assert!(c["tun"].get("route-exclude-address").is_some(), "profile tun keys kept");
         assert_eq!(c["profile"]["store-selected"], Value::from(true));

@@ -11,7 +11,6 @@ use serde_json::{Value, json};
 
 use crate::state::State;
 
-pub const CORE_UNIT: &str = "omarchy-mihomo-core.service";
 
 /// URL used for latency tests unless the caller names one.
 const DEFAULT_TEST_URL: &str = "https://www.gstatic.com/generate_204";
@@ -188,6 +187,13 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
         "migrate.autotune" => state.config.migrate_autotune(state).await,
         "migrate.cvr_import" => state.config.import_cvr(state).await,
 
+        "profiles.read" => state.config.read_profile(&parse::<IdParam>(params)?.id).await,
+        "profiles.save" => {
+            #[derive(Deserialize)]
+            struct P { id: String, expected: String, content: String }
+            let p:P = parse(params)?;
+            state.config.save_profile(state, &p.id, &p.expected, &p.content).await
+        }
         "profiles.list" => Ok(state.config.list().await),
         "profiles.add" => {
             #[derive(Deserialize)]
@@ -503,19 +509,12 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             Ok(json!({ "undone": undone, "apply": report }))
         }
 
+        "session.start" => crate::session::start(state).await,
+        "session.stop" => crate::session::stop(state).await,
         "core.start" | "core.stop" | "core.restart" => {
-            let verb = method.trim_start_matches("core.");
-            let _operation = (verb != "stop").then(|| state.begin_operation("starting", ""));
-            let out = tokio::process::Command::new("systemctl")
-                .args(["--user", verb, CORE_UNIT])
-                .output()
-                .await
-                .map_err(|e| RpcError::new(ErrorCode::Internal, e.to_string()))?;
-            if !out.status.success() {
-                return Err(RpcError::new(ErrorCode::Core, String::from_utf8_lossy(&out.stderr).trim().to_owned()));
-            }
+            let result = crate::session::command(state, method.trim_start_matches("core.")).await;
             state.request_refresh();
-            Ok(json!({ "ok": true }))
+            result
         }
 
         "core.rules" => to_value(state.core.rules().await.map_err(core_err)?),

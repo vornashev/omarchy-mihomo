@@ -20,6 +20,7 @@ pub struct Program {
 }
 
 /// Programs running now, one entry per executable.
+#[cfg(not(target_os = "macos"))]
 pub fn programs(proc_root: &Path) -> Vec<Program> {
     let mut by_path: BTreeMap<String, Program> = BTreeMap::new();
     let Ok(dir) = std::fs::read_dir(proc_root) else { return Vec::new() };
@@ -52,6 +53,7 @@ pub fn users(passwd: &str) -> Vec<(u32, String)> {
 }
 
 /// Window titles by pid, from `hyprctl clients -j`.
+#[cfg(not(target_os = "macos"))]
 pub async fn windows() -> BTreeMap<u32, String> {
     let run = tokio::process::Command::new("hyprctl").args(["clients", "-j"]).kill_on_drop(true).output();
     let Ok(Ok(out)) = tokio::time::timeout(Duration::from_millis(600), run).await else { return BTreeMap::new() };
@@ -120,3 +122,13 @@ mod tests {
         assert_eq!(w.len(), 2);
     }
 }
+
+#[cfg(target_os = "macos")]
+pub fn programs(_: &Path) -> Vec<Program> {
+    omm_platform::macos::processes().into_iter().map(|(path,pids)| {
+        let name = Path::new(&path).file_name().unwrap_or_default().to_string_lossy().into_owned();
+        Program { name, path, pids, uid:None, window:None }
+    }).collect()
+}
+#[cfg(target_os = "macos")]
+pub async fn windows() -> BTreeMap<u32,String> { BTreeMap::new() }

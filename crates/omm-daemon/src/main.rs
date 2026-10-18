@@ -1,6 +1,7 @@
 mod config;
 mod core;
 mod geosite;
+#[cfg_attr(target_os = "macos", path = "health_macos.rs")]
 mod health;
 mod ipc;
 mod logs;
@@ -11,7 +12,9 @@ mod route_check;
 mod seen;
 mod state;
 mod suggest;
+#[cfg_attr(target_os = "macos", path = "system_proxy_macos.rs")]
 mod system_proxy;
+mod session;
 mod user_rules;
 
 use std::io::IsTerminal;
@@ -90,6 +93,7 @@ async fn main() -> Result<()> {
     let server = tokio::spawn(ipc::serve(listener, state.clone()));
 
     shutdown_signal().await;
+    if omm_platform::IS_MACOS { let _ = session::stop(&state).await; }
     tracing::info!("shutting down");
     if let Err(e) = state.problems.lock().unwrap().flush() {
         tracing::warn!("saving problems: {e}");

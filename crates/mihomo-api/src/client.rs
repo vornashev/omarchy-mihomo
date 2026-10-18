@@ -114,6 +114,11 @@ impl Client {
 
     /// Reload the core from a config file under its home directory.
     pub async fn reload_config(&self, path: &Path, force: bool) -> Result<()> {
+        if omm_platform::IS_MACOS && self.socket == omm_platform::core_socket() {
+            let yaml = tokio::fs::read_to_string(path).await.map_err(|source| Error::Connect { path:path.display().to_string(), source })?;
+            return omm_platform::helper::call("core.reload", json!({"yaml":yaml})).await.map(drop)
+                .map_err(|e| Error::Status { status:400, message:e.to_string() });
+        }
         let uri = if force { "/configs?force=true" } else { "/configs" };
         let body = json!({ "path": path.to_string_lossy() });
         // Reloading re-resolves providers and can take a while.

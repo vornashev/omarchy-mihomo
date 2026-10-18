@@ -22,6 +22,7 @@ const OTHER_CORES: &[(&str, &str)] = &[("verge-mihomo", "Clash Verge")];
 
 /// The client whose core is running, if any.
 pub fn other_core() -> Option<&'static str> {
+    if omm_platform::IS_MACOS { return OTHER_CORES.iter().find(|(name, _)| process_running(name)).map(|(_, app)| *app); }
     let procs = std::fs::read_dir("/proc").ok()?;
     procs.flatten().find_map(|e| {
         let comm = std::fs::read_to_string(e.path().join("comm")).ok()?;

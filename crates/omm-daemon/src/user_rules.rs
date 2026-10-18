@@ -59,7 +59,7 @@ impl Lifetime {
 
 /// This boot of the machine.
 pub fn boot_id() -> String {
-    std::fs::read_to_string("/proc/sys/kernel/random/boot_id").map(|s| s.trim().to_owned()).unwrap_or_default()
+    omm_platform::boot_id()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
