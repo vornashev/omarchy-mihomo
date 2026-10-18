@@ -41,7 +41,7 @@ enum Page: String, CaseIterable, Identifiable {
             if !self.stopping { Task { await self.connect() } }
         }
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 guard let self else { return }
                 if self.connected { await self.refresh() } else { await self.connect() }
             }
@@ -70,8 +70,8 @@ enum Page: String, CaseIterable, Identifiable {
                 catalog = try await rpc.call("proxy_catalog.get")
                 await refresh()
                 // Restore explicit user intent only after a successful handshake.
-                if UserDefaults.standard.bool(forKey: "sessionWanted"), !running, first["helper"]["available"].bool {
-                    _ = try await rpc.call("session.start")
+                if UserDefaults.standard.bool(forKey: "sessionWanted"), !running {
+                    do { _ = try await rpc.call("session.start") } catch { self.error = error.localizedDescription }
                 }
                 return
             } catch {

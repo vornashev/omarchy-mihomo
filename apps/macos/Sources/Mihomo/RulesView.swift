@@ -78,7 +78,7 @@ struct RuleHistory: View {
     var body: some View {
         VStack {
             Text(tr("history")).font(.title2)
-            List(entries) { item in HStack { Text(item.pretty).font(.system(.caption, design: .monospaced)); Spacer(); Button(tr("rollback")) { Task { do { _ = try await model.rpc.call("rules.rollback", ["to":item["id"]]); await model.refresh(); dismiss() } catch { self.error = error.localizedDescription } } } }
+            List(entries) { item in HStack { Text(item.pretty).font(.system(.caption, design: .monospaced)); Spacer(); Button(tr("rollback")) { Task { do { _ = try await model.rpc.call("rules.rollback", ["to":item["id"]]); await model.refresh(); dismiss() } catch { self.error = error.localizedDescription } } } } }
             if let error { Text(error).foregroundStyle(.red) }
             Button(tr("close")) { dismiss() }
         }.padding(24).frame(width: 700, height: 480)

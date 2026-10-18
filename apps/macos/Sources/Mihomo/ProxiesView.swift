@@ -74,7 +74,7 @@ struct ProxyEditor: View {
             if !history.isEmpty { DisclosureGroup(tr("history")) { ScrollView { VStack(alignment: .leading) { ForEach(history) { item in Button(item["at"].text) { definition = item["definition"]; raw = false; preview = "" } } } }.frame(maxHeight: 90) } }
             if !preview.isEmpty { ScrollView { Text(preview).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }.frame(maxHeight: 140) }
             if let error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-            if !node["name"].string.isEmpty { HStack { TextField(tr("replacement"), text: $replacement); Button(tr("remove"), role: .destructive) { mutate("remove") }; Button(tr("reset")) { mutate("reset") }.disabled(busy) }
+            if !node["name"].string.isEmpty { HStack { TextField(tr("replacement"), text: $replacement); Button(tr("remove"), role: .destructive) { mutate("remove") }; Button(tr("reset")) { mutate("reset") }.disabled(busy) } }
             HStack {
                 Button(tr("cancel")) { dismiss() }; Spacer()
                 Button(tr("preview")) { act { var p = params; p["operation"] = "save"; p["group"] = .bool(group); preview = (try await model.rpc.call("proxy_config.preview", p)).pretty } }
