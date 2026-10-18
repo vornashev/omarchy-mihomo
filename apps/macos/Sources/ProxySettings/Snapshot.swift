@@ -9,6 +9,17 @@ public func target(_ original: [String: Any], port: Int) -> [String: Any] {
 }
 public func restored(_ current: [String: Any], before: [String: Any], applied: [String: Any]) -> [String: Any] {
     var result = current
-    for key in keys where same(current[key], applied[key]) { result[key] = before[key] }
+    // A proxy endpoint is one setting: preserve all of it if the user edits
+    // its host, port or enabled flag. Do not produce mixed old/new endpoints.
+    let groups = [
+        ["HTTPEnable", "HTTPProxy", "HTTPPort"],
+        ["HTTPSEnable", "HTTPSProxy", "HTTPSPort"],
+        ["SOCKSEnable", "SOCKSProxy", "SOCKSPort"],
+        ["ProxyAutoConfigEnable", "ProxyAutoConfigURLString"],
+        ["ProxyAutoDiscoveryEnable"]
+    ]
+    for group in groups where group.allSatisfy({ same(current[$0], applied[$0]) }) {
+        for key in group where keys.contains(key) { result[key] = before[key] }
+    }
     return result
 }

@@ -40,6 +40,18 @@ for _ in range(50):
 assert status['core']['running'] and not status['core']['tun'],status
 assert not status['system_proxy']['enabled'],status
 assert rpc.call('proxies.list')
+class Handler(http.server.BaseHTTPRequestHandler):
+ def do_GET(self):
+  self.send_response(200);self.end_headers();self.wfile.write(b'omm-proxy-smoke')
+ def log_message(self,*args):pass
+http=http.server.HTTPServer(('127.0.0.1',0),Handler)
+threading.Thread(target=http.serve_forever,daemon=True).start()
+with socket.create_connection(('127.0.0.1',7897),timeout=5) as proxied:
+ proxied.sendall(f'GET http://127.0.0.1:{http.server_port}/test HTTP/1.1\r\nHost: 127.0.0.1:{http.server_port}\r\nConnection: close\r\n\r\n'.encode())
+ response=b''
+ while chunk:=proxied.recv(4096):response+=chunk
+ assert b'omm-proxy-smoke' in response,response
+http.shutdown()
 rpc.call('mode.set',{'mode':'direct'})
 rpc.call('mode.set',{'mode':'rule'})
 rpc.call('config.apply')
@@ -55,6 +67,9 @@ else:raise RuntimeError('session survived owner disconnection')
 rpc.call('session.start');rpc.call('session.stop');rpc.call('session.stop')
 rpc.close()
 # Verify the packaged app can find its localized resources and connect.
+# Hide the SwiftPM build tree to prove the installed bundle is self-contained.
+build=pathlib.Path('apps/macos/.build');hidden=build.with_name('.build-smoke-hidden')
+build.rename(hidden)
 subprocess.run(['open','/Applications/Mihomo.app'],check=True)
 time.sleep(3)
 subprocess.run(['pgrep','-x','Mihomo'],check=True)
@@ -63,5 +78,6 @@ for _ in range(60):
  if subprocess.run(['pgrep','-x','Mihomo'],stdout=subprocess.DEVNULL).returncode!=0:break
  time.sleep(.2)
 else:raise RuntimeError('application did not quit')
+hidden.rename(build)
 print('PASS: installation, profile, core start/reload/stop, filtered API, lease cleanup, packaged app launch/quit')
 PY

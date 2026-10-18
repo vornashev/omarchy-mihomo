@@ -34,7 +34,7 @@ Removal restores proxy settings and preserves profiles, state and recovery logs.
 
 The daemon holds a helper lease while a network session exists. Dropping it stops the core and restores network proxy settings. The helper checks peer UID, bounds request sizes, uses fixed executable paths and a private runtime, rejects unsafe file references and limits controller endpoints. Root binaries are never replaced through RPC. The helper controller relay permits reads, group selection, connection closure and a small set of runtime patches; configuration reloads pass through validation and rollback.
 
-SystemConfiguration snapshots preserve HTTP, HTTPS, SOCKS, PAC and discovery settings per network service. Restoration only restores fields still equal to values the app wrote. A service changed externally is released rather than repeatedly overwritten. A recovery journal is saved before changing system preferences and replayed on helper startup.
+SystemConfiguration snapshots preserve HTTP, HTTPS, SOCKS, PAC and discovery settings per network service. Restoration only restores protocol settings still equal to values the app wrote; an externally edited host/port/enabled tuple is preserved together. A service changed externally is released rather than repeatedly overwritten. A recovery journal is saved before changing system preferences and replayed on helper startup.
 
 Linux migrations, external executable proxy plugins, unsafe file paths, Linux-specific TUN options and Intel Macs are outside this version. Provider/certificate file references must exist in the managed core runtime; embedded PEM and HTTP providers avoid local file provisioning. The GUI exposes errors from these restrictions rather than claiming the profile applied.
 
@@ -56,4 +56,4 @@ Run these before treating the port as production-ready:
 6. Exercise profiles/subscriptions, full node/group forms and YAML mode, import previews, rule suggestions/testing/history, problem hiding, connection closure and live logs in Russian/English and light/dark appearances.
 7. Update the app while disconnected, then uninstall while connected; verify network recovery and preservation of user data.
 
-Tests in CI avoid changing the runner's routes or system network preferences. Live networking and visual QA remain explicit acceptance steps.
+CI also installs and removes the services on an ephemeral Mac, exercises HTTP traffic through the core with TUN and system proxy disabled, verifies lease cleanup, and launches/quits the packaged app with its build directory hidden. These checks avoid changing the runner's routes or system network preferences. Live networking and visual QA remain explicit acceptance steps.

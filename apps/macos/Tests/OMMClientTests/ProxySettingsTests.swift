@@ -8,13 +8,13 @@ final class ProxySettingsTests: XCTestCase {
         let result = restored(applied, before: before, applied: applied)
         XCTAssertTrue(NSDictionary(dictionary: result).isEqual(to: before))
     }
-    func testPreservesExternalFieldChangesAndRestoresUnchangedFields() {
+    func testPreservesEditedEndpointsAndRestoresOtherProtocols() {
         let before: [String: Any] = ["HTTPEnable": 1, "HTTPProxy": "office", "HTTPPort": 3128]
         let applied = target(before, port: 7897)
         var external = applied; external["HTTPProxy"] = "new-office"
         let result = restored(external, before: before, applied: applied)
         XCTAssertEqual(result["HTTPProxy"] as? String, "new-office")
-        XCTAssertEqual(result["HTTPPort"] as? Int, 3128)
+        XCTAssertEqual(result["HTTPPort"] as? Int, 7897)
         XCTAssertNil(result["SOCKSProxy"])
     }
     func testPreservesValuesNotOwnedByTheApp() {

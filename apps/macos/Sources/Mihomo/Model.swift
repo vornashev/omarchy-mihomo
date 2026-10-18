@@ -2,7 +2,13 @@ import SwiftUI
 import AppKit
 import OMMClient
 
-func tr(_ key: String) -> String { NSLocalizedString(key, bundle: .module, comment: "") }
+private let localizationBundle: Bundle = {
+    // SwiftPM's generated accessor falls back to an absolute build directory.
+    // Prefer Resources explicitly so the installed app is relocatable.
+    if let url = Bundle.main.resourceURL?.appendingPathComponent("OmarchyMihomo_Mihomo.bundle"), let bundle = Bundle(url: url) { return bundle }
+    return .module
+}()
+func tr(_ key: String) -> String { NSLocalizedString(key, bundle: localizationBundle, comment: "") }
 extension JSON: Identifiable {
     public var id: String { if self["id"] != .null { return self["id"].text }; if self["name"] != .null { return self["provider"].string + "/" + self["name"].string }; if self["host"] != .null { return self["host"].string }; return pretty }
 }
