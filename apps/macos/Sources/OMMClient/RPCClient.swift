@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import Darwin
 
 @MainActor public final class RPCClient: ObservableObject {
@@ -12,7 +13,7 @@ import Darwin
     private var pending: [Int: CheckedContinuation<JSON, Error>] = [:]
     private let writer = DispatchQueue(label: "omm.rpc.writer")
     public init() {}
-    public static var socketPath: String { ProcessInfo.processInfo.environment["OMM_SOCKET"] ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".omm/daemon.sock").path }
+    public nonisolated static var socketPath: String { ProcessInfo.processInfo.environment["OMM_SOCKET"] ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".omm/daemon.sock").path }
     public func connect(path: String = RPCClient.socketPath) throws {
         disconnect(notify: false)
         var address = sockaddr_un(); address.sun_family = sa_family_t(AF_UNIX)

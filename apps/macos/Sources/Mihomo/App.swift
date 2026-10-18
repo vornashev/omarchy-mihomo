@@ -13,7 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateCancel
     }
 }
-@main struct MihomoApp: App {
+@main @MainActor struct MihomoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var model = Model()
     var body: some Scene {

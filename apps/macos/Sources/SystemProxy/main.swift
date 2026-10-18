@@ -1,23 +1,11 @@
 import Foundation
 import SystemConfiguration
+import ProxySettings
 import Darwin
 
 struct ProxyFailure: Error, CustomStringConvertible { let description: String }
 func require(_ ok: Bool, _ message: String) throws {
-    if !ok { throw ProxyFailure(description: "\(message): \(SCErrorString(SCError()).map(String.init(cString:)) ?? "unknown error")") }
-}
-let keys = ["HTTPEnable", "HTTPProxy", "HTTPPort", "HTTPSEnable", "HTTPSProxy", "HTTPSPort", "SOCKSEnable", "SOCKSProxy", "SOCKSPort", "ProxyAutoConfigEnable", "ProxyAutoDiscoveryEnable"]
-func same(_ a: Any?, _ b: Any?) -> Bool { NSDictionary(dictionary: ["v": a ?? NSNull()]).isEqual(to: ["v": b ?? NSNull()]) }
-func target(_ original: [String: Any], port: Int) -> [String: Any] {
-    var config = original
-    for prefix in ["HTTP", "HTTPS", "SOCKS"] { config["\(prefix)Enable"] = 1; config["\(prefix)Proxy"] = "127.0.0.1"; config["\(prefix)Port"] = port }
-    config["ProxyAutoConfigEnable"] = 0; config["ProxyAutoDiscoveryEnable"] = 0
-    return config
-}
-func restored(_ current: [String: Any], before: [String: Any], applied: [String: Any]) -> [String: Any] {
-    var result = current
-    for key in keys where same(current[key], applied[key]) { result[key] = before[key] }
-    return result
+    if !ok { throw ProxyFailure(description: "\(message): \(String(cString: SCErrorString(SCError())))") }
 }
 func writeJournal(_ records: [String: Any], url: URL) throws {
     let data = try JSONSerialization.data(withJSONObject: records, options: [.sortedKeys])
@@ -29,7 +17,11 @@ func run() throws {
     let mode = CommandLine.arguments[1], port = Int(CommandLine.arguments[2]) ?? 0
     guard ["enable", "sync", "restore"].contains(mode), mode == "restore" || (1...65535).contains(port) else { throw ProxyFailure(description: "Invalid proxy operation") }
     let journal = URL(fileURLWithPath: CommandLine.arguments[3])
-    var records = (try? JSONSerialization.jsonObject(with: Data(contentsOf: journal))) as? [String: [String: Any]] ?? [:]
+    var records: [String: [String: Any]] = [:]
+    if FileManager.default.fileExists(atPath: journal.path) {
+        guard let decoded = try JSONSerialization.jsonObject(with: Data(contentsOf: journal)) as? [String: [String: Any]] else { throw ProxyFailure(description: "Invalid recovery journal; refusing to overwrite it") }
+        records = decoded
+    }
     guard let preferences = SCPreferencesCreate(nil, "Omarchy Mihomo" as CFString, nil) else { throw ProxyFailure(description: "Cannot open network preferences") }
     try require(SCPreferencesLock(preferences, true), "Cannot lock network preferences")
     defer { SCPreferencesUnlock(preferences) }
@@ -38,7 +30,8 @@ func run() throws {
     var enabled = false
     var conflict = false
     for service in services {
-        let id = SCNetworkServiceGetServiceID(service) as String
+        guard let serviceID = SCNetworkServiceGetServiceID(service) else { continue }
+        let id = serviceID as String
         guard let proto = SCNetworkServiceCopyProtocol(service, kSCNetworkProtocolTypeProxies) else { continue }
         let current = SCNetworkProtocolGetConfiguration(proto) as? [String: Any] ?? [:]
         let record = records[id]
@@ -53,7 +46,7 @@ func run() throws {
         if mode == "sync", !applied.isEmpty, !keys.allSatisfy({ same(current[$0], applied[$0]) }) {
             let restore = restored(current, before: before, applied: applied)
             writes.append((proto, current, restore))
-            records[id] = ["blocked": true]
+            records[id] = ["before": before, "applied": applied, "blocked": true]
             conflict = true
             continue
         }

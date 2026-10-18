@@ -63,7 +63,7 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     let paths = Paths::new(&args.data_dir);
     paths.ensure()?;
-    let core_socket = args.core_socket.clone().unwrap_or_else(|| paths.controller_socket());
+    let core_socket = args.core_socket.clone().unwrap_or_else(|| if omm_platform::IS_MACOS { omm_platform::core_socket() } else { paths.controller_socket() });
     let binary = omm_config::runtime::find_binary(args.core_bin.as_deref());
     if binary.is_none() {
         tracing::warn!("no mihomo binary found; configs cannot be validated or applied");

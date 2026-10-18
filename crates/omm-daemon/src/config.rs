@@ -159,7 +159,7 @@ impl Manager {
     /// Pointing the daemon at someone else's core (Clash Verge during
     /// migration) must never replace that core's config.
     pub fn owns_core(&self, state: &State) -> bool {
-        state.core.socket() == self.paths.controller_socket()
+        state.core.socket() == self.paths.controller_socket() || (omm_platform::IS_MACOS && state.core.socket() == omm_platform::core_socket())
     }
 
     fn runtime(&self) -> Result<Runtime, RpcError> {

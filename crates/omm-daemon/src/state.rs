@@ -85,6 +85,7 @@ impl State {
         }
     }
 
+    #[cfg(target_os = "macos")]
     pub fn set_helper_status(&self, helper: omm_proto::HelperStatus) {
         if self.status.send_if_modified(|s| {
             if s.helper == helper { return false; }

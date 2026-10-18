@@ -51,8 +51,7 @@ impl Paths {
         self.runtime().join("config.yaml")
     }
     pub fn controller_socket(&self) -> PathBuf {
-        if omm_platform::IS_MACOS { omm_platform::core_socket() }
-        else { self.runtime().join(crate::settings::CONTROLLER_SOCKET) }
+        self.runtime().join(crate::settings::CONTROLLER_SOCKET)
     }
     pub fn snapshots(&self) -> PathBuf {
         self.root.join("snapshots")

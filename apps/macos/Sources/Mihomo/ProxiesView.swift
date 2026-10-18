@@ -129,7 +129,7 @@ struct SchemaField: View {
                     Text(label + " (JSON)")
                     TextField("[] / {}", text: $structured, axis: .vertical).font(.system(.caption, design: .monospaced))
                         .onAppear { structured = object[key] == .null ? "" : object[key].pretty }
-                        .onChange(of: structured) { _, text in if text.isEmpty { var values = object.object; values.removeValue(forKey: key); object = .object(values) } else if let v = try? JSON.parse(text) {object[key] = v} }
+                        .onChange(of: structured) { _, text in if text.isEmpty { var values = object.object; values.removeValue(forKey: key); object = .object(values) } else {object[key] = (try? JSON.parse(text)) ?? .string(text)} }
                     if !structured.isEmpty && (try? JSON.parse(structured)) == nil { Text(tr("invalidJSON")).foregroundStyle(.red) }
                 }
             } else if field["secret"].bool && !field["multiline"].bool {

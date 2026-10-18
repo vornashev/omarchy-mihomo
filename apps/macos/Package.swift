@@ -7,8 +7,9 @@ let package = Package(
     products: [.executable(name: "Mihomo", targets: ["Mihomo"]), .executable(name: "omm-system-proxy", targets: ["SystemProxy"])],
     targets: [
         .target(name: "OMMClient"),
+        .target(name: "ProxySettings"),
         .executableTarget(name: "Mihomo", dependencies: ["OMMClient"], resources: [.process("Resources")]),
-        .executableTarget(name: "SystemProxy"),
-        .testTarget(name: "OMMClientTests", dependencies: ["OMMClient"])
+        .executableTarget(name: "SystemProxy", dependencies: ["ProxySettings"]),
+        .testTarget(name: "OMMClientTests", dependencies: ["OMMClient", "ProxySettings"])
     ]
 )

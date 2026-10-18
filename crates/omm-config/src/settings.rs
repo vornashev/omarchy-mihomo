@@ -143,9 +143,6 @@ impl Settings {
         let mut t = Value::Mapping(std::mem::take(tun));
         deep_merge(&mut t, Value::Mapping(self.tun.extra.clone()));
         let Value::Mapping(mut t) = t else { unreachable!() };
-        if omm_platform::IS_MACOS {
-            for key in ["auto-redirect", "include-uid", "exclude-uid", "include-uid-range", "exclude-uid-range", "include-android-user", "include-package", "exclude-package", "iproute2-table-index", "iproute2-rule-index", "gso"] { t.remove(key); }
-        }
         t.insert("enable".into(), self.tun.enable.into());
         t.insert("stack".into(), self.tun.stack.as_str().into());
         t.insert("device".into(), self.tun.device.as_str().into());
