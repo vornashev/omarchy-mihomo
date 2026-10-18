@@ -9,6 +9,7 @@ Mihomo profiles, subscriptions, proxy/group editors, routing rules, connection d
 
 ```sh
 cargo test --locked --workspace
+mkdir -p target/qml-shots
 QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen /usr/lib/qt6/bin/qmltestrunner -input tests/qml -import tests/qml/stubs
 ```
 

@@ -6,7 +6,7 @@ use clap::Parser;
 use omm_platform::helper::{VERSION, read_frame};
 use serde_json::{Value, json};
 use std::{
-    os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
+    os::unix::fs::{FileTypeExt, MetadataExt, OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
     sync::Arc,
     time::Duration,
@@ -239,7 +239,7 @@ fn atomic(path: &Path, bytes: &[u8]) -> Result<()> {
 }
 fn assert_private_tree(path: &Path) -> Result<()> {
     let metadata = std::fs::symlink_metadata(path)?;
-    if metadata.file_type().is_symlink() || metadata.uid() != 0 || metadata.mode() & 0o022 != 0 {
+    if metadata.file_type().is_symlink() || metadata.uid() != 0 || (!metadata.file_type().is_socket() && metadata.mode() & 0o022 != 0) {
         bail!("unsafe runtime ownership or symlink: {}", path.display());
     }
     if metadata.is_dir() {
