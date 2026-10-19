@@ -57,6 +57,12 @@ pub async fn collect(state: Arc<State>, recorded: Arc<std::sync::atomic::AtomicU
                     }
                     let Some(line) = parse::parse(&l.payload) else { continue };
                     state.seen.lock().unwrap().record(&line, now_ms());
+                    let next = state.autofix.lock().unwrap().observe(&line, now_ms());
+                    match next {
+                        Some(crate::autofix::Next::Check(host)) => drop(tokio::spawn(crate::autofix::check(state.clone(), host))),
+                        Some(crate::autofix::Next::RollBack(host)) => drop(tokio::spawn(crate::autofix::roll_back(state.clone(), host))),
+                        None => {}
+                    }
                     let mut c = state.problems.lock().unwrap();
                     if c.ingest(&line, now_ms()) {
                         recorded.fetch_add(1, Ordering::Relaxed);

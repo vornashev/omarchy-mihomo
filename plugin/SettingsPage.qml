@@ -10,7 +10,7 @@ Item {
 
   property var s: null
   property bool saving: false
-  readonly property bool typing: portField.input.activeFocus || intervalField.input.activeFocus
+  readonly property bool typing: portField.input.activeFocus || intervalField.input.activeFocus || automation.typing
 
   function reload() { svc.request("settings.get", null, function(r) { if (r) { s = r; portField.text = String(r["mixed-port"]); intervalField.text = String(r["update-interval-hours"]) } }) }
 
@@ -35,15 +35,40 @@ Item {
   Component.onCompleted: reload()
 
   Column {
-    visible: root.s !== null
-    anchors.fill: parent
-    spacing: Style.space(16)
-
+    id: header
+    width: parent.width
+    spacing: Style.space(12)
     Column {
       spacing: Style.space(3)
       Txt { text: I18n.t("settingsTitle"); bold: true; font.pixelSize: Style.font.heading }
       Txt { text: I18n.t("settingsSubtitle"); dim: true; font.pixelSize: Style.font.bodySmall }
     }
+    Seg {
+      current: root.panel.settingsTab
+      model: [{ key: "main", label: I18n.t("settingsTabMain") }, { key: "auto", label: I18n.t("settingsTabAuto") }]
+      onPicked: function(k) { root.panel.settingsTab = k }
+    }
+  }
+
+  AutomationSettings {
+    id: automation
+    visible: root.panel.settingsTab === "auto"
+    anchors.top: header.bottom
+    anchors.topMargin: Style.space(16)
+    anchors.left: parent.left
+    anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    svc: root.svc
+    panel: root.panel
+  }
+
+  Column {
+    visible: root.s !== null && root.panel.settingsTab === "main"
+    anchors.top: header.bottom
+    anchors.topMargin: Style.space(16)
+    anchors.left: parent.left
+    anchors.right: parent.right
+    spacing: Style.space(16)
 
     IssueList { width: parent.width; svc: root.svc; only: ["other_core", "core_no_caps", "tun_failed", "core_stopped"] }
 

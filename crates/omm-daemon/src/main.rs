@@ -1,3 +1,4 @@
+mod autofix;
 mod config;
 mod core;
 mod geosite;
@@ -6,6 +7,7 @@ mod health;
 mod ipc;
 mod logs;
 mod methods;
+mod notices;
 mod problems;
 mod procs;
 mod route_check;
@@ -83,6 +85,9 @@ async fn main() -> Result<()> {
     tokio::spawn(problems::collect(state.clone(), Arc::clone(&recorded)));
     tokio::spawn(problems::flush(state.clone(), recorded));
     tokio::spawn(config::expire_rules(state.clone()));
+    tokio::spawn(autofix::watch(state.clone()));
+    tokio::spawn(notices::watch(state.clone()));
+    tokio::spawn(notices::watch_groups(state.clone()));
     {
         let state = state.clone();
         tokio::spawn(async move {

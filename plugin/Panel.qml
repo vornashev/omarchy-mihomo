@@ -23,6 +23,12 @@ Panel {
   property var proxyDraft: null
   // Text the logs page filters by when it opens next.
   property string logFilter: ""
+  // The event shown on the compact notice page.
+  property string noticeKey: ""
+  // Settings tab to show next: main | auto.
+  property string settingsTab: "main"
+  // One event from a notification: a small card without the page rail.
+  readonly property bool compact: page === "notice"
 
   readonly property var pages: [
     { key: "overview", icon: Icons.overview, label: I18n.t("navOverview") },
@@ -44,6 +50,7 @@ Panel {
   function showPage(key) {
     if (key !== page && pageLoader.item && pageLoader.item.canLeave && !pageLoader.item.canLeave()) return
     if (key !== "editor" && key !== "rule") editing = null
+    if (key !== "notice") svc.noticeOnScreen = ""
     page = key
     if (!opened) open()
   }
@@ -60,6 +67,70 @@ Panel {
     if (!opened) open()
   }
 
+  // Opened from a desktop notification (`openNotice` over IPC).
+  function openNotice(key) {
+    var show = function() {
+      noticeKey = key
+      svc.noticeOnScreen = key
+      editing = null
+      page = "notice"
+      if (!opened) open()
+    }
+    if (svc.notices[key]) { show(); return }
+    // The shell restarted since: ask the daemon what the event was.
+    svc.request("notices.get", { key: key }, function(n) {
+      if (n) {
+        var next = Object.assign({}, svc.notices)
+        next[key] = n
+        svc.notices = next
+        show()
+      } else showPage("problems")
+    }, true)
+  }
+
+  // SUPER+ALT+P: a rule for the program behind the focused window.
+  function ruleForWindow() { activeWindow.running = true }
+
+  function openWindowRule(win, nodes) {
+    if (!nodes || !nodes.length) { svc.raise("window", "window_unknown", "normal", {}); return }
+    // A terminal hardly talks to the network itself; what runs in it does.
+    var pick = nodes[0]
+    for (var i = 1; i < nodes.length; i++) if (nodes[i].connections > pick.connections) pick = nodes[i]
+    svc.request("connections.list", null, function(r) {
+      var routes = {}
+      var conns = r && r.connections ? r.connections : []
+      for (var j = 0; j < conns.length; j++) {
+        var m = conns[j].metadata || {}
+        if (m.processPath !== pick.path && m.process !== pick.name) continue
+        var chain = (conns[j].chains || []).slice().reverse().join(" → ")
+        routes[chain] = (routes[chain] || 0) + 1
+      }
+      var best = "", n = 0
+      for (var c in routes) if (routes[c] > n) { best = c; n = routes[c] }
+      openRule({
+        from: "window",
+        kind: "process-name",
+        window: win,
+        candidates: nodes.filter(function(x) { return x.connections > 0 || x.pid === nodes[0].pid }),
+        origin: { host: "", ip: "", process: pick.name, process_path: pick.path, pid: pick.pid, route: best, connections: pick.connections }
+      })
+    }, true)
+  }
+
+  Process {
+    id: activeWindow
+    command: ["hyprctl", "activewindow", "-j"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        var w = null
+        try { w = JSON.parse(text) } catch (e) {}
+        if (!w || !w.pid || w.pid <= 0) { svc.raise("window", "window_unknown", "normal", {}); return }
+        var win = { pid: w.pid, cls: w["class"] || "", title: w.title || "" }
+        svc.request("processes.tree", { pid: w.pid }, function(nodes) { root.openWindowRule(win, nodes) }, true)
+      }
+    }
+  }
+
   function showLogs(filter) {
     logFilter = filter
     showPage("logs")
@@ -74,6 +145,7 @@ Panel {
   }
 
   onOpenedChanged: {
+    if (!opened) svc.noticeOnScreen = ""
     if (opened) Qt.callLater(function() { keyCatcher.forceActiveFocus() })
     // Opening the panel acknowledges new problems shown on the badge.
     else if (page === "problems" && svc.newProblems > 0) svc.request("problems.mark_seen", null, null)
@@ -91,6 +163,9 @@ Panel {
     function close(): void { root.close() }
     function toggle(): void { root.toggle() }
     function openPage(name: string): void { root.showPage(name) }
+    // Clicking one of our desktop notifications lands here.
+    function openNotice(key: string): void { root.openNotice(key) }
+    function ruleForWindow(): void { root.ruleForWindow() }
     // Open the route editor for a problem host, e.g. from a script.
     function route(host: string): void {
       svc.request("problems.get", { host: host }, function(p, err) {
@@ -118,6 +193,18 @@ Panel {
           color: root.barIconColor
           font.family: Style.font.family
           font.pixelSize: Style.bar.iconFont
+        }
+        // Autofix is doing something (a rule on trial, a suggestion).
+        Text {
+          visible: svc.autofixActive > 0
+          anchors.left: parent.left
+          anchors.bottom: parent.bottom
+          anchors.leftMargin: -Style.space(5)
+          anchors.bottomMargin: -Style.space(3)
+          text: Icons.sparkles
+          color: Color.accent
+          font.family: Style.font.family
+          font.pixelSize: Math.max(8, Style.font.caption - 1)
         }
         Rectangle {
           visible: svc.newProblems > 0 && String(root.setting("badge", "on")) !== "off"
@@ -158,8 +245,10 @@ Panel {
     open: root.opened
     focusTarget: keyCatcher
     padding: 0
-    contentWidth: panel.fittedContentWidth(Style.space(root.page === "proxies" ? 820 : 860) + rail.width - Style.space(190))
-    contentHeight: panel.fittedContentHeight(Style.space(root.page === "proxies" ? 680 : 660))
+    contentWidth: root.compact ? panel.fittedContentWidth(Style.space(380))
+      : panel.fittedContentWidth(Style.space(root.page === "proxies" ? 820 : 860) + rail.width - Style.space(190))
+    contentHeight: root.compact ? panel.fittedContentHeight((pageLoader.item ? pageLoader.item.implicitHeight : Style.space(200)) + Style.space(32))
+      : panel.fittedContentHeight(Style.space(root.page === "proxies" ? 680 : 660))
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -172,6 +261,7 @@ Panel {
       onCloseRequested: {
         if (pageLoader.item && pageLoader.item.canLeave && !pageLoader.item.canLeave()) return
         if (root.page === "editor") root.showPage("problems")
+        else if (root.page === "rule" && root.editing && root.editing.from === "window") root.close()
         else if (root.page === "rule") root.showPage(root.editing && root.editing.from ? root.editing.from : "rules")
         else root.close()
       }
@@ -184,10 +274,11 @@ Panel {
 
       Rectangle {
         id: rail
+        visible: !root.compact
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        width: Math.max(Style.space(190), navStatus.implicitWidth + Style.space(20))
+        width: root.compact ? 0 : Math.max(Style.space(190), navStatus.implicitWidth + Style.space(20))
         color: Util.alpha(Color.popups.background, 0.6)
         radius: Style.cornerRadius
 
@@ -222,7 +313,7 @@ Panel {
               keyHint: String(index + 1)
               badge: modelData.key === "problems" ? svc.newProblems : (modelData.key === "rules" ? svc.orphans.length : 0)
               selected: root.page === modelData.key || (root.page === "editor" && modelData.key === "problems")
-                || (root.page === "rule" && modelData.key === (root.editing && root.editing.from ? root.editing.from : "rules"))
+                || (root.page === "rule" && modelData.key === (root.editing && root.editing.from && root.editing.from !== "window" ? root.editing.from : "rules"))
               onClicked: root.showPage(modelData.key)
             }
           }
@@ -245,7 +336,7 @@ Panel {
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        anchors.margins: Style.space(18)
+        anchors.margins: Style.space(root.compact ? 16 : 18)
 
         // Daemon not reachable: one clear action instead of empty pages.
         Column {
@@ -268,7 +359,7 @@ Panel {
             var files = {
               overview: "OverviewPage.qml", problems: "ProblemsPage.qml", editor: "RouteEditor.qml", rule: "RuleEditor.qml",
               rules: "RulesPage.qml", proxies: "ProxiesPage.qml", profiles: "ProfilesPage.qml",
-              connections: "ConnectionsPage.qml", logs: "LogsPage.qml", settings: "SettingsPage.qml"
+              connections: "ConnectionsPage.qml", logs: "LogsPage.qml", settings: "SettingsPage.qml", notice: "NoticePage.qml"
             }
             if (loaded === root.page && item) return
             loaded = root.page

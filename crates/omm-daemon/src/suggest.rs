@@ -498,6 +498,11 @@ pub fn scopes(o: &Origin, conns: &[Connection], seen: &[crate::seen::Host]) -> V
     if !o.process.trim().is_empty() {
         candidates.push((MatchKind::ProcessName, o.process.trim().to_owned()));
     }
+    // Without a host (a window, not a connection) the executable is the
+    // other natural scope.
+    if host.is_empty() && o.ip.trim().is_empty() && !o.process_path.trim().is_empty() {
+        candidates.push((MatchKind::ProcessPath, o.process_path.trim().to_owned()));
+    }
     let ip = if o.ip.trim().is_empty() && is_ip(host) { host } else { o.ip.trim() };
     if !ip.is_empty() {
         candidates.push((MatchKind::IpCidr, ip.to_owned()));

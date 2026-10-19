@@ -96,9 +96,65 @@ pub fn attach_windows(programs: &mut [Program], windows: &BTreeMap<u32, String>,
     }
 }
 
+/// A process under a window's process, for "rule for the active window".
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct Node {
+    pub pid: u32,
+    pub name: String,
+    pub path: String,
+    /// 0 for the window's own process.
+    pub depth: u32,
+    pub connections: usize,
+}
+
+/// `pid` and its descendants (a terminal and what runs in it), closest
+/// first. Processes without a readable executable are skipped.
+#[cfg(not(target_os = "macos"))]
+pub fn tree(proc_root: &Path, pid: u32) -> Vec<Node> {
+    let mut children: BTreeMap<u32, Vec<u32>> = BTreeMap::new();
+    if let Ok(dir) = std::fs::read_dir(proc_root) {
+        for entry in dir.flatten() {
+            let Some(child) = entry.file_name().to_str().and_then(|s| s.parse::<u32>().ok()) else { continue };
+            let Ok(stat) = std::fs::read_to_string(entry.path().join("stat")) else { continue };
+            let Some(parent) = stat.rsplit_once(')').and_then(|(_, r)| r.split_whitespace().nth(1)?.parse::<u32>().ok()) else { continue };
+            children.entry(parent).or_default().push(child);
+        }
+    }
+    let mut out = Vec::new();
+    let mut queue = std::collections::VecDeque::from([(pid, 0u32)]);
+    while let Some((p, depth)) = queue.pop_front() {
+        if out.len() >= 64 {
+            break;
+        }
+        if let Ok(exe) = std::fs::read_link(proc_root.join(p.to_string()).join("exe")) {
+            let path = exe.to_string_lossy().trim_end_matches(" (deleted)").to_owned();
+            let name = Path::new(&path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            out.push(Node { pid: p, name, path, depth, connections: 0 });
+        }
+        if depth < 4 {
+            for &c in children.get(&p).into_iter().flatten() {
+                queue.push_back((c, depth + 1));
+            }
+        }
+    }
+    out
+}
+
+#[cfg(target_os = "macos")]
+pub fn tree(_: &Path, _: u32) -> Vec<Node> {
+    Vec::new()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tree_starts_at_the_process() {
+        let me = std::process::id();
+        let t = tree(Path::new("/proc"), me);
+        assert_eq!(t.first().map(|n| (n.pid, n.depth)), Some((me, 0)));
+    }
 
     #[test]
     fn lists_own_processes() {

@@ -729,6 +729,7 @@ pub async fn auto_update(state: Arc<State>) {
         for r in state.config.update(&state, None, false).await {
             if let Some(e) = r.error {
                 tracing::warn!(profile = %r.name, "auto-update failed: {e}");
+                state.notify(&format!("subscription:{}", r.id), "subscription", "normal", serde_json::json!({ "id": r.id, "name": r.name, "error": e }));
             }
         }
         tokio::time::sleep(AUTO_UPDATE_EVERY).await;

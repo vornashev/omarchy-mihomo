@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
 use omm_proto::{CoreStatus, Event, PROTOCOL_VERSION, Status, topic};
@@ -29,10 +29,28 @@ pub struct State {
     pub tun_error: Mutex<Option<String>>,
     pub core_install: Mutex<crate::health::Install>,
     operation_serial: Mutex<u64>,
+    pub autofix: Mutex<crate::autofix::Engine>,
+    /// Latest notices, newest last, one per key.
+    notices: Mutex<VecDeque<Notice>>,
 }
+
+/// Something worth a desktop notification. Clients render the text; the
+/// daemon only says what happened.
+#[derive(Debug, Clone, Serialize)]
+pub struct Notice {
+    pub key: String,
+    pub kind: String,
+    /// `low`, `normal` or `critical`.
+    pub urgency: &'static str,
+    pub data: serde_json::Value,
+    pub at: i64,
+}
+
+const MAX_NOTICES: usize = 50;
 
 impl State {
     pub fn new(core: mihomo_api::Client, config: crate::config::Manager, problems: omm_problems::Collector, system_proxy: crate::system_proxy::Manager) -> Self {
+        let autofix = crate::autofix::Engine::load(&config.paths().root);
         let status = Status {
             platform: omm_platform::NAME.into(),
             capabilities: vec!["profiles".into(), "rules".into(), "system_proxy".into(), "tun".into(), "process_rules".into()],
@@ -61,7 +79,41 @@ impl State {
             tun_error: Mutex::default(),
             core_install: Mutex::default(),
             operation_serial: Mutex::default(),
+            autofix: Mutex::new(autofix),
+            notices: Mutex::default(),
         }
+    }
+
+    /// Publish a notice unless the user switched its category off.
+    pub fn notify(&self, key: &str, kind: &str, urgency: &'static str, data: serde_json::Value) {
+        let on = {
+            let n = &self.autofix.lock().unwrap().settings.notify;
+            match kind {
+                "autofix" => n.autofix,
+                "core_down" | "core_up" => n.core,
+                "dead_group" | "group_alive" => n.dead_group,
+                "subscription" => n.subscription,
+                "orphans" => n.orphans,
+                _ => true,
+            }
+        };
+        if !on {
+            return;
+        }
+        let notice = Notice { key: key.into(), kind: kind.into(), urgency, data, at: crate::problems::now_ms() };
+        {
+            let mut list = self.notices.lock().unwrap();
+            list.retain(|n| n.key != key);
+            list.push_back(notice.clone());
+            while list.len() > MAX_NOTICES {
+                list.pop_front();
+            }
+        }
+        self.publish(topic::NOTICES, &notice);
+    }
+
+    pub fn notice(&self, key: &str) -> Option<Notice> {
+        self.notices.lock().unwrap().iter().find(|n| n.key == key).cloned()
     }
 
     pub fn status(&self) -> Status {

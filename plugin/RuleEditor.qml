@@ -18,6 +18,9 @@ Item {
   readonly property var origin: editing.origin || null
   readonly property var rule: editing.rule || null
   readonly property string from: editing.from || "rules"
+  // Opened by SUPER+ALT+P: the focused window and the processes under it.
+  readonly property var win: editing.window || null
+  readonly property var candidates: editing.candidates || []
 
   // Connection scopes (`rules.scopes`) and the chosen one.
   property var scopes: []
@@ -56,7 +59,13 @@ Item {
   readonly property var chipModel: RuleModels.chips(targets, target, 4)
   readonly property bool canSave: effectiveKind !== "" && effectiveValue !== "" && target !== "" && !saving && error === ""
 
-  function back() { panel.showPage(from) }
+  function back() { if (from === "window") panel.close(); else panel.showPage(from) }
+
+  function pickCandidate(c) {
+    var next = Object.assign({}, editing)
+    next.origin = Object.assign({}, origin, { process: c.name, process_path: c.path, pid: c.pid, connections: c.connections })
+    panel.openRule(next)
+  }
   function kindTitle(k) { return I18n.t("ruleTab_" + RuleModels.tabOf(k)) + " · " + I18n.t("variant_" + k) }
 
   function init() {
@@ -189,6 +198,13 @@ Item {
       var msg = I18n.t("savedToast").arg(r.rule ? RuleModels.display(r.rule.kind, r.rule.value) : effectiveValue).arg(target)
       if (r.closed > 0) msg += " · " + I18n.t("closedConns").arg(r.closed)
       if (r.apply && !r.apply.reloaded) msg += " · " + I18n.t("notReloaded")
+      if (from === "window" && r.rule) {
+        // The panel closes; the notification keeps the way back.
+        if (!svc.automation || !svc.automation.notify || svc.automation.notify.saved)
+          svc.raise("saved", "saved", "normal", { rule_id: r.rule.id, line: RuleModels.display(r.rule.kind, r.rule.value) + " → " + r.rule.target })
+        panel.close()
+        return
+      }
       panel.notify(msg)
       back()
     })
@@ -238,7 +254,7 @@ Item {
       Txt { text: root.rule && !root.editing.duplicate ? I18n.t("ruleEditTitle") : I18n.t("ruleNewTitle"); bold: true; font.pixelSize: Style.font.heading }
       Txt {
         width: parent.width
-        text: (root.from === "connections" ? I18n.t("navConnections") : I18n.t("navRules")) + " › "
+        text: root.win ? I18n.t("activeWindow") + " › " + (root.win.title || root.win.cls) : (root.from === "connections" ? I18n.t("navConnections") : I18n.t("navRules")) + " › "
           + (root.origin ? (root.origin.host || root.origin.ip) + (root.origin.port ? ":" + root.origin.port : "")
           : (root.rule ? RuleModels.display(root.rule.kind, root.rule.value) : I18n.t("ruleNewCrumb")))
         dim: true; font.pixelSize: Style.font.bodySmall
@@ -276,7 +292,11 @@ Item {
           anchors.margins: Style.space(10)
           spacing: Style.space(12)
           Repeater {
-            model: root.origin ? [
+            model: root.win ? [
+              [I18n.t("factWindow"), root.win.title || root.win.cls, root.win.cls ? "class " + root.win.cls : ""],
+              [I18n.t("factProcess"), root.origin.process, "pid " + root.origin.pid + " · " + root.origin.process_path],
+              [I18n.t("factRoute"), root.origin.route || "—", I18n.t("connsShort").arg(root.origin.connections || 0)]
+            ] : root.origin ? [
               [I18n.t("factHost"), root.origin.host || root.origin.ip, (root.origin.ip ? root.origin.ip + ":" + root.origin.port : "") + (root.origin.network ? " · " + root.origin.network : "")],
               [I18n.t("factProcess"), root.origin.process || I18n.t("unknownApp"), root.origin.process_path],
               [I18n.t("factRoute"), root.origin.route || "—", root.origin.rule]
@@ -293,7 +313,24 @@ Item {
         }
       }
 
-      SectionLabel { label: I18n.t("matchLabel"); hint: root.full ? "" : I18n.t("matchFromConn") }
+      // A terminal: pick which of the programs in it the rule is for.
+      SectionLabel { visible: root.candidates.length > 1; label: I18n.t("windowProcess"); hint: I18n.t("windowProcessHint") }
+      Flow {
+        visible: root.candidates.length > 1
+        width: parent.width
+        spacing: Style.space(6)
+        Repeater {
+          model: root.candidates
+          Btn {
+            required property var modelData
+            text: modelData.name + "  " + I18n.t("connsShort").arg(modelData.connections)
+            primary: root.origin && modelData.path === root.origin.process_path
+            onClicked: root.pickCandidate(modelData)
+          }
+        }
+      }
+
+      SectionLabel { label: I18n.t("matchLabel"); hint: root.full ? "" : I18n.t(root.win ? "matchFromWindow" : "matchFromConn") }
 
       // Scopes a connection suggests.
       Grid {

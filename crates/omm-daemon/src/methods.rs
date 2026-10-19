@@ -354,6 +354,22 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             let seen = state.seen.lock().unwrap().hosts(crate::problems::now_ms());
             to_value(crate::suggest::scopes(&o, &conns, &seen))
         }
+        "processes.tree" => {
+            #[derive(Deserialize)]
+            struct P {
+                pid: u32,
+            }
+            let p: P = parse(params)?;
+            let mut nodes = crate::procs::tree(std::path::Path::new("/proc"), p.pid);
+            let conns = state.core.connections().await.map(|c| c.connections).unwrap_or_default();
+            for n in &mut nodes {
+                n.connections = conns.iter().filter(|c| c.metadata.process_path == n.path || (c.metadata.process_path.is_empty() && c.metadata.process == n.name)).count();
+            }
+            // One entry per program: a browser has dozens of helpers.
+            let mut seen = std::collections::HashMap::new();
+            nodes.retain(|n| seen.insert(n.path.clone(), ()).is_none());
+            to_value(nodes)
+        }
         "rules.test" => {
             #[derive(Deserialize)]
             struct P {
@@ -518,6 +534,15 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
         }
 
         "core.rules" => to_value(state.core.rules().await.map_err(core_err)?),
+
+        m if m.starts_with("autofix.") || m.starts_with("automation.") => crate::autofix::rpc(state, m, params).await,
+        "notices.get" => {
+            #[derive(Deserialize)]
+            struct P {
+                key: String,
+            }
+            to_value(state.notice(&parse::<P>(params)?.key))
+        }
 
         _ => Err(RpcError::new(ErrorCode::UnknownMethod, format!("unknown method {method}"))),
     }

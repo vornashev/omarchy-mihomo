@@ -5,7 +5,7 @@ use std::net::IpAddr;
 
 use futures_util::future::join_all;
 use omm_config::rules::UserRule;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::state::State;
 
@@ -19,7 +19,7 @@ pub struct Probe {
     pub inconclusive: bool,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Outcome {
     pub target: String,
     pub ok: bool,

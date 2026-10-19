@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import "Notices.js" as Notices
 
 // Connection to omarchy-mihomod: one unix socket, newline-delimited JSON.
 // Requests carry an id and get a callback; the daemon pushes `status`,
@@ -93,6 +94,78 @@ Item {
   // Extra topics wanted by open pages (traffic, logs).
   property var extraTopics: []
 
+  // Autofixes by host (`autofix.list` shape), kept live by `autofix` events.
+  property var fixes: ({})
+  // Fixes that want attention: on trial, found, rolled back.
+  readonly property int autofixActive: {
+    var n = 0
+    for (var h in fixes) if (["trial", "found", "rolled_back"].indexOf(fixes[h].state) !== -1) n++
+    return n
+  }
+  property var automation: null
+  // Latest notices by key; the popup opened from a notification reads them.
+  property var notices: ({})
+  // Desktop notification id per notice key, so an update replaces the toast.
+  property var toastIds: ({})
+  // The panel shows this notice right now; no toast for it.
+  property string noticeOnScreen: ""
+  signal noticeArrived(var notice)
+
+  function loadAutofix() {
+    request("autofix.list", null, function(r) {
+      if (!r) return
+      var next = {}
+      for (var i = 0; i < r.length; i++) next[r[i].host] = r[i]
+      root.fixes = next
+    }, true)
+    request("automation.get", null, function(r) { if (r) root.automation = r }, true)
+  }
+
+  function setFix(fix) {
+    var next = Object.assign({}, fixes)
+    if (fix.state === "dismissed") delete next[fix.host]
+    else next[fix.host] = fix
+    fixes = next
+  }
+
+  // Notices the plugin raises itself (saved rule, unknown window).
+  function raise(key, kind, urgency, data) {
+    handleNotice({ key: key, kind: kind, urgency: urgency, data: data, at: Date.now() })
+  }
+
+  function handleNotice(n) {
+    var next = Object.assign({}, notices)
+    next[n.key] = n
+    notices = next
+    noticeArrived(n)
+    if (n.key === noticeOnScreen && panelVisible) return
+    var text = Notices.text(n, I18n.t, root.clock)
+    if (!text) return
+    var replace = toastIds[n.key] || 0
+    toastProc.createObject(root, {
+      key: n.key,
+      command: ["omarchy-notification-send", "--app-name", "Mihomo", "-u", n.urgency, "-r", String(replace), "-p",
+        text.title, text.body + (text.click ? "\n" + text.click : ""),
+        "--exec", "omarchy-shell", "-q", "tema.omarchy-mihomo", "openNotice", n.key]
+    })
+  }
+
+  Component {
+    id: toastProc
+    Process {
+      id: proc
+      property string key: ""
+      running: true
+      stdout: StdioCollector {
+        onStreamFinished: {
+          var m = String(text).match(/(\d+)/)
+          if (m) { var ids = Object.assign({}, root.toastIds); ids[proc.key] = parseInt(m[1]); root.toastIds = ids }
+        }
+      }
+      onExited: proc.destroy()
+    }
+  }
+
   signal logLine(var line)
   // A local profile's file was saved in an editor and checked by the daemon.
   signal profileSaved(var info)
@@ -157,7 +230,7 @@ Item {
   }
 
   function subscribe() {
-    var topics = ["status", "problems", "profiles"].concat(extraTopics)
+    var topics = ["status", "problems", "profiles", "autofix", "notices"].concat(extraTopics)
     if (panelVisible && topics.indexOf("traffic") === -1) topics.push("traffic")
     request("events.subscribe", { topics: topics }, null)
   }
@@ -187,6 +260,8 @@ Item {
           p.error ? I18n.t("profileSaveFailed").arg(p.name) : I18n.t("profileSaved").arg(p.name), p.error || ""])
         root.profileSaved(p)
       }
+      else if (msg.event === "autofix") root.setFix(msg.data)
+      else if (msg.event === "notices") root.handleNotice(msg.data)
       else if (msg.event === "traffic" && connected && coreRunning && panelVisible) root.traffic = msg.data
       else if (msg.event === "logs") {
         if (Array.isArray(msg.data.lines)) {
@@ -218,6 +293,7 @@ Item {
       if (connected) {
         retry.interval = 500
         root.subscribe()
+        root.loadAutofix()
       } else {
         // Fail outstanding calls instead of leaving the UI waiting.
         var calls = root.pending

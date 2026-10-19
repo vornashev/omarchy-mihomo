@@ -114,8 +114,13 @@ pub mod topic {
     /// `{id, name, draft, error}` after a local profile's file was saved
     /// and checked.
     pub const PROFILES: &str = "profiles";
+    /// An autofix (`autofix.get` shape) whenever its state changed.
+    pub const AUTOFIX: &str = "autofix";
+    /// `{key, kind, urgency, data, at}`: something worth a desktop
+    /// notification. A newer notice with the same key replaces the older.
+    pub const NOTICES: &str = "notices";
 
-    pub const ALL: &[&str] = &[STATUS, TRAFFIC, PROBLEMS, LOGS, PROFILES];
+    pub const ALL: &[&str] = &[STATUS, TRAFFIC, PROBLEMS, LOGS, PROFILES, AUTOFIX, NOTICES];
 
     /// The canonical `'static` name of a known topic.
     pub fn resolve(name: &str) -> Option<&'static str> {

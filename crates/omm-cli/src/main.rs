@@ -87,6 +87,9 @@ enum Cmd {
     Migrate(MigrateCmd),
     /// Call any daemon method: `omm call proxies.delay '{"name":"AI"}'`.
     Call { method: String, params: Option<String> },
+    /// Open the rule editor for the focused window's program (bind it to a
+    /// key: `bindd = SUPER ALT, P, Mihomo rule for window, exec, omm rule-for-window`).
+    RuleForWindow,
 }
 
 #[derive(Debug, Subcommand)]
@@ -285,6 +288,17 @@ fn run(cli: Cli) -> Result<()> {
         Some(Cmd::Migrate(MigrateCmd::Cvr { undo })) => {
             return if *undo { fix::undo_cvr(&cli.socket) } else { fix::migrate_cvr(&cli.socket) };
         }
+        Some(Cmd::RuleForWindow) => {
+            // The panel lives in the shell; ask it over the shell's IPC.
+            let status = std::process::Command::new("omarchy-shell")
+                .args(["tema.omarchy-mihomo", "ruleForWindow"])
+                .status()
+                .context("running omarchy-shell")?;
+            if !status.success() {
+                bail!("omarchy-shell could not reach the Mihomo widget; is it on the bar?");
+            }
+            return Ok(());
+        }
         Some(Cmd::Doctor) => {
             let status = Conn::open(&cli.socket).ok().and_then(|mut c| c.call::<Value>("status", Value::Null).ok());
             if !system::doctor(status)? {
@@ -446,7 +460,7 @@ fn run(cli: Cli) -> Result<()> {
                 out.flush()?;
             }
         }
-        Cmd::Core(_) | Cmd::Doctor | Cmd::Fix { .. } | Cmd::Migrate(_) => unreachable!("handled above"),
+        Cmd::Core(_) | Cmd::Doctor | Cmd::Fix { .. } | Cmd::Migrate(_) | Cmd::RuleForWindow => unreachable!("handled above"),
         Cmd::Call { method, params } => {
             let params = match params {
                 Some(p) => serde_json::from_str(&p).context("params must be JSON")?,

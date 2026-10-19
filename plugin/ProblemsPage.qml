@@ -174,7 +174,9 @@ Item {
     Banner {
       width: parent.width
       tone: "info"
-      text: I18n.t("diagnosisHint")
+      text: root.svc.automation && root.svc.automation.autofix && root.svc.automation.mode === "trial" ? I18n.t("autofixHint") : I18n.t("diagnosisHint")
+      action: root.svc.automation ? I18n.t("navSettings") : ""
+      onActionClicked: { root.panel.settingsTab = "auto"; root.panel.showPage("settings") }
     }
 
     // What is hidden, with a way back.
@@ -270,14 +272,27 @@ Item {
       }
       Component {
         id: problemRow
-        ProblemTableRow {
-          problem: entry.modelData.problem
-          svc: root.svc
-          grouped: root.viewMode === "groups"
-          selected: entry.index === root.cursor
-          onClicked: root.select(entry.index)
-          onRouteClicked: root.panel.openEditor({ problem: problem })
-          onHideClicked: root.hide(problem)
+        Column {
+          spacing: Style.space(2)
+          ProblemTableRow {
+            width: parent.width
+            problem: entry.modelData.problem
+            svc: root.svc
+            grouped: root.viewMode === "groups"
+            selected: entry.index === root.cursor
+            onClicked: root.select(entry.index)
+            onRouteClicked: root.panel.openEditor({ problem: problem })
+            onHideClicked: root.hide(problem)
+          }
+          AutofixStrip {
+            id: strip
+            x: Style.space(root.viewMode === "groups" ? 33 : 24)
+            width: parent.width - x - Style.space(4)
+            fix: root.svc.fixes ? root.svc.fixes[entry.modelData.problem.host] || null : null
+            svc: root.svc
+            panel: root.panel
+          }
+          Item { visible: strip.visible; width: 1; height: Style.space(4) }
         }
       }
     }
