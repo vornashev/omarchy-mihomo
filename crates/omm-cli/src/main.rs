@@ -119,6 +119,8 @@ enum CoreCmd {
     },
     /// Give the core the capabilities TUN needs (asks for sudo).
     Setcap,
+    /// Put back the binary the last install replaced, and restart it.
+    Rollback,
     Start,
     Stop,
     Restart,
@@ -278,6 +280,7 @@ fn run(cli: Cli) -> Result<()> {
             return match c {
                 CoreCmd::Install { version, proxy } => system::core_install(version.as_deref(), proxy.as_deref()),
                 CoreCmd::Setcap => system::core_setcap(),
+                CoreCmd::Rollback => system::core_rollback(),
                 CoreCmd::Start => system::core_unit("start"),
                 CoreCmd::Stop => system::core_unit("stop"),
                 CoreCmd::Restart => system::core_unit("restart"),

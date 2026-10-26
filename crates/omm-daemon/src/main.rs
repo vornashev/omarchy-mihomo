@@ -20,6 +20,7 @@ mod system_proxy;
 mod session;
 mod mmdb;
 mod traffic;
+mod updates;
 mod user_rules;
 
 use std::io::IsTerminal;
@@ -91,6 +92,7 @@ async fn main() -> Result<()> {
     tokio::spawn(config::expire_rules(state.clone()));
     tokio::spawn(autofix::watch(state.clone()));
     tokio::spawn(network::watch(state.clone()));
+    tokio::spawn(updates::watch(state.clone()));
     tokio::spawn(notices::watch(state.clone()));
     tokio::spawn(notices::watch_groups(state.clone()));
     {

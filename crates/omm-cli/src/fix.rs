@@ -31,6 +31,7 @@ fn describe(i: &Issue) -> String {
         "tun_failed" => format!("TUN is on, but the core could not start it: {d}"),
         "no_profile" => "no profile yet".into(),
         "autotune" => "the site-autotune timer still rewrites Clash Verge's rules".into(),
+        "core_update" => format!("mihomo {d} is out"),
         other => other.into(),
     }
 }
@@ -39,6 +40,7 @@ pub fn run(socket: &PathBuf, id: Option<&str>) -> Result<()> {
     match id {
         None => list(socket),
         Some("setcap") => setcap(socket),
+        Some("update_core") => update_core(socket),
         Some("migrate_cvr") => migrate_cvr(socket),
         Some(id) => {
             let mut conn = Conn::open(socket)?;
@@ -74,6 +76,29 @@ fn setcap(socket: &PathBuf) -> Result<()> {
     system::core_setcap()?;
     if host::unit_active(true, CORE_UNIT) {
         say("restarting the core so it picks up the capabilities");
+        host::user_systemctl(&["restart", CORE_UNIT]).map_err(anyhow::Error::msg)?;
+    }
+    refresh(socket);
+    Ok(())
+}
+
+/// Install the newest core, give TUN its capabilities back, restart it.
+fn update_core(socket: &PathBuf) -> Result<()> {
+    let bin = core_bin::default_path();
+    let had_caps = core_bin::has_capabilities(&bin) == Some(true);
+    if let Err(e) = system::core_install(Some("latest"), None) {
+        // GitHub may be blocked; the core's own proxy may reach it.
+        let status: Option<Status> = Conn::open(socket).ok().and_then(|mut c| c.call("status", Value::Null).ok());
+        let port = status.filter(|s| s.core.running).map(|s| s.core.mixed_port).filter(|p| *p > 0);
+        let Some(port) = port else { return Err(e) };
+        say(&format!("direct download failed ({e:#}), retrying through the core"));
+        system::core_install(Some("latest"), Some(&format!("http://127.0.0.1:{port}")))?;
+    }
+    if had_caps {
+        system::core_setcap()?;
+    }
+    if host::unit_active(true, CORE_UNIT) {
+        say("restarting the core on the new binary");
         host::user_systemctl(&["restart", CORE_UNIT]).map_err(anyhow::Error::msg)?;
     }
     refresh(socket);

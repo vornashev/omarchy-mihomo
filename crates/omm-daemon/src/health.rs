@@ -22,6 +22,8 @@ pub const START_CORE: &str = "start_core";
 pub const RESTART_CORE: &str = "restart_core";
 pub const IMPORT_CVR: &str = "import_cvr";
 pub const DISABLE_AUTOTUNE: &str = "disable_autotune";
+/// Privileged when TUN needs capabilities on the new binary.
+pub const UPDATE_CORE: &str = "update_core";
 /// Privileged: run by `omm fix` in a terminal.
 pub const SETCAP: &str = "setcap";
 pub const MIGRATE_CVR: &str = "migrate_cvr";
@@ -91,6 +93,10 @@ pub async fn check(state: &State) -> Vec<Issue> {
         let id = if host.core_active { RESTART_CORE } else { START_CORE };
         out.push(issue("core_stopped", IssueLevel::Warn, status.core.error.clone(), fix(id, false, false)));
     }
+    if let Some(latest) = crate::updates::available(state) {
+        // A new binary loses the capabilities TUN needs; sudo puts them back.
+        out.push(issue("core_update", IssueLevel::Info, Some(latest), fix(UPDATE_CORE, host.core_caps, false)));
+    }
     // TUN failures with a cause listed above need no second line.
     if let Some(t) = &status.core.tun_issue
         && !t.no_capabilities
@@ -119,6 +125,7 @@ pub async fn run(state: &Arc<State>, id: &str) -> Result<Value, RpcError> {
     let _operation = matches!(id, START_CORE | RESTART_CORE).then(|| state.begin_operation("starting", ""));
     let result = match id {
         INSTALL_CORE => install_core(state).await,
+        UPDATE_CORE => crate::updates::update_core(state).await,
         START_CORE => systemctl(&["enable", "--now", CORE_UNIT]).await,
         RESTART_CORE => systemctl(&["restart", CORE_UNIT]).await,
         IMPORT_CVR => return state.config.import_cvr(state).await,
@@ -138,25 +145,41 @@ async fn systemctl(args: &[&str]) -> Result<(), RpcError> {
         .map_err(|e| RpcError::new(ErrorCode::Internal, e))
 }
 
-/// Download the pinned core. GitHub may be blocked, so a failed direct
-/// download is retried through whichever proxy listens on the mixed port.
+/// Download the pinned core when it is missing.
 async fn install_core(state: &State) -> Result<(), RpcError> {
+    let version = download_core(state, None, core_bin::PINNED_VERSION).await.map_err(|e| RpcError::new(ErrorCode::Fetch, e))?;
+    tracing::info!(%version, "core installed");
+    state.config.set_binary(core_bin::default_path());
+    if state.config.has_profile().await {
+        if let Err(e) = state.config.apply(state).await {
+            tracing::warn!("apply after install: {}", e.message);
+        }
+        start_core_if_free(state).await;
+    }
+    state.request_refresh();
+    Ok(())
+}
+
+/// Download `version` (`None` = pinned) over our core binary and return
+/// the version line it prints. GitHub may be blocked, so a failed direct
+/// download is retried through whichever proxy listens on the mixed port.
+pub async fn download_core(state: &State, version: Option<&str>, label: &str) -> Result<String, String> {
     {
         let mut s = state.core_install.lock().unwrap();
         if matches!(*s, Install::Running) {
-            return Err(RpcError::new(ErrorCode::BadRequest, "the core is being installed already"));
+            return Err("the core is being installed already".into());
         }
         *s = Install::Running;
     }
     state.request_refresh();
     let port = state.config.settings().await.mixed_port;
-    let operation = state.begin_operation("downloading", core_bin::PINNED_VERSION);
+    let operation = state.begin_operation("downloading", label);
     let proxy = format!("http://127.0.0.1:{port}");
     let dest = core_bin::default_path();
     let mut result = Err(String::new());
     for via in [None, Some(proxy.as_str())] {
         result = async {
-            let rel = core_bin::resolve(None, via).await.map_err(|e| e.to_string())?;
+            let rel = core_bin::resolve(version, via).await.map_err(|e| e.to_string())?;
             core_bin::install_with_progress(&rel, &dest, via, |n, total| operation.progress(n, total)).await.map_err(|e| e.to_string())
         }
         .await;
@@ -165,27 +188,15 @@ async fn install_core(state: &State) -> Result<(), RpcError> {
         }
     }
     drop(operation);
-    match result {
-        Ok(version) => {
-            tracing::info!(%version, "core installed");
-            *state.core_install.lock().unwrap() = Install::Idle;
-            state.config.set_binary(dest);
-            if state.config.has_profile().await {
-                if let Err(e) = state.config.apply(state).await {
-                    tracing::warn!("apply after install: {}", e.message);
-                }
-                start_core_if_free(state).await;
-            }
-            state.request_refresh();
-            Ok(())
-        }
+    *state.core_install.lock().unwrap() = match &result {
+        Ok(_) => Install::Idle,
         Err(e) => {
-            tracing::warn!("core install failed: {e}");
-            *state.core_install.lock().unwrap() = Install::Failed(e.clone());
-            state.request_refresh();
-            Err(RpcError::new(ErrorCode::Fetch, e))
+            tracing::warn!("core download failed: {e}");
+            Install::Failed(e.clone())
         }
-    }
+    };
+    state.request_refresh();
+    result
 }
 
 /// Start our core when it is safe to do so: there is a config for it and no

@@ -45,6 +45,18 @@ pub fn core_setcap() -> Result<()> {
     Ok(())
 }
 
+/// The previous binary keeps its capabilities: it is the same file.
+pub fn core_rollback() -> Result<()> {
+    let bin = core_bin::default_path();
+    core_bin::rollback(&bin)?;
+    let rt = runtime()?;
+    println!("restored {}", rt.block_on(core_bin::binary_version(&bin))?);
+    if omm_config::host::unit_active(true, CORE_UNIT) {
+        core_unit("restart")?;
+    }
+    Ok(())
+}
+
 pub fn core_unit(verb: &str) -> Result<()> {
     let status = Command::new("systemctl").args(["--user", verb, CORE_UNIT]).status()?;
     if !status.success() {

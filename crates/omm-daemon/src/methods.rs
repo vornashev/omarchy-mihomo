@@ -566,6 +566,8 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             result
         }
 
+        "core.updates" | "core.check_updates" | "core.update_geo" | "core.rollback" => crate::updates::rpc(state, method).await,
+
         "core.rules" => to_value(state.core.rules().await.map_err(core_err)?),
 
         m if m.starts_with("autofix.") || m.starts_with("automation.") => crate::autofix::rpc(state, m, params).await,

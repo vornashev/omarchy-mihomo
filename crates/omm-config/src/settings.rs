@@ -36,6 +36,10 @@ pub struct Settings {
     pub extra: Mapping,
     /// Hours between subscription refreshes when a profile sets none.
     pub update_interval_hours: u32,
+    /// The core refreshes GeoIP, GeoSite and the MMDBs on its own.
+    pub geo_auto_update: bool,
+    /// Hours between those refreshes.
+    pub geo_update_interval: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -69,6 +73,8 @@ impl Default for Settings {
             secret: None,
             extra: Mapping::new(),
             update_interval_hours: 12,
+            geo_auto_update: true,
+            geo_update_interval: 24,
         }
     }
 }
@@ -119,6 +125,8 @@ impl Settings {
         set(config, "find-process-mode", self.find_process_mode.as_str().into());
         set(config, "unified-delay", self.unified_delay.into());
         set(config, "tcp-concurrent", self.tcp_concurrent.into());
+        set(config, "geo-auto-update", self.geo_auto_update.into());
+        set(config, "geo-update-interval", self.geo_update_interval.clamp(1, 24 * 30).into());
 
         // Listeners other than mixed-port are profile noise; drop them.
         for key in ["port", "socks-port", "redir-port", "tproxy-port", "external-ui", "external-ui-url", "external-ui-name"] {
@@ -180,6 +188,7 @@ mod tests {
         assert!(c["tun"].get("route-exclude-address").is_some(), "profile tun keys kept");
         assert_eq!(c["profile"]["store-selected"], Value::from(true));
         assert_eq!(c["find-process-mode"], Value::from("always"));
+        assert_eq!((&c["geo-auto-update"], &c["geo-update-interval"]), (&Value::from(true), &Value::from(24)));
     }
 
     #[test]

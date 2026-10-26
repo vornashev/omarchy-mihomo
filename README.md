@@ -21,6 +21,12 @@ bindd = SUPER ALT, P, Mihomo rule for window, exec, omm rule-for-window
 
 Every 3 seconds the daemon looks at the default routes outside tunnels and at the suspend clock. While the machine is offline, and for 30 seconds after it wakes up or joins another network, failed connections are not recorded as problems, autofix neither counts them nor decides trials, and dead-group notices wait. Five seconds after the change it closes the core's connections (only for its own core) and re-tests the url-test, fallback and load-balance groups. A trial rule measures time awake: a sleep moves its end by as long as the machine slept. The panel footer shows "offline" or "network changed" meanwhile.
 
+## Core and database updates (Omarchy)
+
+Once a day the daemon asks GitHub for the newest stable mihomo (directly, then through the core) and, when it is newer than the running core, shows it in Settings → Core, among the setup issues and once per release as a notification. It never replaces the core on its own. With TUN capabilities on the binary the update runs `omm fix update_core` in a terminal: the download is verified against the release's SHA-256, smoke-tested, installed, given its capabilities back with sudo and restarted. The replaced binary stays as `mihomo.prev`, a hard link that keeps its capabilities; Settings → Core or `omm core rollback` puts it back.
+
+The core refreshes GeoIP, GeoSite and the MMDBs itself (`geo-auto-update`, every 24 hours by default, Settings → Core); "Update now" asks it to fetch them at once. Traffic statistics re-read the databases when they change.
+
 ## Traffic statistics (Omarchy)
 
 The daemon polls the core's open connections every 2 seconds and records how much each one downloaded and uploaded, by app, host, domain, address, provider (ASN), country, group, node and rule. Minutes are kept for two days and hours for 30 days in `traffic.db` in the data directory. Countries come from the core's `Country.mmdb` or, failing that, a copy of MetaCubeX `country.mmdb` the daemon downloads once; providers come from the core's `ASN.mmdb`. The Traffic page charts it over time with filters: click a row to narrow down to it (app → domains → hosts → addresses), `x` excludes it, `r` makes a rule, dragging over the chart zooms in. Settings → Main turns recording off or clears it.

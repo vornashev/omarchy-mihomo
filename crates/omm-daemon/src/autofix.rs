@@ -64,6 +64,8 @@ pub struct Notify {
     pub strict: bool,
     /// An app moved far more than usual or started using a proxy.
     pub traffic: bool,
+    /// A newer core is out.
+    pub updates: bool,
 }
 
 impl Default for Notify {
@@ -77,6 +79,7 @@ impl Default for Notify {
             saved: true,
             strict: true,
             traffic: true,
+            updates: true,
         }
     }
 }

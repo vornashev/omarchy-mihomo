@@ -41,6 +41,28 @@ pub fn default_path() -> PathBuf {
     omm_platform::core_binary()
 }
 
+/// `mihomo.prev` next to `dest`: the binary an install replaced.
+pub fn previous_path(dest: &Path) -> PathBuf {
+    dest.with_file_name("mihomo.prev")
+}
+
+/// `(major, minor, patch)` of a release tag: `v1.19.32`, `1.19.32`.
+/// Alpha and other builds have none.
+pub fn release_version(tag: &str) -> Option<(u32, u32, u32)> {
+    let mut parts = tag.trim().trim_start_matches('v').split('.');
+    let mut next = || parts.next()?.parse().ok();
+    let v = (next()?, next()?, next()?);
+    parts.next().is_none().then_some(v)
+}
+
+/// Whether release `latest` is newer than the running `current`.
+pub fn is_newer(latest: &str, current: &str) -> bool {
+    match (release_version(latest), release_version(current)) {
+        (Some(l), Some(c)) => l > c,
+        _ => false,
+    }
+}
+
 /// Release asset for this machine. Plain `amd64` builds need x86-64-v3
 /// (AVX2); older CPUs get the `compatible` build.
 pub fn asset_name(version: &str) -> Result<String> {
@@ -172,8 +194,26 @@ pub async fn install_with_progress(rel: &Release, dest: &Path, proxy: Option<&st
             return Err(e);
         }
     };
+    // A hard link keeps the old binary's inode, and with it the file
+    // capabilities TUN needs, for `rollback`.
+    if dest.is_file() {
+        let prev = previous_path(dest);
+        let _ = std::fs::remove_file(&prev);
+        if let Err(e) = std::fs::hard_link(dest, &prev) {
+            tracing::warn!("keeping the previous core: {e}");
+        }
+    }
     std::fs::rename(&staged, dest).map_err(|e| Error::io(dest, e))?;
     Ok(version)
+}
+
+/// Put back the binary the last install replaced.
+pub fn rollback(dest: &Path) -> Result<()> {
+    let prev = previous_path(dest);
+    if !prev.is_file() {
+        return Err(Error::Invalid("no previous core to go back to".into()));
+    }
+    std::fs::rename(&prev, dest).map_err(|e| Error::io(dest, e))
 }
 
 /// First line of `mihomo -v`.
@@ -215,6 +255,19 @@ mod tests {
     }
 
     #[test]
+    fn versions() {
+        assert_eq!(release_version("v1.19.32"), Some((1, 19, 32)));
+        assert_eq!(release_version("1.20.0"), Some((1, 20, 0)));
+        assert_eq!(release_version("alpha-5d3b2c1"), None);
+        assert_eq!(release_version("v1.19.32-alpha"), None);
+        assert!(is_newer("v1.20.0", "v1.19.32"));
+        assert!(is_newer("v1.19.33", "1.19.32"));
+        assert!(!is_newer("v1.19.32", "v1.19.32"));
+        assert!(!is_newer("v1.19.31", "v1.19.32"));
+        assert!(!is_newer("v1.20.0", "alpha-5d3b2c1"), "custom builds are left alone");
+    }
+
+    #[test]
     fn hex_encoding() {
         assert_eq!(hex(&Sha256::digest(b"abc")), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
     }
@@ -253,6 +306,10 @@ mod tests {
             assert_eq!(progress.last(), Some(&(bytes.len() as u64, total)));
             if valid_hash {
                 assert_eq!(result.unwrap(), "Mihomo test");
+                assert_eq!(std::fs::read_to_string(previous_path(&dest)).unwrap(), "previous binary");
+                rollback(&dest).unwrap();
+                assert_eq!(std::fs::read_to_string(&dest).unwrap(), "previous binary");
+                assert!(rollback(&dest).is_err(), "only one step back");
             } else {
                 assert!(result.unwrap_err().to_string().contains("checksum mismatch"));
                 assert_eq!(std::fs::read_to_string(&dest).unwrap(), "previous binary");

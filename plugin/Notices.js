@@ -93,6 +93,8 @@ function text(n, t, clock) {
     }
   case "traffic_route":
     return { title: t("nTrafficRoute").arg(d.app).arg(bytes(d.proxied, t)), body: t("nTrafficRouteBody").arg(names(d.groups)), click: t("afClickDefault") }
+  case "core_update":
+    return { title: t("nCoreUpdate").arg(d.latest), body: t("nCoreUpdateBody").arg(d.current || "—"), click: t("nOpenCoreSettings") }
   case "window_unknown":
     return { title: t("nWindowUnknown"), body: t("nWindowUnknownBody"), click: "" }
   }

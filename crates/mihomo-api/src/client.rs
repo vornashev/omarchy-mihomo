@@ -125,6 +125,12 @@ impl Client {
         self.call(Method::PUT, uri, Some(&body), Duration::from_secs(60)).await.map(drop)
     }
 
+    /// Download GeoIP, GeoSite and the MMDBs again; the core reloads its
+    /// config afterwards. Fails with 400 while an update already runs.
+    pub async fn update_geo(&self) -> Result<()> {
+        self.call(Method::POST, "/configs/geo", Some(&json!({})), Duration::from_secs(300)).await.map(drop)
+    }
+
     pub async fn proxies(&self) -> Result<Proxies> {
         self.get("/proxies").await
     }

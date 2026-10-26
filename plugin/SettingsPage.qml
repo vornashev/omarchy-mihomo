@@ -10,7 +10,7 @@ Item {
 
   property var s: null
   property bool saving: false
-  readonly property bool typing: portField.input.activeFocus || intervalField.input.activeFocus || automation.typing
+  readonly property bool typing: portField.input.activeFocus || intervalField.input.activeFocus || automation.typing || core.typing
 
   function reload() { svc.request("settings.get", null, function(r) { if (r) { s = r; portField.text = String(r["mixed-port"]); intervalField.text = String(r["update-interval-hours"]) } }) }
 
@@ -48,14 +48,14 @@ Item {
     }
     Seg {
       current: root.panel.settingsTab
-      model: [{ key: "main", label: I18n.t("settingsTabMain") }, { key: "auto", label: I18n.t("settingsTabAuto") }, { key: "notify", label: I18n.t("settingsTabNotify") }]
+      model: [{ key: "main", label: I18n.t("settingsTabMain") }, { key: "auto", label: I18n.t("settingsTabAuto") }, { key: "notify", label: I18n.t("settingsTabNotify") }, { key: "core", label: I18n.t("settingsTabCore") }]
       onPicked: function(k) { root.panel.settingsTab = k }
     }
   }
 
   AutomationSettings {
     id: automation
-    visible: root.panel.settingsTab !== "main"
+    visible: root.panel.settingsTab === "auto" || root.panel.settingsTab === "notify"
     section: root.panel.settingsTab
     anchors.top: header.bottom
     anchors.topMargin: Style.space(16)
@@ -64,6 +64,20 @@ Item {
     anchors.bottom: parent.bottom
     svc: root.svc
     panel: root.panel
+  }
+
+  CoreSettings {
+    id: core
+    objectName: "coreSettings"
+    visible: root.panel.settingsTab === "core"
+    anchors.top: header.bottom
+    anchors.topMargin: Style.space(16)
+    anchors.left: parent.left
+    anchors.right: parent.right
+    svc: root.svc
+    panel: root.panel
+    settings: root.s
+    onSave: function(patch) { root.save(patch) }
   }
 
   Column {

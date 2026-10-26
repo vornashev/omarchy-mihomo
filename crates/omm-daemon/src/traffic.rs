@@ -187,6 +187,16 @@ impl Store {
         self.geo.country.is_some()
     }
 
+    /// Our own country database is in use and a month old.
+    pub fn own_country_stale(&self) -> bool {
+        if find(&self.core_home, &["country.mmdb", "geoip.metadb"]).is_some() {
+            return false;
+        }
+        let modified = std::fs::metadata(self.root.join(COUNTRY_FILE)).and_then(|m| m.modified()).ok();
+        let age = modified.and_then(|t| t.elapsed().ok()).map_or(0, |d| d.as_millis() as i64);
+        modified.is_some() && age > 30 * 24 * HOUR
+    }
+
     pub fn reload_geo(&mut self) {
         self.geo = Geo::load(&self.core_home, &self.root);
     }
@@ -786,7 +796,7 @@ pub async fn collect(state: Arc<State>) {
                 Err(e) => tracing::warn!("traffic check: {e}"),
             }
         }
-        let wants_country = { let t = state.traffic.lock().unwrap(); t.enabled && !t.has_country() };
+        let wants_country = { let t = state.traffic.lock().unwrap(); t.enabled && (!t.has_country() || t.own_country_stale()) };
         if wants_country && now - last_download > 24 * HOUR {
             last_download = now;
             tokio::spawn(download_country(state.clone()));

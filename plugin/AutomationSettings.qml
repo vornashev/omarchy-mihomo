@@ -269,7 +269,7 @@ Item {
         columnSpacing: Style.space(24)
         rowSpacing: Style.space(12)
         Repeater {
-          model: ["core", "strict", "dead_group", "subscription", "orphans", "autofix", "saved", "traffic"]
+          model: ["core", "strict", "dead_group", "subscription", "orphans", "autofix", "saved", "traffic", "updates"]
           Item {
             id: notifyItem
             required property string modelData

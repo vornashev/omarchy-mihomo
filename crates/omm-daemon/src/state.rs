@@ -33,6 +33,7 @@ pub struct State {
     operation_serial: Mutex<u64>,
     pub autofix: Mutex<crate::autofix::Engine>,
     pub network: Mutex<crate::network::Net>,
+    pub updates: Mutex<crate::updates::Updates>,
     /// Latest notices, newest last, one per key.
     notices: Mutex<VecDeque<Notice>>,
 }
@@ -54,6 +55,7 @@ const MAX_NOTICES: usize = 50;
 impl State {
     pub fn new(core: mihomo_api::Client, config: crate::config::Manager, problems: omm_problems::Collector, system_proxy: crate::system_proxy::Manager) -> Self {
         let autofix = crate::autofix::Engine::load(&config.paths().root);
+        let updates = crate::updates::Updates::load(&config.paths().root);
         let traffic = crate::traffic::Store::open(&config.paths().root.join("traffic.db"), &config.paths().runtime()).unwrap_or_else(|e| {
             tracing::warn!("traffic history unavailable: {e}");
             crate::traffic::Store::in_memory()
@@ -90,6 +92,7 @@ impl State {
             operation_serial: Mutex::default(),
             autofix: Mutex::new(autofix),
             network: Mutex::default(),
+            updates: Mutex::new(updates),
             notices: Mutex::default(),
         }
     }
@@ -106,6 +109,7 @@ impl State {
                 "subscription" => n.subscription,
                 "orphans" => n.orphans,
                 "traffic_spike" | "traffic_route" => n.traffic,
+                "core_update" => n.updates,
                 _ => true,
             }
         };

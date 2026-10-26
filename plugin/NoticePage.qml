@@ -56,6 +56,7 @@ Item {
     case "subscription": return { icon: Icons.profiles, color: svc.yellow, title: Notices.text(notice, I18n.t, svc.clock).title, sub: svc.clock(notice.at) }
     case "orphans": return { icon: Icons.orphan, color: svc.yellow, title: Notices.text(notice, I18n.t, svc.clock).title, sub: d.profile || svc.clock(notice.at) }
     case "saved": return { icon: Icons.check, color: svc.green, title: I18n.t("nSaved"), sub: svc.clock(notice.at) }
+    case "core_update": return { icon: Icons.down, color: Color.accent, title: Notices.text(notice, I18n.t, svc.clock).title, sub: svc.clock(notice.at) }
     case "traffic_spike": case "traffic_route": return { icon: Icons.traffic, color: svc.peach, title: Notices.text(notice, I18n.t, svc.clock).title, sub: svc.clock(notice.at) }
     }
     return { icon: Icons.info, color: Color.muted, title: I18n.t("nNoticeGone"), sub: "" }
@@ -214,7 +215,7 @@ Item {
     }
 
     Txt {
-      visible: ["core_down", "core_up", "dead_group", "subscription", "orphans", "group_alive", "traffic_spike", "traffic_route"].indexOf(root.kind) !== -1
+      visible: ["core_down", "core_up", "dead_group", "subscription", "orphans", "group_alive", "traffic_spike", "traffic_route", "core_update"].indexOf(root.kind) !== -1
       width: parent.width
       wrapMode: Text.Wrap
       dim: true
@@ -283,6 +284,10 @@ Item {
           }
           switch (root.kind) {
           case "core_down": return { text: I18n.t("nRestart"), icon: Icons.refresh, run: function() { root.call("core.restart", null) } }
+          case "core_update":
+            var update = (root.svc.issues || []).filter(function(i) { return i.id === "core_update" && i.fix })[0]
+            if (!update) return { text: "", run: null }
+            return { text: I18n.t("coreUpdateTo").arg(update.detail), icon: Icons.down, run: function() { root.svc.runFix(update.fix); root.panel.close() } }
           case "strict_down": return { text: I18n.t("nCheckNodes"), icon: Icons.refresh, run: function() { root.call("group.delay", { name: root.info.group }, function() { root.panel.notify(I18n.t("nCheckNodes") + " ✓") }) } }
           case "dead_group": return { text: I18n.t("afRecheck"), icon: Icons.refresh, run: function() { root.call("group.delay", { name: root.info.group }, function() { root.panel.notify(I18n.t("afRecheck") + " ✓") }) } }
           case "subscription": return { text: I18n.t("nRetry"), icon: Icons.refresh, run: function() { root.call("profiles.update", { id: root.info.id }, function(r) { if (r && r[0]) root.panel.notify(r[0].error || I18n.t("profileUpdated")) }) } }
@@ -316,6 +321,7 @@ Item {
           switch (root.kind) {
           case "core_down": case "core_up": return { text: I18n.t("nOpenLogs"), icon: Icons.logs, run: function() { root.panel.showPage("logs") } }
           case "dead_group": case "group_alive": case "strict_down": case "strict_up": return { text: I18n.t("nOpenProxies"), icon: Icons.proxies, run: function() { root.panel.showPage("proxies") } }
+          case "core_update": return { text: I18n.t("nOpenCoreSettings"), icon: Icons.settings, run: function() { root.panel.settingsTab = "core"; root.panel.showPage("settings") } }
           case "subscription": return { text: I18n.t("nOpenProfiles"), icon: Icons.profiles, run: function() { root.panel.showPage("profiles") } }
           case "orphans": case "saved": return { text: I18n.t("afToRules"), icon: Icons.rules, run: function() { root.panel.showPage("rules") } }
           case "traffic_route": return { text: I18n.t("nRuleForApp").arg(root.info.app), icon: Icons.ruleAdd, run: function() {
