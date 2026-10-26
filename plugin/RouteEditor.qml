@@ -29,6 +29,20 @@ Item {
   property string error: ""
   property int cursor: 0
   readonly property bool typing: false
+  // A sinkhole or a silent DNS server: a route cannot cure it, a server can.
+  readonly property string dnsKind: {
+    if (!problem || group || isIp(problem.host)) return ""
+    var k = problem.kinds || {}
+    return k.dns_stub ? "stub" : (k.dns_fail ? "fail" : "")
+  }
+  readonly property string dnsDomain: problem ? (problem.domain_hint || problem.host) : ""
+  function addDnsPolicy() {
+    svc.request("dns.policy_add", { domain: dnsDomain }, function(r, err) {
+      if (err) { panel.notify(err.message); return }
+      var p = (r.settings.policy || []).filter(function(x) { return x.domain === "+." + root.dnsDomain })[0]
+      panel.notify(I18n.t("dnsPolicyAdded").arg("+." + root.dnsDomain).arg(p ? p.server : r.doh))
+    }, true)
+  }
 
   readonly property var scope: scopes[scopeIndex] || null
   readonly property string currentTarget: problem && problem.route ? problem.route.target : (rule ? (rule.effective_target || rule.target) : "")
@@ -214,6 +228,17 @@ Item {
           }
         }
       }
+    }
+
+    Banner {
+      objectName: "dnsBanner"
+      visible: root.dnsKind !== ""
+      width: parent.width
+      tone: "warn"
+      toneColor: root.svc.yellow
+      text: root.dnsKind === "stub" ? I18n.t("dnsStubTitle") + ". " + I18n.t("dnsStubBody") : I18n.t("dnsFailTitle") + ". " + I18n.t("dnsFailBody")
+      action: I18n.t("dnsUseDoh").arg(root.dnsDomain)
+      onActionClicked: root.addDnsPolicy()
     }
 
     Banner {

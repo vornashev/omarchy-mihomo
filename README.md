@@ -27,6 +27,12 @@ Once a day the daemon asks GitHub for the newest stable mihomo (directly, then t
 
 The core refreshes GeoIP, GeoSite and the MMDBs itself (`geo-auto-update`, every 24 hours by default, Settings → Core); "Update now" asks it to fetch them at once. Traffic statistics re-read the databases when they change.
 
+## DNS (Omarchy)
+
+Settings → DNS layers your values over the profile's DNS, which subscriptions often tune with care: the mode (fake-ip or redir-host), the servers, fallback and bootstrap servers and the sniffer each either follow the profile (an empty field shows its value in grey) or take yours; extra `fake-ip-filter` domains and per-site servers (`nameserver-policy`, yours first) extend the profile's lists. A server ending in `#Group` resolves through that proxy group. The page also looks a name up through the core.
+
+When a problem is a DNS sinkhole or an unanswered lookup, its route editor offers a server of its own for the site instead of a route, the first encrypted server of the config by default.
+
 ## Traffic statistics (Omarchy)
 
 The daemon polls the core's open connections every 2 seconds and records how much each one downloaded and uploaded, by app, host, domain, address, provider (ASN), country, group, node and rule. Minutes are kept for two days and hours for 30 days in `traffic.db` in the data directory. Countries come from the core's `Country.mmdb` or, failing that, a copy of MetaCubeX `country.mmdb` the daemon downloads once; providers come from the core's `ASN.mmdb`. The Traffic page charts it over time with filters: click a row to narrow down to it (app → domains → hosts → addresses), `x` excludes it, `r` makes a rule, dragging over the chart zooms in. Settings → Main turns recording off or clears it.

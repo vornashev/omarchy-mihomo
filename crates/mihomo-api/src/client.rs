@@ -131,6 +131,11 @@ impl Client {
         self.call(Method::POST, "/configs/geo", Some(&json!({})), Duration::from_secs(300)).await.map(drop)
     }
 
+    /// Resolve `name` the way the core does: `{Status, Answer: [{data, TTL, type}]}`.
+    pub async fn dns_query(&self, name: &str, qtype: &str) -> Result<Value> {
+        self.get(&format!("/dns/query?name={}&type={}", seg(name), seg(qtype))).await
+    }
+
     pub async fn proxies(&self) -> Result<Proxies> {
         self.get("/proxies").await
     }

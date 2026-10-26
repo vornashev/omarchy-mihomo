@@ -1,6 +1,7 @@
 mod autofix;
 mod config;
 mod core;
+mod dns;
 mod geosite;
 #[cfg_attr(target_os = "macos", path = "health_macos.rs")]
 mod health;

@@ -40,6 +40,8 @@ Rectangle {
       else if (method === "proxies.list") callback([{ name: "AI", kind: "Selector" }], null)
       else if (method === "rules.test") callback({ probe: { url: params.host }, results: [] }, null)
       else if (method === "rules.save_many") callback({ rules: [], apply: { reloaded: true }, closed: 0 }, null)
+      else if (method === "rules.preview") callback({ line: "", existing: null }, null)
+      else if (method === "dns.policy_add") callback({ settings: { policy: [{ domain: "+." + params.domain, server: "https://dns.quad9.net/dns-query" }] }, doh: "https://dns.quad9.net/dns-query" }, null)
       else if (callback) callback({}, null)
     }
   }
@@ -116,6 +118,23 @@ Rectangle {
       compare(calls.length, 1)
       compare(calls[0].params.rules.length, 2)
       verify(!mockService.calls.some(function(c) { return c.method === "rules.save" }))
+    }
+    function test_dns_sinkhole_offers_a_server_not_a_route() {
+      var stub = problem("rutracker.org", "DIRECT", "Match", "", 4, false)
+      stub.kinds = { dns_stub: 4 }
+      stub.domain_hint = "rutracker.org"
+      page.destroy()
+      mockPanel.editing = { problem: stub }
+      var editor = createTemporaryObject(editorComponent, scene)
+      compare(editor.dnsKind, "stub")
+      var banner = findChild(editor, "dnsBanner")
+      verify(banner.visible)
+      banner.actionClicked()
+      var call = mockService.calls.filter(function(c) { return c.method === "dns.policy_add" })[0]
+      compare(call.params.domain, "rutracker.org")
+      compare(mockPanel.toast, "+.rutracker.org теперь резолвится через https://dns.quad9.net/dns-query")
+      mockPanel.editing = { problem: problem("142.252.58.41", "DIRECT", "Match", "", 3, false) }
+      compare(editor.dnsKind, "", "timeouts are a route's business")
     }
     function textItem(item, text) {
       if (item.text === text) return item

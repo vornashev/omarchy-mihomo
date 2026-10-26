@@ -566,6 +566,8 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             result
         }
 
+        m if m.starts_with("dns.") => crate::dns::rpc(state, m, params).await,
+
         "core.updates" | "core.check_updates" | "core.update_geo" | "core.rollback" => crate::updates::rpc(state, method).await,
 
         "core.rules" => to_value(state.core.rules().await.map_err(core_err)?),

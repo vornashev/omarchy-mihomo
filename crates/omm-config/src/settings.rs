@@ -40,6 +40,99 @@ pub struct Settings {
     pub geo_auto_update: bool,
     /// Hours between those refreshes.
     pub geo_update_interval: u32,
+    pub dns: Dns,
+}
+
+/// DNS on top of the profile's, which is often tuned with care: each `Some`
+/// replaces the profile's value, the lists extend it. Left empty, the
+/// profile decides.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default, rename_all = "kebab-case")]
+pub struct Dns {
+    /// `fake-ip` or `redir-host`.
+    pub enhanced_mode: Option<String>,
+    pub nameserver: Option<Vec<String>>,
+    pub fallback: Option<Vec<String>>,
+    /// Plain-IP servers that resolve the DoH hosts above.
+    pub default_nameserver: Option<Vec<String>>,
+    /// Domains that get real addresses in fake-ip mode, after the profile's.
+    pub fake_ip_filter: Vec<String>,
+    /// `+.example.org` → server, ahead of the profile's policy.
+    pub policy: Vec<Policy>,
+    /// Read the host from TLS, HTTP and QUIC.
+    pub sniffer: Option<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Policy {
+    pub domain: String,
+    pub server: String,
+}
+
+impl Dns {
+    fn touches_dns(&self) -> bool {
+        self.enhanced_mode.is_some()
+            || self.nameserver.is_some()
+            || self.fallback.is_some()
+            || self.default_nameserver.is_some()
+            || !self.fake_ip_filter.is_empty()
+            || !self.policy.is_empty()
+    }
+
+    fn enforce(&self, config: &mut Mapping) {
+        if self.touches_dns() {
+            let dns = get_mut_mapping(config, "dns");
+            dns.insert("enable".into(), true.into());
+            let list = |v: &[String]| Value::Sequence(v.iter().map(|s| Value::from(s.as_str())).collect());
+            if let Some(mode) = &self.enhanced_mode {
+                dns.insert("enhanced-mode".into(), mode.as_str().into());
+            }
+            for (key, value) in [("nameserver", &self.nameserver), ("fallback", &self.fallback), ("default-nameserver", &self.default_nameserver)] {
+                if let Some(v) = value {
+                    dns.insert(key.into(), list(v));
+                }
+            }
+            if !self.fake_ip_filter.is_empty() {
+                let slot = dns.entry("fake-ip-filter".into()).or_insert_with(|| Value::Sequence(Vec::new()));
+                if !slot.is_sequence() {
+                    *slot = Value::Sequence(Vec::new());
+                }
+                let filter = slot.as_sequence_mut().expect("just ensured a sequence");
+                for d in &self.fake_ip_filter {
+                    if !filter.iter().any(|v| v.as_str() == Some(d)) {
+                        filter.push(d.as_str().into());
+                    }
+                }
+            }
+            if !self.policy.is_empty() {
+                // Ours first: mihomo takes the first matching entry.
+                let old = match dns.remove("nameserver-policy") {
+                    Some(Value::Mapping(m)) => m,
+                    _ => Mapping::new(),
+                };
+                let mut policy = Mapping::new();
+                for p in &self.policy {
+                    policy.insert(p.domain.as_str().into(), p.server.as_str().into());
+                }
+                for (k, v) in old {
+                    policy.entry(k).or_insert(v);
+                }
+                dns.insert("nameserver-policy".into(), Value::Mapping(policy));
+            }
+        }
+        if let Some(on) = self.sniffer {
+            let sniffer = get_mut_mapping(config, "sniffer");
+            sniffer.insert("enable".into(), on.into());
+            if on && !sniffer.contains_key("sniff") {
+                let ports = |p: &[&str]| Value::Mapping([(Value::from("ports"), Value::Sequence(p.iter().map(|s| Value::from(*s)).collect()))].into_iter().collect());
+                let sniff: Mapping = [("HTTP", ports(&["80", "8080-8880"])), ("TLS", ports(&["443", "8443"])), ("QUIC", ports(&["443", "8443"]))]
+                    .into_iter()
+                    .map(|(k, v)| (Value::from(k), v))
+                    .collect();
+                sniffer.insert("sniff".into(), Value::Mapping(sniff));
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -75,6 +168,7 @@ impl Default for Settings {
             update_interval_hours: 12,
             geo_auto_update: true,
             geo_update_interval: 24,
+            dns: Dns::default(),
         }
     }
 }
@@ -126,6 +220,7 @@ impl Settings {
         set(config, "unified-delay", self.unified_delay.into());
         set(config, "tcp-concurrent", self.tcp_concurrent.into());
         set(config, "geo-auto-update", self.geo_auto_update.into());
+        self.dns.enforce(config);
         set(config, "geo-update-interval", self.geo_update_interval.clamp(1, 24 * 30).into());
 
         // Listeners other than mixed-port are profile noise; drop them.
@@ -189,6 +284,44 @@ mod tests {
         assert_eq!(c["profile"]["store-selected"], Value::from(true));
         assert_eq!(c["find-process-mode"], Value::from("always"));
         assert_eq!((&c["geo-auto-update"], &c["geo-update-interval"]), (&Value::from(true), &Value::from(24)));
+    }
+
+    #[test]
+    fn dns_extends_the_profile() {
+        let profile = "dns: {enable: true, enhanced-mode: redir-host, nameserver: [https://a/dns-query], fake-ip-filter: [+.lan], nameserver-policy: {+.lan: system, +.x.org: 1.1.1.1}}\n";
+        let mut c = parse_mapping(profile, "p").unwrap();
+        Settings::default().enforce(&mut c);
+        assert_eq!(c["dns"]["nameserver"][0], Value::from("https://a/dns-query"), "nothing set: the profile decides");
+        assert!(c.get("sniffer").is_none());
+
+        let mut c = parse_mapping(profile, "p").unwrap();
+        let s = Settings {
+            dns: Dns {
+                enhanced_mode: Some("fake-ip".into()),
+                nameserver: Some(vec!["https://b/dns-query".into()]),
+                fake_ip_filter: vec!["+.lan".into(), "+.bank.ru".into()],
+                policy: vec![Policy { domain: "+.x.org".into(), server: "https://b/dns-query#AI".into() }],
+                sniffer: Some(true),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        s.enforce(&mut c);
+        let dns = &c["dns"];
+        assert_eq!(dns["enhanced-mode"], Value::from("fake-ip"));
+        assert_eq!(dns["nameserver"].as_sequence().unwrap().len(), 1);
+        assert_eq!(dns["fake-ip-filter"].as_sequence().unwrap().len(), 2, "added once");
+        let policy = dns["nameserver-policy"].as_mapping().unwrap();
+        assert_eq!(policy.keys().next().unwrap(), &Value::from("+.x.org"), "ours first");
+        assert_eq!(policy["+.x.org"], Value::from("https://b/dns-query#AI"));
+        assert_eq!(policy["+.lan"], Value::from("system"));
+        assert_eq!(c["sniffer"]["enable"], Value::from(true));
+        assert!(c["sniffer"]["sniff"]["TLS"].is_mapping());
+
+        // A profile without DNS gets a working section.
+        let mut c = parse_mapping("mode: rule\n", "p").unwrap();
+        Settings { dns: Dns { nameserver: Some(vec!["1.1.1.1".into()]), ..Default::default() }, ..Default::default() }.enforce(&mut c);
+        assert_eq!(c["dns"]["enable"], Value::from(true));
     }
 
     #[test]
