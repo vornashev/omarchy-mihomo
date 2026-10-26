@@ -37,6 +37,7 @@ Panel {
     { key: "proxies", icon: Icons.proxies, label: I18n.t("navProxies") },
     { key: "profiles", icon: Icons.profiles, label: I18n.t("navProfiles") },
     { key: "connections", icon: Icons.connections, label: I18n.t("navConnections") },
+    { key: "traffic", icon: Icons.traffic, label: I18n.t("navTraffic") },
     { key: "logs", icon: Icons.logs, label: I18n.t("navLogs") },
     { key: "settings", icon: Icons.settings, label: I18n.t("navSettings") }
   ]
@@ -129,6 +130,13 @@ Panel {
         svc.request("processes.tree", { pid: w.pid }, function(nodes) { root.openWindowRule(win, nodes) }, true)
       }
     }
+  }
+
+  // Filters the traffic page applies when it opens next.
+  property var trafficFilter: null
+  function openTraffic(app) {
+    trafficFilter = app ? [{ dim: "app", value: app, exclude: false }] : null
+    showPage("traffic")
   }
 
   function showLogs(filter) {
@@ -246,9 +254,9 @@ Panel {
     focusTarget: keyCatcher
     padding: 0
     contentWidth: root.compact ? panel.fittedContentWidth(Style.space(380))
-      : panel.fittedContentWidth(Style.space(root.page === "proxies" ? 820 : 860) + rail.width - Style.space(190))
+      : panel.fittedContentWidth(Style.space(root.page === "proxies" ? 820 : (root.page === "traffic" ? 1180 : 860)) + rail.width - Style.space(190))
     contentHeight: root.compact ? panel.fittedContentHeight((pageLoader.item ? pageLoader.item.implicitHeight : Style.space(200)) + Style.space(32))
-      : panel.fittedContentHeight(Style.space(root.page === "proxies" ? 680 : 660))
+      : panel.fittedContentHeight(Style.space(root.page === "proxies" ? 680 : (root.page === "traffic" ? 720 : 660)))
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -359,7 +367,7 @@ Panel {
             var files = {
               overview: "OverviewPage.qml", problems: "ProblemsPage.qml", editor: "RouteEditor.qml", rule: "RuleEditor.qml",
               rules: "RulesPage.qml", proxies: "ProxiesPage.qml", profiles: "ProfilesPage.qml",
-              connections: "ConnectionsPage.qml", logs: "LogsPage.qml", settings: "SettingsPage.qml", notice: "NoticePage.qml"
+              connections: "ConnectionsPage.qml", traffic: "TrafficPage.qml", logs: "LogsPage.qml", settings: "SettingsPage.qml", notice: "NoticePage.qml"
             }
             if (loaded === root.page && item) return
             loaded = root.page

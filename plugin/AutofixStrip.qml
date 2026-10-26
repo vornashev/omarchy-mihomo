@@ -29,6 +29,10 @@ Rectangle {
     case "rolled_back":
       var failed = (f.tried || [])[(f.tried || []).length - 1] || ""
       return { icon: Icons.undo, color: svc.red, title: I18n.t("afStripRolled").arg(failed).arg(f.trial_failed), sub: I18n.t("afStripRolledSub") }
+    case "protected":
+      var pr = f.protect || {}
+      return { icon: pr.reason === "strict" ? Icons.lock : Icons.shield, color: pr.reason === "strict" ? svc.yellow : Color.muted, title: I18n.t("afProtect_" + pr.reason).arg(pr.by),
+        sub: pr.reason === "strict" ? I18n.t("afProtectSub_strict") : I18n.t("afProtectSub_explicit") }
     case "unreachable": return { icon: Icons.timer, color: svc.peach, title: I18n.t("afTitleUnreachable").arg(f.host), sub: I18n.t("afStripUnreachable").arg(svc.clock(f.until)) }
     }
     return null
@@ -87,6 +91,11 @@ Rectangle {
       visible: root.state_ === "trial"
       ghost: true; enabled: !root.busy; icon: Icons.undo; text: I18n.t("afUndo")
       onClicked: root.call("autofix.undo", { host: root.fix.host })
+    }
+    Btn {
+      visible: root.state_ === "protected" && !!root.fix.protect && root.fix.protect.reason === "strict"
+      ghost: true; icon: Icons.arrow; text: I18n.t("navProxies")
+      onClicked: root.panel.showPage("proxies")
     }
     Btn {
       visible: root.state_ === "found" || root.state_ === "rolled_back"

@@ -59,7 +59,7 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             };
             to_value(omm_config::proxy_import::preview(&content).map_err(crate::config::cfg_err)?)
         }
-        "proxy_providers.save" | "proxy_nodes.save" | "proxy_nodes.remove" | "proxy_nodes.reset" | "proxy_groups.save" | "proxy_groups.remove" | "proxy_groups.reset" | "proxy_config.preview" | "proxy_import.commit" => {
+        "proxy_providers.save" | "proxy_nodes.save" | "proxy_nodes.remove" | "proxy_nodes.reset" | "proxy_groups.save" | "proxy_groups.remove" | "proxy_groups.reset" | "proxy_groups.order" | "proxy_config.preview" | "proxy_import.commit" => {
             state.config.proxy_change(state, method, params).await
         }
 
@@ -155,6 +155,32 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             }
             .map_err(core_err)?;
             Ok(json!({ "ok": true }))
+        }
+
+        "traffic.query" => {
+            let q: crate::traffic::Query = parse(params)?;
+            to_value(state.traffic.lock().unwrap().query(&q, crate::problems::now_ms()).map_err(db_err)?)
+        }
+        "traffic.totals" => {
+            #[derive(Deserialize)]
+            struct P { by: String, from: Option<i64> }
+            let p: P = parse(params)?;
+            let now = crate::problems::now_ms();
+            to_value(state.traffic.lock().unwrap().totals(&p.by, p.from.unwrap_or(now - 7 * crate::traffic::DAY), now).map_err(db_err)?)
+        }
+        "traffic.status" => to_value(state.traffic.lock().unwrap().status().map_err(db_err)?),
+        "traffic.set" => {
+            #[derive(Deserialize)]
+            struct P { enabled: bool }
+            let p: P = parse(params)?;
+            let mut t = state.traffic.lock().unwrap();
+            t.set_enabled(p.enabled).map_err(db_err)?;
+            to_value(t.status().map_err(db_err)?)
+        }
+        "traffic.clear" => {
+            let mut t = state.traffic.lock().unwrap();
+            t.clear().map_err(db_err)?;
+            to_value(t.status().map_err(db_err)?)
         }
 
         "config.apply" => to_value(state.config.apply(state).await?),
@@ -307,6 +333,11 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
                 Ok(r) => r.rules.into_iter().map(|x| ((x.kind.clone(), x.payload.to_lowercase(), x.proxy.clone()), x.hits())).collect(),
                 Err(_) => Default::default(),
             };
+            // Bytes each rule sent over the last week.
+            let traffic = {
+                let now = crate::problems::now_ms();
+                state.traffic.lock().unwrap().totals("rule", now - 7 * crate::traffic::DAY, now).unwrap_or_default()
+            };
             let items: Vec<Value> = rules
                 .into_iter()
                 .map(|s| {
@@ -321,6 +352,8 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
                     v["effective_target"] = json!(effective.target);
                     v["line"] = json!(effective.line());
                     v["hits"] = json!(hits.get(&key));
+                    let line = format!("{},{}", key.0, key.1).to_lowercase();
+                    v["traffic"] = json!(traffic.get(&line));
                     v
                 })
                 .collect();

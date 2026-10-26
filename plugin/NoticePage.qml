@@ -42,6 +42,8 @@ Item {
     switch (kind) {
     case "autofix":
       var f = fix || {}
+      if (!f.state) return { icon: Icons.sparkles, color: Color.muted, title: f.host || "", sub: "" }
+      if (f.state === "protected") return { icon: Icons.shield, color: Color.muted, title: f.host, sub: I18n.t("afSub_protected") }
       var at = f.state === "trial" ? f.applied_at : (f.state === "pinned" ? f.ends_at : (f.checked_at || f.updated))
       return { icon: Icons.sparkles, color: f.state === "rolled_back" ? svc.red : (f.state === "unreachable" ? svc.peach : (f.state === "found" ? Color.accent : svc.green)),
         title: f.host, sub: I18n.t("afSub_" + f.state).arg(svc.clock(at)) }
@@ -49,9 +51,12 @@ Item {
     case "core_up": return { icon: Icons.statusCheck, color: svc.green, title: I18n.t("nCoreUp"), sub: svc.clock(notice.at) }
     case "dead_group": case "group_alive":
       return { icon: Icons.unplug, color: kind === "dead_group" ? svc.peach : svc.green, title: Notices.text(notice, I18n.t, svc.clock).title, sub: svc.clock(notice.at) }
+    case "strict_down": return { icon: Icons.lock, color: svc.red, title: I18n.t("nStrictTitle").arg(d.group), sub: svc.clock(notice.at) }
+    case "strict_up": return { icon: Icons.lockOpen, color: svc.green, title: I18n.t("nStrictTitleUp").arg(d.group), sub: svc.clock(notice.at) }
     case "subscription": return { icon: Icons.profiles, color: svc.yellow, title: Notices.text(notice, I18n.t, svc.clock).title, sub: svc.clock(notice.at) }
     case "orphans": return { icon: Icons.orphan, color: svc.yellow, title: Notices.text(notice, I18n.t, svc.clock).title, sub: d.profile || svc.clock(notice.at) }
     case "saved": return { icon: Icons.check, color: svc.green, title: I18n.t("nSaved"), sub: svc.clock(notice.at) }
+    case "traffic_spike": case "traffic_route": return { icon: Icons.traffic, color: svc.peach, title: Notices.text(notice, I18n.t, svc.clock).title, sub: svc.clock(notice.at) }
     }
     return { icon: Icons.info, color: Color.muted, title: I18n.t("nNoticeGone"), sub: "" }
   }
@@ -59,6 +64,8 @@ Item {
   // Colored strip: what the fix is doing now.
   readonly property var strip: {
     var f = fix
+    if (kind === "strict_down") return { icon: Icons.shield, color: svc.yellow, title: I18n.t("nStrictStrip"), sub: I18n.t("nStrictStripSub").arg(info.group) }
+    if (kind === "strict_up") return { icon: Icons.check, color: svc.green, title: info.node ? info.node + (info.delay ? " · " + info.delay + " " + I18n.t("ms") : "") : I18n.t("nStrictTitleUp").arg(info.group), sub: Notices.text(notice, I18n.t, svc.clock).body }
     if (!f) return null
     switch (f.state) {
     case "trial": return { icon: Icons.timer, color: svc.green, title: I18n.t("afStripTrial").arg(f.target).arg(Math.max(1, Math.round((f.ends_at - now) / 60000))), sub: I18n.t("afStripTrialSub").arg(f.trial_ok).arg(f.trial_failed) }
@@ -68,6 +75,10 @@ Item {
       return { icon: Icons.undo, color: svc.red, title: I18n.t("afStripRolled").arg(failed).arg(f.trial_failed), sub: I18n.t("afStripRolledSub") }
     case "unreachable": return { icon: Icons.timer, color: svc.peach, title: I18n.t("afStripUnreachable").arg(svc.clock(f.until)), sub: I18n.t("afStripUnreachableSub") }
     case "checking": return { icon: Icons.refresh, color: Color.muted, title: I18n.t("afStripChecking"), sub: "" }
+    case "reverted": return { icon: Icons.check, color: svc.green, title: I18n.t("afStripReverted").arg(f.was_rule || "Match").arg(f.was), sub: I18n.t("afStripRevertedSub").arg(f.target) }
+    case "protected":
+      var pr = f.protect || {}
+      return { icon: pr.reason === "strict" ? Icons.lock : Icons.shield, color: pr.reason === "strict" ? svc.yellow : Color.muted, title: I18n.t("afProtect_" + pr.reason).arg(pr.by), sub: pr.reason === "strict" ? I18n.t("afProtectSub_strict") : I18n.t("afProtectSub_explicit") }
     case "dismissed": return { icon: Icons.timer, color: Color.muted, title: I18n.t("afStripDismissed").arg(svc.clock(f.until)), sub: "" }
     }
     return null
@@ -155,7 +166,7 @@ Item {
             Row {
               required property var modelData
               readonly property bool best: root.fix && modelData.target === root.fix.target
-              width: parent.width
+              width: resCol.width
               spacing: Style.space(8)
               Txt { text: modelData.ok ? Icons.check : Icons.close; color: modelData.ok ? root.svc.green : root.svc.red; font.pixelSize: Style.font.caption }
               Txt {
@@ -203,12 +214,44 @@ Item {
     }
 
     Txt {
-      visible: ["core_down", "core_up", "dead_group", "subscription", "orphans", "group_alive"].indexOf(root.kind) !== -1
+      visible: ["core_down", "core_up", "dead_group", "subscription", "orphans", "group_alive", "traffic_spike", "traffic_route"].indexOf(root.kind) !== -1
       width: parent.width
       wrapMode: Text.Wrap
       dim: true
       font.pixelSize: Style.font.bodySmall
       text: root.notice ? (Notices.text(root.notice, I18n.t, root.svc.clock) || {}).body || "" : ""
+    }
+
+    Column {
+      visible: root.kind === "strict_down" && (root.info.hosts || []).length > 0
+      width: parent.width
+      spacing: Style.space(6)
+      Txt { text: I18n.t("nStrictHosts"); faint: true; bold: true; font.pixelSize: Style.font.caption }
+      Rectangle {
+        width: parent.width
+        height: hostCol.implicitHeight + Style.space(14)
+        radius: Style.cornerRadius
+        color: Util.alpha(Color.popups.text, 0.04)
+        Column {
+          id: hostCol
+          anchors.fill: parent
+          anchors.margins: Style.space(7)
+          anchors.leftMargin: Style.space(10)
+          anchors.rightMargin: Style.space(10)
+          spacing: Style.space(4)
+          Repeater {
+            model: root.kind === "strict_down" ? root.info.hosts : []
+            Row {
+              required property var modelData
+              width: parent.width
+              spacing: Style.space(8)
+              Txt { text: Icons.close; color: root.svc.red; font.pixelSize: Style.font.caption }
+              Txt { width: parent.width - Style.space(70); text: modelData.host + (modelData.app ? " · " + modelData.app : ""); dim: true }
+              Txt { width: Style.space(40); horizontalAlignment: Text.AlignRight; text: "×" + modelData.count; color: root.svc.red; font.pixelSize: Style.font.caption }
+            }
+          }
+        }
+      }
     }
 
     Column {
@@ -235,10 +278,12 @@ Item {
             if (f.state === "trial") return { text: I18n.t("afPin"), icon: Icons.check, run: function() { root.call("autofix.pin", { host: f.host }) } }
             if ((f.state === "found" || f.state === "rolled_back") && f.target) return { text: I18n.t("afApply").arg(f.target), icon: Icons.timer, run: function() { root.call("autofix.apply", { host: f.host }) } }
             if (f.state === "unreachable") return { text: I18n.t("afRecheck"), icon: Icons.refresh, run: function() { root.call("autofix.recheck", { host: f.host }) } }
+            if (f.state === "reverted" && f.target) return { text: I18n.t("afKeep").arg(f.target), icon: Icons.check, run: function() { root.call("autofix.keep", { host: f.host, target: f.target }) } }
             return { text: "", run: null }
           }
           switch (root.kind) {
           case "core_down": return { text: I18n.t("nRestart"), icon: Icons.refresh, run: function() { root.call("core.restart", null) } }
+          case "strict_down": return { text: I18n.t("nCheckNodes"), icon: Icons.refresh, run: function() { root.call("group.delay", { name: root.info.group }, function() { root.panel.notify(I18n.t("nCheckNodes") + " ✓") }) } }
           case "dead_group": return { text: I18n.t("afRecheck"), icon: Icons.refresh, run: function() { root.call("group.delay", { name: root.info.group }, function() { root.panel.notify(I18n.t("afRecheck") + " ✓") }) } }
           case "subscription": return { text: I18n.t("nRetry"), icon: Icons.refresh, run: function() { root.call("profiles.update", { id: root.info.id }, function(r) { if (r && r[0]) root.panel.notify(r[0].error || I18n.t("profileUpdated")) }) } }
           case "orphans":
@@ -249,6 +294,7 @@ Item {
               root.panel.showPage("rules")
             } }
           case "saved": return { text: I18n.t("afUndo"), icon: Icons.undo, run: function() { root.undoSaved() } }
+          case "traffic_spike": case "traffic_route": return { text: I18n.t("nOpenTraffic"), icon: Icons.traffic, run: function() { root.panel.openTraffic(root.info.app) } }
           }
           return { text: "", run: null }
         }
@@ -263,24 +309,34 @@ Item {
             if (f.state === "trial") return { text: I18n.t("afUndo"), icon: Icons.undo, run: function() { root.call("autofix.undo", { host: f.host }, function() { root.panel.notify(I18n.t("afUndone")) }) } }
             if (f.state === "found" || f.state === "rolled_back") return { text: I18n.t("afNotNow"), run: function() { root.call("autofix.dismiss", { host: f.host }, function() { root.panel.close() }) } }
             if (f.state === "unreachable") return { text: I18n.t("afQuiet"), run: function() { root.call("autofix.dismiss", { host: f.host }, function() { root.panel.close() }) } }
+            if (f.state === "reverted") return { text: I18n.t("afOk"), run: function() { root.panel.close() } }
             if (f.state === "pinned") return { text: I18n.t("afDeleteRule"), icon: Icons.remove, run: function() { root.call("rules.delete", { id: f.rule_id }, function() { root.call("autofix.dismiss", { host: f.host }) ; root.panel.notify(I18n.t("afUndone")) }) } }
             return { text: "", run: null }
           }
           switch (root.kind) {
           case "core_down": case "core_up": return { text: I18n.t("nOpenLogs"), icon: Icons.logs, run: function() { root.panel.showPage("logs") } }
-          case "dead_group": case "group_alive": return { text: I18n.t("nOpenProxies"), icon: Icons.proxies, run: function() { root.panel.showPage("proxies") } }
+          case "dead_group": case "group_alive": case "strict_down": case "strict_up": return { text: I18n.t("nOpenProxies"), icon: Icons.proxies, run: function() { root.panel.showPage("proxies") } }
           case "subscription": return { text: I18n.t("nOpenProfiles"), icon: Icons.profiles, run: function() { root.panel.showPage("profiles") } }
           case "orphans": case "saved": return { text: I18n.t("afToRules"), icon: Icons.rules, run: function() { root.panel.showPage("rules") } }
+          case "traffic_route": return { text: I18n.t("nRuleForApp").arg(root.info.app), icon: Icons.ruleAdd, run: function() {
+            root.panel.openRule({ from: "traffic", kind: "process-name", value: root.info.app, origin: { host: "", ip: "", process: root.info.app, process_path: "", port: "", network: "", route: "", rule: "" } })
+          } }
           }
           return { text: "", run: null }
         }
         visible: act.text !== ""
-        ghost: !!root.fix && root.fix.state !== "trial" && root.fix.state !== "pinned"
+        ghost: (!!root.fix && root.fix.state !== "trial" && root.fix.state !== "pinned") || root.kind === "strict_down"
         enabled: !root.busy
         text: act.text
         icon: act.icon || ""
         onClicked: if (act.run) act.run()
       }
+    }
+
+    Txt {
+      visible: root.kind === "strict_down" || root.kind === "strict_up"
+      text: Icons.settings + " " + I18n.t("nStrictSettings"); dim: true; font.pixelSize: Style.font.caption
+      MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.panel.settingsTab = "auto"; root.panel.showPage("settings") } }
     }
 
     // Links: the full list, and never touching this host again.

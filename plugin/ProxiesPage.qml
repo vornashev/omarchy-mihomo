@@ -10,6 +10,8 @@ Item {
   property var panel
   property bool group: true
   property var runtimeGroups: []
+  // Bytes per group over the last week: {name: {up, down}}.
+  property var groupTraffic: ({})
   readonly property var choiceDetails: Models.choiceDetails(metadata.items, runtimeGroups)
   property var testing: ({})
   property int groupCount: 0
@@ -44,6 +46,13 @@ Item {
   property string replacement: ""
   property var selected: ({})
   property var editorState: ({})
+  property int dragFrom: -1
+  property int dropAt: -1
+  property real dropY: 0
+  property real dragViewY: 0
+  property point dragScene
+  // Reordering a filtered or delay-sorted view would be ambiguous.
+  readonly property bool canReorder: group && !search && !protocolFilter && !sourceFilter && !failedOnly && !sortDelay && (metadata.items || []).length > 1
   readonly property bool typing: stage !== "list" || searchField.input.activeFocus || !!deleting || addingToGroup || entryMenu.visible || (quickSwitchCard && quickSwitchCard.popupOpen)
   readonly property var listItems: (metadata.items || []).concat(group && runtimeGroups.some(function (g) {
     return g.name === "GLOBAL";
@@ -58,17 +67,32 @@ Item {
       dependencies: []
     }
   ] : [])
-  readonly property var visibleItems: listItems.filter(function (i) {
-    return (!search || (i.name + " " + (i.server || "") + " " + i.type).toLowerCase().indexOf(search.toLowerCase()) >= 0) && (!protocolFilter || i.type === protocolFilter) && (!sourceFilter || i.source === sourceFilter) && (!failedOnly || i.delay === 0);
-  }).sort(function (a, b) {
-    return sortDelay ? (a.delay || 999999) - (b.delay || 999999) : 0;
-  })
+  // QML's Array.sort is unstable: a comparator returning 0 still shuffles, so
+  // the config order survives only when nothing is sorted, and ties keep it.
+  readonly property var visibleItems: {
+    var items = listItems.filter(function (i) {
+      return (!search || (i.name + " " + (i.server || "") + " " + i.type).toLowerCase().indexOf(search.toLowerCase()) >= 0) && (!protocolFilter || i.type === protocolFilter) && (!sourceFilter || i.source === sourceFilter) && (!failedOnly || i.delay === 0);
+    });
+    if (!sortDelay)
+      return items;
+    return items.map(function (item, index) {
+      return { item: item, index: index };
+    }).sort(function (a, b) {
+      return (a.item.delay || 999999) - (b.item.delay || 999999) || a.index - b.index;
+    }).map(function (e) {
+      return e.item;
+    });
+  }
 
   function reload() {
     var generation = ++requestGeneration;
     svc.request("proxies.list", null, function (r, e) {
       if (!e && generation === requestGeneration)
         runtimeGroups = r || [];
+    });
+    svc.request("traffic.totals", { by: "group" }, function (r, e) {
+      if (!e && r && generation === requestGeneration)
+        groupTraffic = r;
     });
     svc.request(group ? "proxy_nodes.list" : "proxy_groups.list", null, function (r, e) {
       if (!e && r && generation === requestGeneration) {
@@ -88,13 +112,76 @@ Item {
         error = e.message;
         return;
       }
-      metadata = r;
+      keepScroll(function () {
+        metadata = r;
+      });
       if (group)
         groupCount = r.items.length;
       else
         nodeCount = r.items.length;
       selected = {};
       cursor = Math.min(cursor, Math.max(0, r.items.length - 1));
+    });
+  }
+  // Replacing the model resets a ListView to the top; refreshes must not.
+  function keepScroll(change) {
+    var y = list.contentY;
+    change();
+    Qt.callLater(function () {
+      list.contentY = y;
+      list.returnToBounds();
+    });
+  }
+  function dragTo(from, scene) {
+    var p = list.mapFromItem(null, scene.x, scene.y);
+    dragScene = scene;
+    dragFrom = from;
+    dragViewY = p.y;
+    var last = (metadata.items || []).length;
+    var at = list.indexAt(Style.space(10), p.y + list.contentY);
+    if (at < 0)
+      at = p.y + list.contentY < list.originY ? 0 : last;
+    else {
+      var item = list.itemAtIndex(at);
+      if (item && p.y + list.contentY > item.y + item.height / 2)
+        at++;
+    }
+    dropAt = Math.min(at, last);
+    var anchor = list.itemAtIndex(Math.min(dropAt, last - 1));
+    if (anchor)
+      dropY = dropAt < last ? anchor.y - list.spacing / 2 : anchor.y + anchor.height + list.spacing / 2;
+  }
+  function dragDone() {
+    var from = dragFrom, to = dropAt > dragFrom ? dropAt - 1 : dropAt;
+    dragFrom = -1;
+    dropAt = -1;
+    if (from >= 0 && to >= 0 && to !== from && !busy)
+      reorder(from, to);
+  }
+  function reorder(from, to) {
+    var items = Models.moveMember(metadata.items, from, to);
+    var p = {
+      profile_id: metadata.profile_id,
+      revision: metadata.revision,
+      order: items.map(function (i) {
+        return i.name;
+      })
+    };
+    var m = Models.clone(metadata);
+    m.items = items;
+    keepScroll(function () {
+      metadata = m;
+    });
+    cursor = to;
+    busy = true;
+    error = "";
+    svc.request("proxy_groups.order", p, function (r, e) {
+      busy = false;
+      if (e)
+        error = e.message;
+      else
+        pendingApply = !r.reloaded;
+      reload();
     });
   }
   function switchTab(isGroup) {
@@ -274,10 +361,15 @@ Item {
       group: groupName,
       name: nodeName
     }, function (r, e) {
-      if (e)
+      if (e) {
         error = e.message;
-      else
-        reload();
+        return;
+      }
+      // Only the runtime selection changed; a full reload would rebuild the list.
+      svc.request("proxies.list", null, function (r, e) {
+        if (!e)
+          runtimeGroups = r || [];
+      });
     });
   }
   function groupsFor(item) {
@@ -620,7 +712,29 @@ Item {
       clip: true
       spacing: Style.space(7)
       model: root.visibleItems
+      interactive: root.dragFrom < 0
       ScrollBar.vertical: ScrollBar {}
+      Rectangle {
+        parent: list.contentItem
+        visible: root.dropAt >= 0
+        x: 0
+        y: root.dropY - height / 2
+        width: list.width - Style.space(6)
+        height: 2
+        radius: 1
+        color: Color.accent
+      }
+      Timer {
+        // Scroll while a dragged card hovers near either edge.
+        interval: 16
+        repeat: true
+        running: root.dragFrom >= 0 && (root.dragViewY < Style.space(40) || root.dragViewY > list.height - Style.space(40))
+        onTriggered: {
+          var step = root.dragViewY < Style.space(40) ? -Style.space(12) : Style.space(12);
+          list.contentY = Math.max(list.originY, Math.min(list.originY + list.contentHeight - list.height, list.contentY + step));
+          root.dragTo(root.dragFrom, root.dragScene);
+        }
+      }
       delegate: Loader {
         id: entry
         required property var modelData
@@ -638,7 +752,14 @@ Item {
               return g.name === entry.modelData.name;
             })[0] || ({})
             svc: root.svc
+            traffic: root.groupTraffic[entry.modelData.name] || null
             testing: !!root.testing[entry.modelData.name]
+            draggable: root.canReorder && entry.modelData.source !== "builtin"
+            opacity: root.dragFrom === entry.index ? 0.5 : 1
+            onDragMoved: function (scene) {
+              root.dragTo(entry.index, scene);
+            }
+            onDragEnded: root.dragDone()
             onEditRequested: root.edit(entry.modelData, false)
             onTestRequested: root.test(entry.modelData)
             onMenuRequested: function(anchor) {

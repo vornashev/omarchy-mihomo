@@ -26,6 +26,9 @@ pub struct Managed {
     pub providers: BTreeMap<String, Mapping>,
     /// Scoped rewrites, including the targets of global user rules.
     pub redirects: BTreeMap<String, String>,
+    /// User-chosen order of proxy groups; unlisted groups keep their place after these.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub group_order: Vec<String>,
 }
 
 impl Managed {
@@ -87,6 +90,14 @@ impl Managed {
                 }
             }
             items.extend(remaining.into_values().flatten().map(Value::Mapping));
+            if key == "proxy-groups" && !self.group_order.is_empty() {
+                let rank = |v: &Value| {
+                    yaml::entry_name(v)
+                        .and_then(|n| self.group_order.iter().position(|o| o == n))
+                        .unwrap_or(usize::MAX)
+                };
+                items.sort_by_key(rank);
+            }
             config.insert(key.into(), Value::Sequence(items));
         }
         if !self.providers.is_empty() {
@@ -380,6 +391,19 @@ mod tests {
         assert_eq!(c["rules"][0].as_str(), Some("DOMAIN,A,B"));
         assert_eq!(c["proxy-groups"][0]["proxies"][0].as_str(), Some("B"));
         assert_eq!(c["proxies"][0]["future"]["x"].as_i64(), Some(2));
+    }
+    #[test]
+    fn group_order_puts_listed_groups_first() {
+        let mut c = cfg(
+            "proxy-groups: [{name: A, type: select, proxies: [DIRECT]}, {name: B, type: select, proxies: [DIRECT]}, {name: C, type: select, proxies: [DIRECT]}]",
+        );
+        let m = Managed {
+            group_order: vec!["C".into(), "Gone".into(), "A".into()],
+            ..Default::default()
+        };
+        m.apply(&mut c);
+        let names: Vec<_> = yaml::names(&c, "proxy-groups").collect();
+        assert_eq!(names, ["C", "A", "B"]);
     }
     #[test]
     fn graph_rejects_collisions_missing_refs_and_cycles() {

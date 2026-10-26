@@ -60,11 +60,24 @@ pub struct Notify {
     pub orphans: bool,
     pub autofix: bool,
     pub saved: bool,
+    /// A strict group went down or came back.
+    pub strict: bool,
+    /// An app moved far more than usual or started using a proxy.
+    pub traffic: bool,
 }
 
 impl Default for Notify {
     fn default() -> Self {
-        Self { core: true, dead_group: true, subscription: true, orphans: true, autofix: true, saved: true }
+        Self {
+            core: true,
+            dead_group: true,
+            subscription: true,
+            orphans: true,
+            autofix: true,
+            saved: true,
+            strict: true,
+            traffic: true,
+        }
     }
 }
 
@@ -79,8 +92,11 @@ pub struct Automation {
     pub trial_min: u32,
     /// Groups never used for a fix.
     pub exclude_groups: Vec<String>,
-    /// Hosts autofix ignores: `example.org` (and subdomains), `*.lan`,
-    /// `192.168.0.0/16`.
+    /// Groups whose traffic never moves elsewhere and never receives
+    /// other traffic: a work VPN that must not leak into a personal one.
+    pub strict_groups: Vec<String>,
+    /// What autofix leaves alone: `example.org` (and subdomains), `*.lan`,
+    /// `192.168.0.0/16`, `process:slack`.
     pub ignore: Vec<String>,
     pub notify: Notify,
 }
@@ -94,6 +110,7 @@ impl Default for Automation {
             window_min: 5,
             trial_min: 60,
             exclude_groups: Vec::new(),
+            strict_groups: Vec::new(),
             ignore: Vec::new(),
             notify: Notify::default(),
         }
@@ -105,7 +122,7 @@ impl Automation {
         self.failures = self.failures.clamp(1, 50);
         self.window_min = self.window_min.clamp(1, 120);
         self.trial_min = self.trial_min.clamp(5, 24 * 60);
-        self.ignore.retain(|p| ignore_rule(p).is_some());
+        self.ignore.retain(|p| Ignore::parse(p).is_some());
         self
     }
 
@@ -117,21 +134,58 @@ impl Automation {
         i64::from(self.trial_min) * 60_000
     }
 
-    fn ignores(&self, host: &str) -> bool {
+    fn ignores(&self, host: &str, process: Option<&str>) -> bool {
         let ip = host.parse::<IpAddr>().ok();
-        self.ignore.iter().filter_map(|p| ignore_rule(p)).any(|r| r.matches_host(host, ip))
+        self.ignore
+            .iter()
+            .filter_map(|p| Ignore::parse(p))
+            .any(|i| match i {
+                Ignore::Host(r) => r.matches_host(host, ip),
+                Ignore::Process(name) => process.is_some_and(|p| p == name),
+            })
+    }
+
+    /// Groups a fix may route through.
+    fn usable(&self, group: &str) -> bool {
+        group != "DIRECT"
+            && !self.exclude_groups.iter().any(|g| g == group)
+            && !self.strict_groups.iter().any(|g| g == group)
     }
 }
 
-/// `*.lan` and `lan` both mean the domain and its subdomains.
-fn ignore_rule(pattern: &str) -> Option<UserRule> {
-    let p = pattern.trim().trim_start_matches("*.").trim_start_matches('.');
-    if p.is_empty() {
-        return None;
+enum Ignore {
+    Host(UserRule),
+    /// The core logs the executable's name, so a path counts by its name.
+    Process(String),
+}
+
+impl Ignore {
+    /// `*.lan` and `lan` both mean the domain and its subdomains.
+    fn parse(pattern: &str) -> Option<Self> {
+        let p = pattern.trim();
+        if let Some(proc) = p.strip_prefix("process:") {
+            let name = proc.trim().rsplit('/').next().unwrap_or_default();
+            return (!name.is_empty() && !name.contains('*'))
+                .then(|| Self::Process(name.to_owned()));
+        }
+        let p = p.trim_start_matches("*.").trim_start_matches('.');
+        if p.is_empty() {
+            return None;
+        }
+        let kind = if p.contains('/') || p.parse::<IpAddr>().is_ok() {
+            MatchKind::IpCidr
+        } else {
+            MatchKind::DomainSuffix
+        };
+        let value = omm_config::rules::normalize(kind, p).ok()?;
+        Some(Self::Host(UserRule {
+            id: 0,
+            kind,
+            value,
+            target: String::new(),
+            enabled: true,
+        }))
     }
-    let kind = if p.contains('/') || p.parse::<IpAddr>().is_ok() { MatchKind::IpCidr } else { MatchKind::DomainSuffix };
-    let value = omm_config::rules::normalize(kind, p).ok()?;
-    Some(UserRule { id: 0, kind, value, target: String::new(), enabled: true })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -149,6 +203,12 @@ pub enum FixState {
     RolledBack,
     /// Nothing works, the direct route included: not a routing problem.
     Unreachable,
+    /// Routed by an explicit decision autofix does not override: a strict
+    /// group, the user's rule, a subscription rule naming a group.
+    Protected,
+    /// The original route worked again at the end of the trial; the rule
+    /// was removed instead of kept.
+    Reverted,
     /// The user said "not now" or undid the fix.
     Dismissed,
 }
@@ -173,6 +233,9 @@ pub struct Fix {
     pub target: Option<String>,
     pub rule_id: Option<i64>,
     pub rule: Option<String>,
+    /// Why a protected fix is left alone.
+    #[serde(default)]
+    pub protect: Option<Protect>,
     pub applied_at: Option<i64>,
     pub ends_at: Option<i64>,
     pub trial_ok: u32,
@@ -191,6 +254,14 @@ impl Fix {
     fn active(&self) -> bool {
         matches!(self.state, FixState::Checking | FixState::Found | FixState::Trial)
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Protect {
+    /// `strict`, `rule` or `subscription`.
+    pub reason: String,
+    /// The group, or the rule as a line.
+    pub by: String,
 }
 
 #[derive(Debug, Default)]
@@ -289,7 +360,9 @@ impl Engine {
                     t.failures.clear();
                 }
                 let fix = self.fixes.get_mut(&host)?;
-                if fix.state == FixState::Trial && fix.target.as_deref().is_some_and(|t| via(&c.chain, t)) {
+                if fix.state == FixState::Trial
+                    && fix.target.as_deref().is_some_and(|t| via(&c.chain, t))
+                {
                     fix.trial_ok += 1;
                 }
                 None
@@ -300,13 +373,19 @@ impl Engine {
                     return None;
                 }
                 let kind = classify(&e.error, &e.route.target);
-                if matches!(kind, ErrorKind::DnsFail | ErrorKind::DnsStub | ErrorKind::Other) || self.settings.ignores(&host) {
+                if matches!(
+                    kind,
+                    ErrorKind::DnsFail | ErrorKind::DnsStub | ErrorKind::Other
+                ) || self.settings.ignores(&host, e.source.process.as_deref())
+                {
                     return None;
                 }
                 let (failures, window) = (self.settings.failures, self.settings.window_ms());
                 if let Some(fix) = self.fixes.get_mut(&host) {
                     if fix.state == FixState::Trial {
-                        if fix.target.as_deref() == Some(e.route.target.as_str()) && now - fix.trial_last_fail >= MERGE_MS {
+                        if fix.target.as_deref() == Some(e.route.target.as_str())
+                            && now - fix.trial_last_fail >= MERGE_MS
+                        {
                             fix.trial_last_fail = now;
                             fix.trial_failed += 1;
                             if fix.trial_failed >= failures {
@@ -333,14 +412,20 @@ impl Engine {
                 }
                 t.kind = Some(kind);
                 t.target.clone_from(&e.route.target);
-                t.rule = if e.route.payload.is_empty() { e.route.rule.clone() } else { format!("{}({})", e.route.rule, e.route.payload) };
+                t.rule = if e.route.payload.is_empty() {
+                    e.route.rule.clone()
+                } else {
+                    format!("{}({})", e.route.rule, e.route.payload)
+                };
                 if t.failures.back().is_none_or(|last| now - last >= MERGE_MS) {
                     t.failures.push_back(now);
                 }
                 while t.failures.front().is_some_and(|f| now - f > window) {
                     t.failures.pop_front();
                 }
-                if t.failures.len() < failures as usize || t.last_ok.is_some_and(|ok| now - ok < window) {
+                if t.failures.len() < failures as usize
+                    || t.last_ok.is_some_and(|ok| now - ok < window)
+                {
                     return None;
                 }
                 let fix = Fix {
@@ -357,12 +442,17 @@ impl Engine {
                     target: None,
                     rule_id: None,
                     rule: None,
+                    protect: None,
                     applied_at: None,
                     ends_at: None,
                     trial_ok: 0,
                     trial_failed: 0,
                     trial_last_fail: 0,
-                    tried: self.fixes.get(&host).map(|f| f.tried.clone()).unwrap_or_default(),
+                    tried: self
+                        .fixes
+                        .get(&host)
+                        .map(|f| f.tried.clone())
+                        .unwrap_or_default(),
                     until: None,
                     error: None,
                     updated: now,
@@ -385,7 +475,9 @@ impl Engine {
     /// Drop finished fixes after a day.
     fn sweep(&mut self, now: i64) {
         let before = self.fixes.len();
-        self.fixes.retain(|_, f| f.active() || now - f.updated < KEEP_MS || f.until.is_some_and(|u| u > now));
+        self.fixes.retain(|_, f| {
+            f.active() || now - f.updated < KEEP_MS || f.until.is_some_and(|u| u > now)
+        });
         if self.fixes.len() != before {
             self.save();
         }
@@ -400,8 +492,15 @@ fn via(chain: &str, target: &str) -> bool {
 /// Loopback, LAN and link-local addresses, `.local` and bare names.
 fn local(host: &str) -> bool {
     match host.parse::<IpAddr>() {
-        Ok(IpAddr::V4(ip)) => ip.is_private() || ip.is_loopback() || ip.is_link_local() || ip.is_unspecified(),
-        Ok(IpAddr::V6(ip)) => ip.is_loopback() || ip.is_unspecified() || (ip.segments()[0] & 0xfe00) == 0xfc00 || (ip.segments()[0] & 0xffc0) == 0xfe80,
+        Ok(IpAddr::V4(ip)) => {
+            ip.is_private() || ip.is_loopback() || ip.is_link_local() || ip.is_unspecified()
+        }
+        Ok(IpAddr::V6(ip)) => {
+            ip.is_loopback()
+                || ip.is_unspecified()
+                || (ip.segments()[0] & 0xfe00) == 0xfc00
+                || (ip.segments()[0] & 0xffc0) == 0xfe80
+        }
         Err(_) => !host.contains('.') || host.ends_with(".local") || host.ends_with(".lan"),
     }
 }
@@ -425,39 +524,67 @@ fn publish(state: &State, fix: &Fix) {
 }
 
 fn notice(state: &State, fix: &Fix) {
-    let urgency = if fix.state == FixState::Pinned { "low" } else { "normal" };
-    state.notify(&format!("autofix:{}", fix.host), "autofix", urgency, json!(fix));
+    let urgency = if matches!(fix.state, FixState::Pinned | FixState::Reverted) {
+        "low"
+    } else {
+        "normal"
+    };
+    state.notify(
+        &format!("autofix:{}", fix.host),
+        "autofix",
+        urgency,
+        json!(fix),
+    );
 }
 
 /// Check a host through every group and act on the result.
 pub async fn check(state: Arc<State>, host: String) {
-    // The user's own rule for this host is a decision autofix respects.
-    if let Ok((rules, _)) = state.config.rules().await {
-        let ip = host.parse::<IpAddr>().ok();
-        if rules.iter().any(|s| s.rule.enabled && s.source != SOURCE && s.rule.matches_host(&host, ip)) {
-            let t = now();
-            state.autofix.lock().unwrap().update(&host, t, |f| {
-                f.state = FixState::Dismissed;
-                f.until = Some(t + RECHECK_MS);
-            });
-            return;
-        }
-    }
-    let Some(fix) = state.autofix.lock().unwrap().get(&host) else { return };
-    publish(&state, &fix);
-    let (exclude, mode) = {
-        let a = state.autofix.lock().unwrap();
-        (a.settings.exclude_groups.clone(), a.settings.mode)
+    let Some(fix) = state.autofix.lock().unwrap().get(&host) else {
+        return;
     };
+    let settings = state.autofix.lock().unwrap().settings.clone();
+    let rules = state
+        .config
+        .rules()
+        .await
+        .map(|(r, _)| r)
+        .unwrap_or_default();
+    if let Some(protect) = protection(&fix, &settings, &rules) {
+        tracing::info!(
+            host,
+            reason = protect.reason,
+            by = protect.by,
+            "autofix: explicit route, left alone"
+        );
+        let t = now();
+        let fix = state.autofix.lock().unwrap().update(&host, t, |f| {
+            f.state = FixState::Protected;
+            f.protect = Some(protect);
+            f.until = Some(t + RECHECK_MS);
+        });
+        if let Some(fix) = fix {
+            publish(&state, &fix);
+        }
+        return;
+    }
+    publish(&state, &fix);
+    let mode = settings.mode;
     let groups = match state.core.proxies().await {
-        Ok(p) => crate::methods::targets(&p).into_iter().filter(|t| t != "DIRECT" && !exclude.contains(t)).collect::<Vec<_>>(),
+        Ok(p) => crate::methods::targets(&p)
+            .into_iter()
+            .filter(|t| settings.usable(t))
+            .collect::<Vec<_>>(),
         Err(e) => {
             tracing::debug!("autofix: listing groups: {e}");
             state.autofix.lock().unwrap().fixes.remove(&host);
             return;
         }
     };
-    let mut targets: Vec<String> = groups.into_iter().filter(|g| *g != fix.was && !fix.tried.contains(g)).take(31).collect();
+    let mut targets: Vec<String> = groups
+        .into_iter()
+        .filter(|g| *g != fix.was && !fix.tried.contains(g))
+        .take(31)
+        .collect();
     if !fix.was.is_empty() {
         targets.push(fix.was.clone());
     }
@@ -466,8 +593,16 @@ pub async fn check(state: Arc<State>, host: String) {
     results.sort_by_key(|o| (!o.ok, o.target == fix.was, o.delay.unwrap_or(u32::MAX)));
     let t = now();
     let was_ok = results.iter().any(|o| o.ok && o.target == fix.was);
-    let best = results.iter().find(|o| o.ok && o.target != fix.was).map(|o| o.target.clone());
-    tracing::info!(host, best = best.as_deref().unwrap_or("-"), was_ok, "autofix checked");
+    let best = results
+        .iter()
+        .find(|o| o.ok && o.target != fix.was)
+        .map(|o| o.target.clone());
+    tracing::info!(
+        host,
+        best = best.as_deref().unwrap_or("-"),
+        was_ok,
+        "autofix checked"
+    );
 
     if was_ok && best.is_none() {
         // The current route works again: a passing outage, nothing to do.
@@ -518,14 +653,71 @@ pub async fn check(state: Arc<State>, host: String) {
     }
 }
 
+/// Why autofix must not reroute this traffic, if it must not. Only
+/// traffic nobody directed — the final `Match`, or DIRECT by default — is
+/// fixed; an explicit decision stays, even while it fails.
+fn protection(
+    fix: &Fix,
+    settings: &Automation,
+    rules: &[crate::user_rules::Stored],
+) -> Option<Protect> {
+    if settings.strict_groups.contains(&fix.was) {
+        return Some(Protect {
+            reason: "strict".into(),
+            by: fix.was.clone(),
+        });
+    }
+    // The user's own rule, by any match the log lets us check: the rule the
+    // core reported, or the host, process and port of the connection.
+    let ip = fix.host.parse::<IpAddr>().ok();
+    let conn = omm_config::rules::Conn {
+        host: &fix.host,
+        ip,
+        dst_port: fix.port,
+        process: fix.apps.first().map(String::as_str).unwrap_or_default(),
+        ..Default::default()
+    };
+    let reported = fix.was_rule.to_ascii_lowercase();
+    let own = rules
+        .iter()
+        .filter(|s| s.rule.enabled && s.source != SOURCE)
+        .find(|s| {
+            format!("{}({})", s.rule.core_type(), s.rule.value).to_ascii_lowercase() == reported
+                || s.rule.matches(&conn) == Some(true)
+        });
+    if let Some(s) = own {
+        return Some(Protect {
+            reason: "rule".into(),
+            by: s.rule.line(),
+        });
+    }
+    let rule = fix.was_rule.split('(').next().unwrap_or_default();
+    if !matches!(rule, "" | "Match") && fix.was != "DIRECT" {
+        return Some(Protect {
+            reason: "subscription".into(),
+            by: format!("{} → {}", fix.was_rule, fix.was),
+        });
+    }
+    None
+}
+
 /// Add the rule for `target` with a trial expiry.
 /// `announce`: send a notice too (not when the user asked for it).
-pub async fn start_trial(state: &State, host: &str, target: &str, announce: bool) -> Result<Fix, RpcError> {
+pub async fn start_trial(
+    state: &State,
+    host: &str,
+    target: &str,
+    announce: bool,
+) -> Result<Fix, RpcError> {
     let trial = state.autofix.lock().unwrap().settings.trial_ms();
-    let fix = state.autofix.lock().unwrap().get(host).ok_or_else(|| RpcError::new(ErrorCode::NotFound, format!("nothing known about {host}")))?;
+    let fix =
+        state.autofix.lock().unwrap().get(host).ok_or_else(|| {
+            RpcError::new(ErrorCode::NotFound, format!("nothing known about {host}"))
+        })?;
     let t = now();
     let (kind, raw) = rule_for(host);
-    let value = omm_config::rules::normalize(kind, &raw).map_err(|e| RpcError::new(ErrorCode::BadRequest, e.to_string()))?;
+    let value = omm_config::rules::normalize(kind, &raw)
+        .map_err(|e| RpcError::new(ErrorCode::BadRequest, e.to_string()))?;
     let measured = fix.results.iter().find(|o| o.target == target);
     let new = crate::user_rules::NewRule {
         kind,
@@ -533,8 +725,17 @@ pub async fn start_trial(state: &State, host: &str, target: &str, announce: bool
         target: target.to_owned(),
         note: None,
         source: SOURCE.into(),
-        test: measured.map(|o| crate::user_rules::Check { target: o.target.clone(), ok: o.ok, delay: o.delay, error: o.error.clone(), at: fix.checked_at.unwrap_or(t) }),
-        lifetime: crate::user_rules::Lifetime { expires: Some(t + trial + GRACE_MS), until_reboot: false },
+        test: measured.map(|o| crate::user_rules::Check {
+            target: o.target.clone(),
+            ok: o.ok,
+            delay: o.delay,
+            error: o.error.clone(),
+            at: fix.checked_at.unwrap_or(t),
+        }),
+        lifetime: crate::user_rules::Lifetime {
+            expires: Some(t + trial + GRACE_MS),
+            until_reboot: false,
+        },
     };
     let (stored, report) = state
         .config
@@ -590,7 +791,9 @@ async fn delete_rule(state: &State, id: i64) -> Result<(), RpcError> {
 
 /// The trial route failed too: remove the rule, look for another route.
 pub async fn roll_back(state: Arc<State>, host: String) {
-    let Some(fix) = state.autofix.lock().unwrap().get(&host) else { return };
+    let Some(fix) = state.autofix.lock().unwrap().get(&host) else {
+        return;
+    };
     if fix.state != FixState::Trial {
         return;
     }
@@ -601,12 +804,30 @@ pub async fn roll_back(state: Arc<State>, host: String) {
     }
     let failed = fix.target.clone().unwrap_or_default();
     tracing::info!(host, failed, "autofix: trial failed, rule removed");
-    let exclude = state.autofix.lock().unwrap().settings.exclude_groups.clone();
-    let groups = state.core.proxies().await.map(|p| crate::methods::targets(&p)).unwrap_or_default();
+    let settings = state.autofix.lock().unwrap().settings.clone();
+    let groups = state
+        .core
+        .proxies()
+        .await
+        .map(|p| crate::methods::targets(&p))
+        .unwrap_or_default();
     let mut tried = fix.tried.clone();
     tried.push(failed.clone());
-    let targets: Vec<String> = groups.into_iter().filter(|g| g != "DIRECT" && *g != fix.was && !tried.contains(g) && !exclude.contains(g)).take(32).collect();
-    let mut results = if targets.is_empty() { Vec::new() } else { crate::route_check::check(&state, &crate::route_check::probe_for(&host, fix.port), &targets).await };
+    let targets: Vec<String> = groups
+        .into_iter()
+        .filter(|g| settings.usable(g) && *g != fix.was && !tried.contains(g))
+        .take(32)
+        .collect();
+    let mut results = if targets.is_empty() {
+        Vec::new()
+    } else {
+        crate::route_check::check(
+            &state,
+            &crate::route_check::probe_for(&host, fix.port),
+            &targets,
+        )
+        .await
+    };
     results.sort_by_key(|o| (!o.ok, o.delay.unwrap_or(u32::MAX)));
     let next = results.iter().find(|o| o.ok).map(|o| o.target.clone());
     let t = now();
@@ -626,14 +847,33 @@ pub async fn roll_back(state: Arc<State>, host: String) {
 }
 
 async fn pin(state: &State, host: &str) -> Result<Fix, RpcError> {
-    let fix = state.autofix.lock().unwrap().get(host).ok_or_else(|| RpcError::new(ErrorCode::NotFound, host.to_owned()))?;
-    let id = fix.rule_id.ok_or_else(|| RpcError::new(ErrorCode::BadRequest, "no rule to pin"))?;
+    let fix = state
+        .autofix
+        .lock()
+        .unwrap()
+        .get(host)
+        .ok_or_else(|| RpcError::new(ErrorCode::NotFound, host.to_owned()))?;
+    let id = fix
+        .rule_id
+        .ok_or_else(|| RpcError::new(ErrorCode::BadRequest, "no rule to pin"))?;
     let t = now();
     state
         .config
-        .change_rules(state, false, |store| match store.update(id, crate::user_rules::Patch { lifetime: Some(Default::default()), ..Default::default() }, t).map_err(crate::config::db_err)? {
-            Some((_, c)) => Ok(((), vec![c])),
-            None => Err(RpcError::new(ErrorCode::NotFound, format!("no rule #{id}"))),
+        .change_rules(state, false, |store| {
+            match store
+                .update(
+                    id,
+                    crate::user_rules::Patch {
+                        lifetime: Some(Default::default()),
+                        ..Default::default()
+                    },
+                    t,
+                )
+                .map_err(crate::config::db_err)?
+            {
+                Some((_, c)) => Ok(((), vec![c])),
+                None => Err(RpcError::new(ErrorCode::NotFound, format!("no rule #{id}"))),
+            }
         })
         .await?;
     let fix = state
@@ -649,6 +889,50 @@ async fn pin(state: &State, host: &str) -> Result<Fix, RpcError> {
     Ok(fix)
 }
 
+/// Before keeping a fix for good, try the route it replaced: a short outage
+/// must not leave a permanent detour. Returns true when the rule was removed.
+async fn revert_if_recovered(state: &State, fix: &Fix) -> bool {
+    if fix.was.is_empty() {
+        return false;
+    }
+    let probe = crate::route_check::probe_for(&fix.host, fix.port);
+    let was = crate::route_check::check(state, &probe, std::slice::from_ref(&fix.was)).await;
+    if !was.first().is_some_and(|o| o.ok) {
+        return false;
+    }
+    if let Some(id) = fix.rule_id
+        && let Err(e) = delete_rule(state, id).await
+    {
+        tracing::warn!(host = fix.host, "autofix: removing rule: {}", e.message);
+        return false;
+    }
+    tracing::info!(
+        host = fix.host,
+        was = fix.was,
+        "autofix: original route works again, rule removed"
+    );
+    let t = now();
+    let mut results = was;
+    results.extend(
+        fix.results
+            .iter()
+            .filter(|o| Some(&o.target) == fix.target.as_ref())
+            .cloned(),
+    );
+    let fix = state.autofix.lock().unwrap().update(&fix.host, t, |f| {
+        f.state = FixState::Reverted;
+        f.rule_id = None;
+        f.results = results;
+        f.checked_at = Some(t);
+        f.until = Some(t + RECHECK_MS);
+    });
+    if let Some(fix) = fix {
+        publish(state, &fix);
+        notice(state, &fix);
+    }
+    true
+}
+
 /// Pin trials that passed; drop fixes whose rule the user removed.
 pub async fn watch(state: Arc<State>) {
     let mut tick = tokio::time::interval(Duration::from_secs(30));
@@ -658,14 +942,25 @@ pub async fn watch(state: Arc<State>) {
         let trials: Vec<Fix> = {
             let mut a = state.autofix.lock().unwrap();
             a.sweep(t);
-            a.fixes.values().filter(|f| f.state == FixState::Trial).cloned().collect()
+            a.fixes
+                .values()
+                .filter(|f| f.state == FixState::Trial)
+                .cloned()
+                .collect()
         };
         if trials.is_empty() {
             continue;
         }
-        let Ok((rules, _)) = state.config.rules().await else { continue };
+        let Ok((rules, _)) = state.config.rules().await else {
+            continue;
+        };
         for fix in trials {
-            let alive = fix.rule_id.and_then(|id| rules.iter().find(|s| s.rule.id == id)).is_some_and(|s| s.rule.enabled && s.rule.target == fix.target.clone().unwrap_or_default());
+            let alive = fix
+                .rule_id
+                .and_then(|id| rules.iter().find(|s| s.rule.id == id))
+                .is_some_and(|s| {
+                    s.rule.enabled && s.rule.target == fix.target.clone().unwrap_or_default()
+                });
             if !alive {
                 // Edited or removed by the user: theirs now.
                 state.autofix.lock().unwrap().update(&fix.host, t, |f| {
@@ -675,6 +970,9 @@ pub async fn watch(state: Arc<State>) {
                 continue;
             }
             if fix.ends_at.is_some_and(|e| e <= t) {
+                if revert_if_recovered(&state, &fix).await {
+                    continue;
+                }
                 match pin(&state, &fix.host).await {
                     Ok(fix) => {
                         tracing::info!(host = fix.host, "autofix: trial passed, rule pinned");
@@ -689,7 +987,11 @@ pub async fn watch(state: Arc<State>) {
 
 // ------------------------------------------------------------------ RPC
 
-pub async fn rpc(state: &Arc<State>, method: &str, params: serde_json::Value) -> Result<serde_json::Value, RpcError> {
+pub async fn rpc(
+    state: &Arc<State>,
+    method: &str,
+    params: serde_json::Value,
+) -> Result<serde_json::Value, RpcError> {
     #[derive(Deserialize)]
     struct HostParam {
         host: String,
@@ -698,13 +1000,15 @@ pub async fn rpc(state: &Arc<State>, method: &str, params: serde_json::Value) ->
     match method {
         "automation.get" => Ok(json!(state.autofix.lock().unwrap().settings)),
         "automation.set" => {
-            let s: Automation = serde_json::from_value(params).map_err(|e| RpcError::new(ErrorCode::BadRequest, e.to_string()))?;
+            let s: Automation = serde_json::from_value(params)
+                .map_err(|e| RpcError::new(ErrorCode::BadRequest, e.to_string()))?;
             let saved = state.autofix.lock().unwrap().set_settings(s)?;
             Ok(json!(saved))
         }
         "autofix.list" => Ok(json!(state.autofix.lock().unwrap().list())),
         _ => {
-            let p: HostParam = serde_json::from_value(params).map_err(|e| RpcError::new(ErrorCode::BadRequest, e.to_string()))?;
+            let p: HostParam = serde_json::from_value(params)
+                .map_err(|e| RpcError::new(ErrorCode::BadRequest, e.to_string()))?;
             let host = p.host.trim().to_ascii_lowercase();
             let fix = state.autofix.lock().unwrap().get(&host);
             let t = now();
@@ -721,8 +1025,12 @@ pub async fn rpc(state: &Arc<State>, method: &str, params: serde_json::Value) ->
             match method {
                 "autofix.get" => Ok(json!(fix)),
                 "autofix.apply" => {
-                    let fix = fix.ok_or_else(|| RpcError::new(ErrorCode::NotFound, format!("nothing known about {host}")))?;
-                    let target = p.target.or(fix.target.clone()).ok_or_else(|| RpcError::new(ErrorCode::BadRequest, "no working route to apply"))?;
+                    let fix = fix.ok_or_else(|| {
+                        RpcError::new(ErrorCode::NotFound, format!("nothing known about {host}"))
+                    })?;
+                    let target = p.target.or(fix.target.clone()).ok_or_else(|| {
+                        RpcError::new(ErrorCode::BadRequest, "no working route to apply")
+                    })?;
                     if fix.state == FixState::Trial
                         && let Some(id) = fix.rule_id
                         && fix.target.as_deref() != Some(target.as_str())
@@ -732,8 +1040,20 @@ pub async fn rpc(state: &Arc<State>, method: &str, params: serde_json::Value) ->
                     Ok(json!(start_trial(state, &host, &target, false).await?))
                 }
                 "autofix.pin" => Ok(json!(pin(state, &host).await?)),
+                // After a revert: keep the detour anyway, for good.
+                "autofix.keep" => {
+                    let fix =
+                        fix.ok_or_else(|| RpcError::new(ErrorCode::NotFound, host.clone()))?;
+                    let target = p
+                        .target
+                        .or(fix.target)
+                        .ok_or_else(|| RpcError::new(ErrorCode::BadRequest, "no route to keep"))?;
+                    start_trial(state, &host, &target, false).await?;
+                    Ok(json!(pin(state, &host).await?))
+                }
                 "autofix.undo" => {
-                    let fix = fix.ok_or_else(|| RpcError::new(ErrorCode::NotFound, host.clone()))?;
+                    let fix =
+                        fix.ok_or_else(|| RpcError::new(ErrorCode::NotFound, host.clone()))?;
                     if let Some(id) = fix.rule_id {
                         delete_rule(state, id).await?;
                     }
@@ -751,9 +1071,15 @@ pub async fn rpc(state: &Arc<State>, method: &str, params: serde_json::Value) ->
                 "autofix.recheck" => {
                     {
                         let mut a = state.autofix.lock().unwrap();
-                        let f = a.fixes.get_mut(&host).ok_or_else(|| RpcError::new(ErrorCode::NotFound, host.clone()))?;
+                        let f = a
+                            .fixes
+                            .get_mut(&host)
+                            .ok_or_else(|| RpcError::new(ErrorCode::NotFound, host.clone()))?;
                         if f.state == FixState::Trial {
-                            return Err(RpcError::new(ErrorCode::BadRequest, "a route is on trial"));
+                            return Err(RpcError::new(
+                                ErrorCode::BadRequest,
+                                "a route is on trial",
+                            ));
                         }
                         f.state = FixState::Checking;
                         f.tried.clear();
@@ -762,7 +1088,11 @@ pub async fn rpc(state: &Arc<State>, method: &str, params: serde_json::Value) ->
                     Ok(json!(state.autofix.lock().unwrap().get(&host)))
                 }
                 "autofix.exclude" => {
-                    if let Some(id) = fix.as_ref().filter(|f| f.state == FixState::Trial).and_then(|f| f.rule_id) {
+                    if let Some(id) = fix
+                        .as_ref()
+                        .filter(|f| f.state == FixState::Trial)
+                        .and_then(|f| f.rule_id)
+                    {
                         delete_rule(state, id).await?;
                     }
                     let mut a = state.autofix.lock().unwrap();
@@ -775,7 +1105,10 @@ pub async fn rpc(state: &Arc<State>, method: &str, params: serde_json::Value) ->
                     a.save();
                     Ok(json!({ "ok": true }))
                 }
-                _ => Err(RpcError::new(ErrorCode::UnknownMethod, format!("unknown method {method}"))),
+                _ => Err(RpcError::new(
+                    ErrorCode::UnknownMethod,
+                    format!("unknown method {method}"),
+                )),
             }
         }
     }
@@ -859,11 +1192,134 @@ mod tests {
         assert_eq!(e.observe(&via_ai, 120_000), Some(Next::RollBack("chatgpt.com".into())));
     }
 
+    fn stored(
+        kind: MatchKind,
+        value: &str,
+        target: &str,
+        source: &str,
+    ) -> crate::user_rules::Stored {
+        crate::user_rules::Stored {
+            rule: UserRule {
+                id: 1,
+                kind,
+                value: value.into(),
+                target: target.into(),
+                enabled: true,
+            },
+            note: None,
+            source: source.into(),
+            created: 0,
+            updated: 0,
+            test: None,
+            expires: None,
+            boot: None,
+        }
+    }
+
+    fn failing(host: &str, was: &str, was_rule: &str, app: &str) -> Fix {
+        let mut e = Engine::in_memory();
+        let line = parse::parse(&format!("[TCP] dial {was} (match {was_rule}) 198.18.0.1:38164({app}, uid=1000) --> {host}:443 error: {TIMEOUT}")).unwrap();
+        for t in [0, 20_000, 40_000] {
+            e.observe(&line, t);
+        }
+        e.get(host).expect("triggered")
+    }
+
+    #[test]
+    fn explicit_decisions_are_protected() {
+        let s = Automation {
+            strict_groups: vec!["WORK".into()],
+            ..Default::default()
+        };
+        let by = |f: &Fix, rules: &[crate::user_rules::Stored]| {
+            protection(f, &s, rules).map(|p| (p.reason, p.by))
+        };
+
+        let work = failing(
+            "jira.corp.com",
+            "WORK",
+            "DomainSuffix/corp.com",
+            "slack-work",
+        );
+        assert_eq!(by(&work, &[]).unwrap().0, "strict");
+
+        // A process rule must win over the host: the bug a domain-only check had.
+        let slack = failing("edgeapi.slack.com", "PROXY", "ProcessName/slack", "slack");
+        let rules = [stored(MatchKind::ProcessName, "slack", "PROXY", "user")];
+        assert_eq!(
+            by(&slack, &rules),
+            Some(("rule".into(), "PROCESS-NAME,slack,PROXY".into()))
+        );
+
+        let sub = failing("x.com", "PROXY", "DomainSuffix/x.com", "firefox");
+        assert_eq!(by(&sub, &[]).unwrap().0, "subscription");
+
+        let plain = failing("chatgpt.com", "DIRECT", "Match/", "firefox");
+        assert_eq!(by(&plain, &[]), None);
+        assert_eq!(
+            by(
+                &plain,
+                &[stored(MatchKind::DomainSuffix, "chatgpt.com", "AI", SOURCE)]
+            ),
+            None,
+            "autofix's own rules do not protect"
+        );
+        assert_eq!(
+            by(
+                &failing("ya.ru", "DIRECT", "GeoSite/category-ru", "firefox"),
+                &[]
+            ),
+            None,
+            "DIRECT by a subscription is fixable"
+        );
+    }
+
+    #[test]
+    fn strict_and_excluded_groups_are_not_routes() {
+        let s = Automation {
+            strict_groups: vec!["WORK".into()],
+            exclude_groups: vec!["TikTok".into()],
+            ..Default::default()
+        };
+        assert!(s.usable("AI"));
+        assert!(!s.usable("WORK") && !s.usable("TikTok") && !s.usable("DIRECT"));
+    }
+
+    #[test]
+    fn ignored_processes() {
+        let mut e = Engine::in_memory();
+        e.settings.ignore = vec![
+            "process:/opt/corp/slack-work".into(),
+            "process:".into(),
+            "process:/opt/*".into(),
+        ];
+        e.settings = e.settings.clone().sane();
+        assert_eq!(e.settings.ignore.len(), 1);
+        let line = parse::parse(&format!("[TCP] dial DIRECT (match Match/) 198.18.0.1:1(slack-work, uid=1000) --> a.corp.com:443 error: {TIMEOUT}")).unwrap();
+        for t in [0, 20_000, 40_000, 60_000] {
+            assert_eq!(e.observe(&line, t), None);
+        }
+    }
+
     #[test]
     fn ignore_patterns() {
-        let s = Automation { ignore: vec!["*.lan".into(), "bank.ru".into(), "10.0.0.0/8".into(), "".into()], ..Default::default() }.sane();
+        let s = Automation {
+            ignore: vec![
+                "*.lan".into(),
+                "bank.ru".into(),
+                "10.0.0.0/8".into(),
+                "".into(),
+            ],
+            ..Default::default()
+        }
+        .sane();
         assert_eq!(s.ignore.len(), 3);
-        assert!(s.ignores("nas.lan") && s.ignores("bank.ru") && s.ignores("my.bank.ru") && s.ignores("10.1.2.3"));
-        assert!(!s.ignores("notbank.ru") && !s.ignores("11.0.0.1"));
+        assert!(
+            s.ignores("nas.lan", None)
+                && s.ignores("bank.ru", None)
+                && s.ignores("my.bank.ru", None)
+                && s.ignores("10.1.2.3", None)
+        );
+        assert!(!s.ignores("notbank.ru", None) && !s.ignores("11.0.0.1", None));
     }
 }

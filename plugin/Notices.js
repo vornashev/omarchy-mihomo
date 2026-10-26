@@ -40,9 +40,21 @@ function autofix(fix, t, clock) {
     }
   case "unreachable":
     return { title: t("afTitleUnreachable").arg(host), body: t("afBodyUnreachable"), click: t("afClickDefault") }
+  case "reverted":
+    return { title: t("afTitleReverted").arg(host).arg(fix.was), body: t("afBodyReverted").arg(fix.target), click: t("afClickDefault") }
   }
   return null
 }
+
+// 1.2 ГБ, without the panel's Service at hand.
+function bytes(n, t) {
+  var u = ["B", "KB", "MB", "GB", "TB"], i = 0
+  n = Number(n) || 0
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++ }
+  return (i === 0 ? n.toFixed(0) : n.toFixed(1)) + " " + t("unit" + u[i])
+}
+
+function names(list) { return (list || []).map(function(p) { return p[0] }).join(", ") }
 
 function text(n, t, clock) {
   var d = n.data || {}
@@ -59,6 +71,10 @@ function text(n, t, clock) {
     return { title: t("nCoreUp"), body: t("nCoreUpBody"), click: "" }
   case "dead_group":
     return { title: t("nDeadGroup").arg(d.group), body: t("nDeadGroupBody").arg(d.nodes).arg(d.group).arg(d.rules).arg(d.connections), click: t("nClickGroup") }
+  case "strict_down":
+    return { title: t("nStrictDown").arg(d.group), body: t("nStrictDownBody").arg(d.nodes).arg((d.hosts || []).length), click: t("nClickStrict") }
+  case "strict_up":
+    return { title: t("nStrictUp").arg(d.group), body: t("nStrictUpBody").arg(Math.max(1, Math.round((d.down_ms || 0) / 60000))), click: "" }
   case "group_alive":
     return { title: t("nGroupAlive").arg(d.group), body: "", click: "" }
   case "subscription":
@@ -69,6 +85,14 @@ function text(n, t, clock) {
     return { title: t("nOrphans").arg((d.rules || []).length), body: t("nOrphansBody").arg(gone.join(", ")), click: t("nClickFix") }
   case "saved":
     return { title: t("nSaved"), body: d.line || "", click: t("nClickSaved") }
+  case "traffic_spike":
+    return {
+      title: t("nTrafficSpike").arg(d.app).arg(bytes(d.bytes, t)),
+      body: d.new ? t("nTrafficSpikeNew").arg(names(d.domains)) : t("nTrafficSpikeBody").arg(bytes(d.usual_per_hour, t)).arg(Math.round(d.bytes / Math.max(d.usual_per_hour, 1))).arg(names(d.domains)),
+      click: t("afClickDefault")
+    }
+  case "traffic_route":
+    return { title: t("nTrafficRoute").arg(d.app).arg(bytes(d.proxied, t)), body: t("nTrafficRouteBody").arg(names(d.groups)), click: t("afClickDefault") }
   case "window_unknown":
     return { title: t("nWindowUnknown"), body: t("nWindowUnknownBody"), click: "" }
   }

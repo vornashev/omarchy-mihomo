@@ -8,13 +8,19 @@ Rectangle {
   required property var entry
   property var runtime: ({})
   property var svc
+  // Bytes through this group over the last week, {up, down}, or null.
+  property var traffic: null
   property bool testing: false
+  property bool draggable: false
   readonly property bool popupOpen: quickSwitch.visible
   readonly property bool selectable: entry.type === "select" || entry.type === "fallback"
   signal editRequested
   signal testRequested
   signal menuRequested(var anchor)
   signal selected(string name)
+  // Scene coordinates, so the list can map them whatever scrolls in between.
+  signal dragMoved(point scene)
+  signal dragEnded
   readonly property var members: runtime.members || (entry.members || []).map(function (n) {
     return {
       name: n
@@ -37,12 +43,30 @@ Rectangle {
       width: parent.width
       spacing: Style.space(6)
       Txt {
+        visible: root.draggable
+        text: "⠿"
+        faint: true
+        anchors.verticalCenter: parent.verticalCenter
+        MouseArea {
+          objectName: "proxyGroupDragHandle"
+          anchors.fill: parent
+          anchors.margins: -Style.space(4)
+          preventStealing: true
+          cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+          onPositionChanged: function (m) {
+            root.dragMoved(mapToItem(null, m.x, m.y));
+          }
+          onReleased: root.dragEnded()
+          onCanceled: root.dragEnded()
+        }
+      }
+      Txt {
         text: root.entry.type === "select" ? Icons.proxies : root.entry.type === "fallback" ? Icons.shield : root.entry.type === "url-test" ? Icons.test : Icons.connections
         color: Color.accent
         anchors.verticalCenter: parent.verticalCenter
       }
       Column {
-        width: parent.width - actions.width - Style.space(32)
+        width: parent.width - actions.width - Style.space(root.draggable ? 46 : 32)
         spacing: Style.space(4)
         Txt {
           width: parent.width
@@ -52,7 +76,8 @@ Rectangle {
         }
         Txt {
           width: parent.width
-          text: root.entry.name === "GLOBAL" ? I18n.t("proxyBuiltin") : I18n.t("proxyType_" + root.entry.type) + " · " + I18n.t("proxyTypeHint_" + root.entry.type)
+          text: (root.entry.name === "GLOBAL" ? I18n.t("proxyBuiltin") : I18n.t("proxyType_" + root.entry.type) + " · " + I18n.t("proxyTypeHint_" + root.entry.type))
+            + (root.traffic && root.svc && root.svc.formatBytes ? " · " + I18n.t("trafficWeek").arg(root.svc.formatBytes(root.traffic.up + root.traffic.down)) : "")
           dim: true
           font.pixelSize: Style.font.caption
           elide: Text.ElideRight

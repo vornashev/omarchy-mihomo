@@ -62,6 +62,7 @@ Rectangle {
         else if (root.svc) parts.push(I18n.t("added").arg(root.svc.clock(root.rule.created)))
         if (root.rule.test && root.rule.test.ok) parts.push(I18n.t("checkedMs").arg(root.rule.test.delay))
         if (root.rule.hits !== null && root.rule.hits !== undefined) parts.push(I18n.t("hits").arg(root.rule.hits))
+        if (root.rule.traffic && root.svc) parts.push(I18n.t("trafficWeek").arg(root.svc.formatBytes(root.rule.traffic.up + root.rule.traffic.down)))
         if (root.rule.boot) parts.push(Icons.timer + " " + I18n.t("ruleUntilBoot"))
         else if (root.rule.expires && root.svc) parts.push(Icons.timer + " " + I18n.t("ruleUntil").arg(root.svc.clock(root.rule.expires)))
         if (root.rule.note) parts.push(root.rule.note)

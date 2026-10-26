@@ -43,8 +43,15 @@ pub async fn watch(state: Arc<State>) {
 /// Rules whose group is gone, each with a likely replacement: `TELEGRAM`
 /// for a vanished `TELEGRAM[DE]`.
 async fn orphans(state: &State, ids: &[i64]) {
-    let Ok((rules, _)) = state.config.rules().await else { return };
-    let groups = state.core.proxies().await.map(|p| crate::methods::targets(&p)).unwrap_or_default();
+    let Ok((rules, _)) = state.config.rules().await else {
+        return;
+    };
+    let groups = state
+        .core
+        .proxies()
+        .await
+        .map(|p| crate::methods::targets(&p))
+        .unwrap_or_default();
     let items: Vec<_> = rules
         .iter()
         .filter(|s| ids.contains(&s.rule.id))
@@ -54,7 +61,12 @@ async fn orphans(state: &State, ids: &[i64]) {
         return;
     }
     let profile = state.status().config.profile.map(|p| p.name);
-    state.notify("orphans", "orphans", "normal", json!({ "rules": items, "profile": profile }));
+    state.notify(
+        "orphans",
+        "orphans",
+        "normal",
+        json!({ "rules": items, "profile": profile }),
+    );
 }
 
 fn replacement(gone: &str, groups: &[String]) -> Option<String> {
@@ -76,7 +88,16 @@ fn dead_groups(p: &mihomo_api::model::Proxies) -> Vec<(String, usize)> {
         .into_iter()
         .filter(|g| g.name != "GLOBAL")
         .filter_map(|g| {
-            let nodes: Vec<_> = g.members.iter().filter(|m| !matches!(m.name.as_str(), "DIRECT" | "REJECT" | "REJECT-DROP" | "PASS" | "COMPATIBLE")).collect();
+            let nodes: Vec<_> = g
+                .members
+                .iter()
+                .filter(|m| {
+                    !matches!(
+                        m.name.as_str(),
+                        "DIRECT" | "REJECT" | "REJECT-DROP" | "PASS" | "COMPATIBLE"
+                    )
+                })
+                .collect();
             // Never tested is unknown, not dead.
             let dead = !nodes.is_empty() && nodes.iter().all(|m| m.delay == Some(0));
             dead.then(|| (g.name.clone(), nodes.len()))
@@ -86,7 +107,8 @@ fn dead_groups(p: &mihomo_api::model::Proxies) -> Vec<(String, usize)> {
 
 pub async fn watch_groups(state: Arc<State>) {
     // `None` until the first look: groups already dead when the daemon
-    // starts are not news on every restart.
+    // starts are not news on every restart — unless they are strict, where
+    // every minute of a silent outage matters.
     let mut known: Option<BTreeSet<String>> = None;
     let mut tick = tokio::time::interval(GROUPS_EVERY);
     loop {
@@ -94,26 +116,83 @@ pub async fn watch_groups(state: Arc<State>) {
         if !state.core_running() {
             continue;
         }
-        let Ok(p) = state.core.proxies().await else { continue };
+        let Ok(p) = state.core.proxies().await else {
+            continue;
+        };
+        let strict = state.autofix.lock().unwrap().settings.strict_groups.clone();
         let dead = dead_groups(&p);
         let names: BTreeSet<String> = dead.iter().map(|(n, _)| n.clone()).collect();
-        let Some(known) = known.replace(names.clone()) else { continue };
-        let fresh: Vec<_> = dead.iter().filter(|(n, _)| !known.contains(n)).collect();
+        let first = known.is_none();
+        let before = known.replace(names.clone()).unwrap_or_default();
+        let fresh: Vec<_> = dead
+            .iter()
+            .filter(|(n, _)| !before.contains(n) && (!first || strict.contains(n)))
+            .collect();
         if !fresh.is_empty() {
-            let rules = state.config.rules().await.map(|(r, _)| r).unwrap_or_default();
-            let conns = state.core.connections().await.map(|c| c.connections).unwrap_or_default();
+            let rules = state
+                .config
+                .rules()
+                .await
+                .map(|(r, _)| r)
+                .unwrap_or_default();
+            let conns = state
+                .core
+                .connections()
+                .await
+                .map(|c| c.connections)
+                .unwrap_or_default();
             for (group, nodes) in fresh {
-                let n_rules = rules.iter().filter(|s| s.rule.enabled && &s.rule.target == group).count();
-                let n_conns = conns.iter().filter(|c| c.chains.iter().any(|x| x == group)).count();
+                if strict.contains(group) {
+                    state.notify(&format!("group:{group}"), "strict_down", "critical", json!({ "group": group, "nodes": nodes, "hosts": failing_hosts(&state, group) }));
+                    continue;
+                }
+                let n_rules = rules
+                    .iter()
+                    .filter(|s| s.rule.enabled && &s.rule.target == group)
+                    .count();
+                let n_conns = conns
+                    .iter()
+                    .filter(|c| c.chains.iter().any(|x| x == group))
+                    .count();
                 state.notify(&format!("group:{group}"), "dead_group", "normal", json!({ "group": group, "nodes": nodes, "rules": n_rules, "connections": n_conns }));
             }
         }
-        for gone in known.difference(&names) {
-            if state.notice(&format!("group:{gone}")).is_some_and(|n| n.kind == "dead_group") {
-                state.notify(&format!("group:{gone}"), "group_alive", "low", json!({ "group": gone }));
+        for gone in before.difference(&names) {
+            let key = format!("group:{gone}");
+            match state.notice(&key) {
+                Some(n) if n.kind == "dead_group" => {
+                    state.notify(&key, "group_alive", "low", json!({ "group": gone }))
+                }
+                Some(n) if n.kind == "strict_down" => {
+                    let node = p.proxies.get(gone).and_then(|g| g.now.clone());
+                    let delay = node
+                        .as_deref()
+                        .and_then(|n| p.proxies.get(n))
+                        .and_then(|n| n.last_delay());
+                    state.notify(&key, "strict_up", "low", json!({ "group": gone, "down_ms": crate::problems::now_ms() - n.at, "node": node, "delay": delay }));
+                }
+                _ => {}
             }
         }
     }
+}
+
+/// Hosts failing through `group` in the last half hour, busiest first.
+fn failing_hosts(state: &State, group: &str) -> Vec<serde_json::Value> {
+    let since = crate::problems::now_ms() - 30 * 60_000;
+    let c = state.problems.lock().unwrap();
+    let q = omm_problems::Query {
+        target: Some(group.to_owned()),
+        since: Some(since),
+        ..Default::default()
+    };
+    let mut items: Vec<_> = c.list(&q).into_iter().map(|v| v.problem.clone()).collect();
+    items.sort_by_key(|p| std::cmp::Reverse(p.count));
+    items
+        .iter()
+        .take(8)
+        .map(|p| json!({ "host": p.host, "count": p.count, "app": p.apps.iter().max_by_key(|(_, n)| **n).map(|(a, _)| a.clone()) }))
+        .collect()
 }
 
 #[cfg(test)]

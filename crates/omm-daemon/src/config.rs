@@ -815,7 +815,7 @@ pub async fn watch_files(state: Arc<State>) {
 
 /// Download through our own core when it runs: the subscription host may be
 /// unreachable directly.
-fn proxy_of(state: &State) -> Option<String> {
+pub(crate) fn proxy_of(state: &State) -> Option<String> {
     let s = state.status();
     (s.core.running && s.core.mixed_port > 0).then(|| format!("http://127.0.0.1:{}", s.core.mixed_port))
 }

@@ -32,7 +32,10 @@ Item {
     bar.shell.updateEntryInline(panel.moduleName, entry)
   }
 
-  Component.onCompleted: reload()
+  property var traffic: null
+  function reloadTraffic() { svc.request("traffic.status", null, function(r) { if (r) traffic = r }) }
+
+  Component.onCompleted: { reload(); reloadTraffic() }
 
   Column {
     id: header
@@ -45,14 +48,15 @@ Item {
     }
     Seg {
       current: root.panel.settingsTab
-      model: [{ key: "main", label: I18n.t("settingsTabMain") }, { key: "auto", label: I18n.t("settingsTabAuto") }]
+      model: [{ key: "main", label: I18n.t("settingsTabMain") }, { key: "auto", label: I18n.t("settingsTabAuto") }, { key: "notify", label: I18n.t("settingsTabNotify") }]
       onPicked: function(k) { root.panel.settingsTab = k }
     }
   }
 
   AutomationSettings {
     id: automation
-    visible: root.panel.settingsTab === "auto"
+    visible: root.panel.settingsTab !== "main"
+    section: root.panel.settingsTab
     anchors.top: header.bottom
     anchors.topMargin: Style.space(16)
     anchors.left: parent.left
@@ -100,6 +104,36 @@ Item {
             root.save(p)
           }
         }
+      }
+    }
+
+    Row {
+      objectName: "trafficSetting"
+      width: parent.width
+      Column {
+        width: parent.width - trafficClear.width - trafficSwitch.width - Style.space(12)
+        spacing: Style.space(2)
+        Txt { text: I18n.t("trafficSettings") }
+        Txt {
+          width: parent.width
+          text: I18n.t("trafficSettingsHint") + (root.traffic && root.traffic.rows ? "  " + I18n.t("trafficSettingsSize").arg(root.traffic.rows).arg(root.svc.formatBytes(root.traffic.bytes)) : "")
+          dim: true; font.pixelSize: Style.font.caption
+        }
+      }
+      Btn {
+        id: trafficClear
+        ghost: true
+        anchors.verticalCenter: parent.verticalCenter
+        text: I18n.t("trafficClear")
+        enabled: root.traffic !== null && root.traffic.rows > 0
+        onClicked: root.svc.request("traffic.clear", null, function(r, err) { if (r) root.traffic = r; root.panel.notify(err ? err.message : I18n.t("trafficCleared")) })
+      }
+      Item { width: Style.space(12); height: 1 }
+      Mihomo.Switch {
+        id: trafficSwitch
+        anchors.verticalCenter: parent.verticalCenter
+        checked: root.traffic === null || root.traffic.enabled
+        onToggled: root.svc.request("traffic.set", { enabled: !(root.traffic === null || root.traffic.enabled) }, function(r) { if (r) root.traffic = r })
       }
     }
 

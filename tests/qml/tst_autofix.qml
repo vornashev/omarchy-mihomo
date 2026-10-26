@@ -60,6 +60,7 @@ Rectangle {
     when: windowShown
 
     function init() {
+      mockService.automation = { autofix: true, mode: "trial", failures: 3, window_min: 5, trial_min: 60, exclude_groups: [], strict_groups: [], ignore: [], notify: {} }
       mockService.calls = []
       mockService.fixes = {}
       mockService.notices = {}
@@ -149,10 +150,52 @@ Rectangle {
       var saved = mockService.last("automation.set")
       compare(saved.mode, "suggest")
       compare(saved.failures, 3, "unchanged fields are sent along")
-      var ai = findText(page, "AI")
+      var ai = find(page, "exclude_AI")
       verify(ai)
       mouseClick(ai)
       compare(mockService.last("automation.set").exclude_groups, ["AI"])
+    }
+
+    function find(item, name) {
+      if (item.objectName === name) return item
+      for (var i = 0; i < item.children.length; i++) { var f = find(item.children[i], name); if (f) return f }
+      return null
+    }
+
+    function test_strict_groups_and_protected_strip() {
+      var page = createTemporaryObject(settingsComponent, scene)
+      wait(20)
+      var chip = find(page, "strict_PROXY")
+      verify(chip, "every group can be made strict")
+      mouseClick(chip)
+      compare(mockService.last("automation.set").strict_groups, ["PROXY"])
+      var f = fix("protected")
+      f.protect = { reason: "strict", by: "WORK" }
+      var strip = createTemporaryObject(stripComponent, scene, { fix: f })
+      wait(20)
+      verify(strip.visible)
+      verify(findText(strip, "WORK"), "names the strict group")
+      f = fix("protected")
+      f.protect = { reason: "rule", by: "PROCESS-NAME,slack,PROXY" }
+      strip.fix = f
+      verify(findText(strip, "PROCESS-NAME,slack,PROXY"))
+    }
+
+    function test_reverted_and_strict_notices() {
+      var t = function(k) { return Plugin.I18n.t(k) }
+      var f = fix("reverted")
+      var r = Notices.text({ kind: "autofix", data: f }, t, function() { return "" })
+      verify(r.title.indexOf("DIRECT") !== -1 && r.body.indexOf("AI") !== -1, r.title + " / " + r.body)
+      var down = Notices.text({ kind: "strict_down", data: { group: "WORK", nodes: 2, hosts: [{ host: "jira.corp.com", count: 12 }] } }, t, function() { return "" })
+      verify(down.title.indexOf("WORK") !== -1 && down.body.indexOf("1") !== -1, down.body)
+      mockPanel.noticeKey = "group:WORK"
+      mockService.notices = { "group:WORK": { key: "group:WORK", kind: "strict_down", urgency: "critical", data: { group: "WORK", nodes: 2, hosts: [{ host: "jira.corp.com", count: 12, app: "slack-work" }] }, at: 1 } }
+      var page = createTemporaryObject(noticeComponent, scene)
+      wait(20)
+      verify(findText(page, "jira.corp.com · slack-work"), "failing hosts are listed")
+      findText(page, Plugin.I18n.t("nCheckNodes")).clicked()
+      compare(mockService.last("group.delay").name, "WORK")
+      mockPanel.noticeKey = "autofix:chatgpt.com"
     }
   }
 }

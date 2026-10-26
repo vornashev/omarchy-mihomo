@@ -30,6 +30,8 @@ struct Change {
     group: bool,
     #[serde(default)]
     new_group: Option<String>,
+    #[serde(default)]
+    order: Vec<String>,
 }
 
 struct View {
@@ -420,6 +422,11 @@ impl Manager {
                         managed.redirects.insert(alias, name.to_owned());
                     }
                 }
+                if group && !old.is_empty() {
+                    for o in managed.group_order.iter_mut().filter(|o| *o == old) {
+                        *o = name.to_owned();
+                    }
+                }
             }
             managed.entries_mut(group).insert(key, Some(m.clone()));
             existing.push(m.clone());
@@ -478,6 +485,19 @@ impl Manager {
                 }
                 managed.entries_mut(group).insert(key, None);
             }
+        }
+        if method == "proxy_groups.order" {
+            let current: Vec<_> = yaml::names(&v.config, "proxy-groups").collect();
+            let mut seen = std::collections::HashSet::new();
+            if p.order.len() != current.len()
+                || !p
+                    .order
+                    .iter()
+                    .all(|n| current.contains(&n.as_str()) && seen.insert(n))
+            {
+                return Err(bad("Group order must list every group exactly once"));
+            }
+            managed.group_order = p.order.clone();
         }
         if method == "proxy_providers.save" {
             if !v
@@ -855,6 +875,19 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(groups["items"][0]["definition"]["proxies"], json!(["New"]));
+    }
+    #[tokio::test]
+    async fn group_order_is_validated_and_survives_rename() {
+        let Some((_dir, s)) = setup().await else {
+            return;
+        };
+        change(&s, "proxy_groups.save", json!({"name":"","definition":{"name":"H","type":"select","proxies":["DIRECT"]}})).await.unwrap();
+        assert!(change(&s, "proxy_groups.order", json!({"order":["H"]})).await.is_err());
+        assert!(change(&s, "proxy_groups.order", json!({"order":["H","H"]})).await.is_err());
+        change(&s, "proxy_groups.order", json!({"order":["H","G"]})).await.unwrap();
+        change(&s, "proxy_groups.save", json!({"name":"H","definition":{"name":"H2","type":"select","proxies":["DIRECT"]}})).await.unwrap();
+        let groups = s.config.proxy_read(&s, "proxy_groups.list", Value::Null).await.unwrap();
+        assert_eq!(groups["groups"], json!(["H2", "G"]));
     }
     #[tokio::test]
     async fn edit_rename_refresh_reset_and_conflict() {

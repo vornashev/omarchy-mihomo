@@ -2,7 +2,7 @@
 //! suggestions. Everything here is best effort: unreadable entries (other
 //! users' processes, no Hyprland) are skipped, never errors.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::time::Duration;
 
@@ -145,8 +145,105 @@ pub fn tree(_: &Path, _: u32) -> Vec<Node> {
     Vec::new()
 }
 
+/// Who owns a local socket the core could not name a process for.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Owner {
+    pub uid: u32,
+    /// Executable name, when its descriptors are readable (our own user).
+    pub name: Option<String>,
+}
+
+/// Owners of local sockets by `(udp, local port)`, from `/proc/net` and,
+/// for processes we may inspect, their descriptors. Root's processes keep
+/// their descriptors private, so for them only the uid is known.
+#[cfg(not(target_os = "macos"))]
+pub fn socket_owners(proc_root: &Path, wanted: &[(bool, u16)]) -> HashMap<(bool, u16), Owner> {
+    let mut found: HashMap<(bool, u16), (u32, u64)> = HashMap::new();
+    for (udp, file) in [(false, "net/tcp"), (false, "net/tcp6"), (true, "net/udp"), (true, "net/udp6")] {
+        if !wanted.iter().any(|w| w.0 == udp) {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(proc_root.join(file)) else { continue };
+        for (port, uid, inode, listening) in text.lines().skip(1).filter_map(parse_socket_line) {
+            let key = (udp, port);
+            if listening || !wanted.contains(&key) {
+                continue;
+            }
+            found.entry(key).or_insert((uid, inode));
+        }
+    }
+    let mut names: HashMap<u64, String> = HashMap::new();
+    let mut inodes: Vec<u64> = found.values().map(|v| v.1).filter(|i| *i != 0).collect();
+    if !inodes.is_empty()
+        && let Ok(dir) = std::fs::read_dir(proc_root)
+    {
+        'pids: for entry in dir.flatten() {
+            if entry.file_name().to_str().is_none_or(|n| !n.bytes().all(|b| b.is_ascii_digit())) {
+                continue;
+            }
+            let Ok(fds) = std::fs::read_dir(entry.path().join("fd")) else { continue };
+            for fd in fds.flatten() {
+                let Ok(link) = std::fs::read_link(fd.path()) else { continue };
+                let Some(inode) = link.to_str().and_then(|l| l.strip_prefix("socket:[")).and_then(|l| l.strip_suffix(']')).and_then(|n| n.parse::<u64>().ok()) else { continue };
+                if let Some(i) = inodes.iter().position(|x| *x == inode) {
+                    inodes.swap_remove(i);
+                    if let Some(name) = exe_name(&entry.path()) {
+                        names.insert(inode, name);
+                    }
+                    if inodes.is_empty() {
+                        break 'pids;
+                    }
+                }
+            }
+        }
+    }
+    found.into_iter().map(|(k, (uid, inode))| (k, Owner { uid, name: names.remove(&inode) })).collect()
+}
+
+#[cfg(target_os = "macos")]
+pub fn socket_owners(_: &Path, _: &[(bool, u16)]) -> HashMap<(bool, u16), Owner> {
+    HashMap::new()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn exe_name(pid_dir: &Path) -> Option<String> {
+    let exe = std::fs::read_link(pid_dir.join("exe")).ok();
+    let name = exe.as_ref().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().trim_end_matches(" (deleted)").to_owned());
+    name.or_else(|| std::fs::read_to_string(pid_dir.join("comm")).ok().map(|c| c.trim().to_owned())).filter(|n| !n.is_empty())
+}
+
+/// `  1: 0100007F:A3F2 ... 01 ... uid timeout inode` → (port, uid, inode, listening).
+fn parse_socket_line(line: &str) -> Option<(u16, u32, u64, bool)> {
+    let f: Vec<&str> = line.split_whitespace().collect();
+    let port = u16::from_str_radix(f.get(1)?.rsplit(':').next()?, 16).ok()?;
+    let listening = f.get(2)?.ends_with(":0000") && *f.get(3)? == "0A";
+    let uid = f.get(7)?.parse().ok()?;
+    let inode = f.get(9)?.parse().ok()?;
+    Some((port, uid, inode, listening))
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn socket_lines() {
+        let est = "   3: 0100A8C0:C1A6 CCA21268:01BB 01 00000000:00000000 02:000009F5 00000000     0        0 412233 2 0000000000000000 20 4 30 10 -1";
+        assert_eq!(super::parse_socket_line(est), Some((0xC1A6, 0, 412233, false)));
+        let listen = "   0: 0100007F:1ED9 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 3311 1 0000000000000000 100 0 0 10 0";
+        assert_eq!(super::parse_socket_line(listen), Some((0x1ED9, 1000, 3311, true)));
+    }
+
+    /// Our own socket resolves to this test binary.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn owns_own_socket() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let client = std::net::TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let port = client.local_addr().unwrap().port();
+        let owners = super::socket_owners(std::path::Path::new("/proc"), &[(false, port)]);
+        let o = owners.get(&(false, port)).expect("socket listed");
+        assert!(o.name.is_some());
+    }
+
     use super::*;
 
     #[test]

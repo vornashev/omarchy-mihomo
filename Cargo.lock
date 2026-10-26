@@ -1018,6 +1018,7 @@ dependencies = [
  "omm-platform",
  "omm-problems",
  "omm-proto",
+ "reqwest",
  "rusqlite",
  "serde",
  "serde_json",

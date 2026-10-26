@@ -319,6 +319,69 @@ Rectangle {
       compare(p.editorState.original, "");
       verify(p.editorState.draft.name.indexOf("copy") >= 0);
     }
+    function groupsMeta() {
+      var m = mockService.meta();
+      m.groups = ["A", "B", "C"];
+      m.items = m.groups.map(function (n) {
+        return {
+          name: n,
+          type: "select",
+          source: "profile",
+          members: ["DIRECT"],
+          dependencies: []
+        };
+      });
+      return m;
+    }
+    function test_drag_reorders_groups() {
+      var p = createTemporaryObject(pageComponent, scene);
+      wait(30);
+      p.metadata = groupsMeta();
+      wait(30);
+      verify(p.canReorder);
+      var handle = findChild(p, "proxyGroupDragHandle");
+      verify(handle);
+      var list = handle;
+      while (list && !(list.contentItem && list.indexAt))
+        list = list.parent;
+      var last = list.itemAtIndex(2);
+      var target = list.contentItem.mapToItem(handle, 10, last.y + last.height - 4);
+      mousePress(handle, handle.width / 2, handle.height / 2);
+      mouseMove(handle, handle.width / 2, target.y / 2);
+      mouseMove(handle, handle.width / 2, target.y);
+      compare(p.dropAt, 3);
+      mouseRelease(handle, handle.width / 2, target.y);
+      var call = mockService.calls.filter(function (c) {
+        return c.method === "proxy_groups.order";
+      })[0];
+      verify(call);
+      compare(call.params.order, ["B", "C", "A"]);
+      compare(call.params.revision, "r1");
+      p.search = "B";
+      verify(!p.canReorder);
+    }
+    function test_groups_keep_config_order() {
+      var p = createTemporaryObject(pageComponent, scene);
+      wait(30);
+      var m = groupsMeta();
+      m.groups = ["AI", "YOUTUBE", "PROXY", "WARP", "TELEGRAM", "TikTok", "Стриминг"];
+      m.items = m.groups.map(function (n, i) {
+        return { name: n, type: "select", source: "profile", delay: 50, members: [], dependencies: [] };
+      });
+      p.metadata = m;
+      compare(p.visibleItems.map(function (i) { return i.name; }), m.groups);
+      p.sortDelay = true;
+      compare(p.visibleItems.map(function (i) { return i.name; }), m.groups);
+    }
+    function test_selecting_node_keeps_list() {
+      var p = createTemporaryObject(pageComponent, scene);
+      wait(30);
+      mockService.calls = [];
+      p.selectNode("G", "FI");
+      compare(mockService.calls.map(function (c) {
+        return c.method;
+      }), ["proxies.select", "proxies.list"]);
+    }
     function test_lists_editor_and_filter() {
       var p = createTemporaryObject(pageComponent, scene);
       verify(p);

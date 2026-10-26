@@ -21,6 +21,8 @@ pub struct State {
     pub logs: Mutex<crate::logs::Tail>,
     /// Hosts and processes logged recently, for rule suggestions.
     pub seen: Mutex<crate::seen::Seen>,
+    /// Bytes per app, host and route over time.
+    pub traffic: Mutex<crate::traffic::Store>,
     status: watch::Sender<Status>,
     events: broadcast::Sender<Arc<Published>>,
     listeners: Mutex<HashMap<&'static str, usize>>,
@@ -51,6 +53,10 @@ const MAX_NOTICES: usize = 50;
 impl State {
     pub fn new(core: mihomo_api::Client, config: crate::config::Manager, problems: omm_problems::Collector, system_proxy: crate::system_proxy::Manager) -> Self {
         let autofix = crate::autofix::Engine::load(&config.paths().root);
+        let traffic = crate::traffic::Store::open(&config.paths().root.join("traffic.db"), &config.paths().runtime()).unwrap_or_else(|e| {
+            tracing::warn!("traffic history unavailable: {e}");
+            crate::traffic::Store::in_memory()
+        });
         let status = Status {
             platform: omm_platform::NAME.into(),
             capabilities: vec!["profiles".into(), "rules".into(), "system_proxy".into(), "tun".into(), "process_rules".into()],
@@ -71,6 +77,7 @@ impl State {
             problems: std::sync::Mutex::new(problems),
             logs: Mutex::default(),
             seen: Mutex::default(),
+            traffic: Mutex::new(traffic),
             status: watch::channel(status).0,
             // Slow clients lag and skip events rather than stall the daemon.
             events: broadcast::channel(256).0,
@@ -92,8 +99,10 @@ impl State {
                 "autofix" => n.autofix,
                 "core_down" | "core_up" => n.core,
                 "dead_group" | "group_alive" => n.dead_group,
+                "strict_down" | "strict_up" => n.strict,
                 "subscription" => n.subscription,
                 "orphans" => n.orphans,
+                "traffic_spike" | "traffic_route" => n.traffic,
                 _ => true,
             }
         };

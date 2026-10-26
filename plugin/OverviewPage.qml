@@ -1,6 +1,7 @@
 import QtQuick
 import "." as Mihomo
 import qs.Commons
+import "TrafficModels.js" as TM
 
 Item {
   id: root
@@ -10,6 +11,8 @@ Item {
   property var profile: null
   property int connCount: 0
   property var recent: []
+  // The last hour from the traffic history: totals per minute, top apps.
+  property var hour: null
   property bool updating: false
   readonly property bool typing: false
 
@@ -42,8 +45,13 @@ Item {
     else if (t === "u") updateProfile()
   }
 
-  Component.onCompleted: reload()
+  function reloadHour() {
+    svc.request("traffic.query", { from: Date.now() - TM.HOUR, by: "app", limit: 0, rows: 3 }, function(r) { if (r) hour = r })
+  }
+
+  Component.onCompleted: { reload(); reloadHour() }
   Timer { interval: 3000; running: true; repeat: true; onTriggered: root.svc.request("connections.list", null, function(r) { root.connCount = r && r.connections ? r.connections.length : 0 }) }
+  Timer { interval: 15000; running: true; repeat: true; onTriggered: root.reloadHour() }
 
   Connections {
     target: root.svc
@@ -82,8 +90,8 @@ Item {
       spacing: Style.space(10)
       Repeater {
         model: [
-          [I18n.t("statDown"), root.svc.formatRate(root.svc.traffic.down), "", ""],
-          [I18n.t("statUp"), root.svc.formatRate(root.svc.traffic.up), "", ""],
+          [I18n.t("statDown"), root.svc.formatRate(root.svc.traffic.down), root.hour ? I18n.t("statHour").arg(root.svc.formatBytes(root.hour.total.down)) : "", "traffic", "down"],
+          [I18n.t("statUp"), root.svc.formatRate(root.svc.traffic.up), root.hour ? I18n.t("statHour").arg(root.svc.formatBytes(root.hour.total.up)) : "", "traffic", "up"],
           [I18n.t("statConns"), String(root.connCount), "", ""],
           [I18n.t("statNew"), String(root.svc.newProblems), I18n.t("statNewSub").arg(root.svc.problemCounts.visible), "problems"]
         ]
@@ -95,6 +103,31 @@ Item {
           color: Util.alpha(Color.popups.text, 0.04)
           border.width: 1
           border.color: Util.alpha(Color.popups.text, 0.12)
+          clip: true
+          // The last hour behind the number.
+          Canvas {
+            objectName: "overviewSpark"
+            visible: modelData[4] !== undefined && root.hour !== null
+            anchors.fill: parent
+            anchors.topMargin: parent.height * 0.35
+            property var points: root.hour && modelData[4] ? root.hour.all[modelData[4]] : []
+            onPointsChanged: requestPaint()
+            onPaint: {
+              var ctx = getContext("2d")
+              ctx.reset()
+              var p = points || []
+              if (p.length < 2) return
+              var m = TM.maxOf(p) || 1
+              var c = modelData[4] === "up" ? root.svc.peach : Color.accent
+              ctx.beginPath()
+              ctx.moveTo(0, height)
+              for (var i = 0; i < p.length; i++) ctx.lineTo(i * width / (p.length - 1), height - 2 - (height - 6) * p[i] / m)
+              ctx.lineTo(width, height)
+              ctx.closePath()
+              ctx.fillStyle = Qt.rgba(c.r, c.g, c.b, 0.14)
+              ctx.fill()
+            }
+          }
           Column {
             anchors.fill: parent
             anchors.margins: Style.space(12)
@@ -105,6 +138,33 @@ Item {
           }
           MouseArea { anchors.fill: parent; enabled: modelData[3] !== ""; cursorShape: Qt.PointingHandCursor; onClicked: root.panel.showPage(modelData[3]) }
         }
+      }
+    }
+
+    // Who used the network in the last hour.
+    Row {
+      objectName: "overviewTopApps"
+      visible: root.hour !== null && root.hour.rows.length > 0
+      width: parent.width
+      spacing: Style.space(10)
+      Txt { text: I18n.t("hourTop"); faint: true; bold: true; font.pixelSize: Style.font.caption; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
+      Repeater {
+        model: root.hour ? root.hour.rows : []
+        Row {
+          required property var modelData
+          required property int index
+          spacing: Style.space(5)
+          anchors.verticalCenter: parent.verticalCenter
+          Rectangle { width: Style.space(7); height: width; radius: 2; color: [Color.accent, root.svc.peach, root.svc.mauve][index % 3]; anchors.verticalCenter: parent.verticalCenter }
+          Txt { text: TM.label("app", modelData, I18n.t); font.pixelSize: Style.font.bodySmall }
+          Txt { text: root.svc.formatBytes(modelData.up + modelData.down); dim: true; font.pixelSize: Style.font.bodySmall }
+        }
+      }
+      Item { width: 1; height: 1 }
+      Txt {
+        text: I18n.t("hourAll"); color: Color.accent; font.pixelSize: Style.font.caption
+        anchors.verticalCenter: parent.verticalCenter
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.panel.showPage("traffic") }
       }
     }
 

@@ -7,7 +7,7 @@ Mihomo profiles, subscriptions, proxy/group editors, routing rules, connection d
 
 ## Autofix and notifications (Omarchy)
 
-When a host keeps failing (3 failures in 5 minutes by default, none successful), the daemon checks it through the profile's groups. A working route goes on trial as a temporary rule: it is kept if the host keeps working and removed if it does not. Hosts with your own rules, local addresses and DNS failures are left alone. Settings → Automation chooses between showing, suggesting and trying, and which events notify.
+When a host keeps failing (3 failures in 5 minutes by default, none successful), the daemon checks it through the profile's groups. A working route goes on trial as a temporary rule: it is kept if the host keeps working and removed if it does not. Only traffic nobody directed is fixed — the final `Match`, or DIRECT by default: anything an explicit rule sent to a group (yours, by domain, process, path or IP, or the subscription's) is left alone, as are local addresses, DNS failures and the hosts and processes (`process:name`) you list. Strict groups (a work VPN) never lose traffic to another group and never receive it; when one goes down you only get a notification. Before a trial rule is kept, the original route is tried again and the rule is dropped if it works. Settings → Automation chooses between showing, suggesting and trying; Settings → Notifications chooses which events notify.
 
 Omarchy notifications have no buttons; clicking one opens a small panel for that event with the actions.
 
@@ -16,6 +16,12 @@ A rule for the focused window's program, bound to a key in `~/.config/hypr/bindi
 ```
 bindd = SUPER ALT, P, Mihomo rule for window, exec, omm rule-for-window
 ```
+
+## Traffic statistics (Omarchy)
+
+The daemon polls the core's open connections every 2 seconds and records how much each one downloaded and uploaded, by app, host, domain, address, provider (ASN), country, group, node and rule. Minutes are kept for two days and hours for 30 days in `traffic.db` in the data directory. Countries come from the core's `Country.mmdb` or, failing that, a copy of MetaCubeX `country.mmdb` the daemon downloads once; providers come from the core's `ASN.mmdb`. The Traffic page charts it over time with filters: click a row to narrow down to it (app → domains → hosts → addresses), `x` excludes it, `r` makes a rule, dragging over the chart zooms in. Settings → Main turns recording off or clears it.
+
+Connections the core cannot name (other users' programs: pacman's `alpm`, root services) are attributed through `/proc/net` to the program, or to the user when its processes are private. The Rules page and the group cards show how much went through each over the last week. Every 5 minutes the daemon looks for an app that moved at least 512 MiB in an hour and five times its usual, or that went direct and now sends 100 MiB an hour through a proxy, and notifies once per app in 6 hours (Settings → Notifications → Unusual traffic).
 
 ## Development
 

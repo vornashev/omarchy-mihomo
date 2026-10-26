@@ -13,6 +13,7 @@ QtObject {
   readonly property string proxies: g(0xf0317)
   readonly property string profiles: g(0xf0328)
   readonly property string connections: g(0xf1616)
+  readonly property string traffic: g(0xf0127)
   readonly property string logs: g(0xf021a)
   readonly property string settings: g(0xf0493)
   readonly property string search: g(0xf0349)
@@ -60,4 +61,6 @@ QtObject {
   readonly property string ban: g(0xf073a)
   readonly property string timer: g(0xf051b)
   readonly property string ruleAdd: g(0xf0412)
+  readonly property string lock: g(0xf033e)
+  readonly property string lockOpen: g(0xf0fc6)
 }

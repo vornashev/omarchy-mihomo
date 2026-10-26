@@ -17,6 +17,8 @@ mod suggest;
 #[cfg_attr(target_os = "macos", path = "system_proxy_macos.rs")]
 mod system_proxy;
 mod session;
+mod mmdb;
+mod traffic;
 mod user_rules;
 
 use std::io::IsTerminal;
@@ -79,6 +81,7 @@ async fn main() -> Result<()> {
     let listener = ipc::bind(&args.socket)?;
     let core_watcher = tokio::spawn(core::watch(state.clone()));
     tokio::spawn(core::pump_traffic(state.clone()));
+    tokio::spawn(traffic::collect(state.clone()));
     tokio::spawn(config::watch_files(state.clone()));
     tokio::spawn(health::auto(state.clone()));
     let recorded = Arc::default();
@@ -102,6 +105,9 @@ async fn main() -> Result<()> {
     tracing::info!("shutting down");
     if let Err(e) = state.problems.lock().unwrap().flush() {
         tracing::warn!("saving problems: {e}");
+    }
+    if let Err(e) = state.traffic.lock().unwrap().flush() {
+        tracing::warn!("saving traffic: {e}");
     }
     server.abort();
     core_watcher.abort();
