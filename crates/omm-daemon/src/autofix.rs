@@ -464,6 +464,35 @@ impl Engine {
         }
     }
 
+    /// Failures around a sleep or a network change say nothing about
+    /// routes: start counting afresh.
+    pub fn forget_failures(&mut self) {
+        self.tracks.clear();
+        for fix in self.fixes.values_mut().filter(|f| f.state == FixState::Trial) {
+            fix.trial_failed = 0;
+            fix.trial_last_fail = 0;
+        }
+    }
+
+    /// The machine slept `ms`: a trial measures time awake.
+    pub fn postpone_trials(&mut self, ms: i64) {
+        let mut moved = false;
+        for fix in self.fixes.values_mut().filter(|f| f.state == FixState::Trial) {
+            if let Some(end) = fix.ends_at.as_mut() {
+                *end += ms;
+                moved = true;
+            }
+        }
+        if moved {
+            self.save();
+        }
+    }
+
+    /// Rules on trial: the trial, not their expiry, decides their fate.
+    pub fn trial_rules(&self) -> Vec<i64> {
+        self.fixes.values().filter(|f| f.state == FixState::Trial).filter_map(|f| f.rule_id).collect()
+    }
+
     fn prune(&mut self, now: i64) {
         let window = self.settings.window_ms();
         self.tracks.retain(|_, t| t.failures.back().is_some_and(|f| now - f <= window));
@@ -938,6 +967,10 @@ pub async fn watch(state: Arc<State>) {
     let mut tick = tokio::time::interval(Duration::from_secs(30));
     loop {
         tick.tick().await;
+        // A route tried right after waking up would fail for no reason.
+        if state.network_quiet() {
+            continue;
+        }
         let t = now();
         let trials: Vec<Fix> = {
             let mut a = state.autofix.lock().unwrap();
@@ -1169,6 +1202,31 @@ mod tests {
         assert_eq!(e.observe(&line, 6 * 60_000), None);
         assert_eq!(e.observe(&line, 6 * 60_000 + 20_000), None, "only two inside the window");
         assert_eq!(e.observe(&line, 6 * 60_000 + 40_000), Some(Next::Check("z.org".into())));
+    }
+
+    #[test]
+    fn network_changes_reset_counts_and_sleep_extends_trials() {
+        let mut e = Engine::in_memory();
+        let line = err("x.org", "DIRECT", TIMEOUT);
+        e.observe(&line, 0);
+        e.observe(&line, 20_000);
+        e.forget_failures();
+        assert_eq!(e.observe(&line, 40_000), None, "failures before the change are forgotten");
+        for t in [0, 20_000, 40_000] {
+            e.observe(&err("chatgpt.com", "DIRECT", TIMEOUT), t);
+        }
+        e.update("chatgpt.com", 50_000, |f| {
+            f.state = FixState::Trial;
+            f.target = Some("AI".into());
+            f.rule_id = Some(7);
+            f.ends_at = Some(100_000);
+            f.trial_failed = 2;
+        });
+        e.postpone_trials(3_600_000);
+        e.forget_failures();
+        let fix = e.get("chatgpt.com").unwrap();
+        assert_eq!((fix.ends_at, fix.trial_failed), (Some(3_700_000), 0));
+        assert_eq!(e.trial_rules(), vec![7]);
     }
 
     #[test]

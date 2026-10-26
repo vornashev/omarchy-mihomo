@@ -7,6 +7,7 @@ mod health;
 mod ipc;
 mod logs;
 mod methods;
+mod network;
 mod notices;
 mod problems;
 mod procs;
@@ -89,6 +90,7 @@ async fn main() -> Result<()> {
     tokio::spawn(problems::flush(state.clone(), recorded));
     tokio::spawn(config::expire_rules(state.clone()));
     tokio::spawn(autofix::watch(state.clone()));
+    tokio::spawn(network::watch(state.clone()));
     tokio::spawn(notices::watch(state.clone()));
     tokio::spawn(notices::watch_groups(state.clone()));
     {

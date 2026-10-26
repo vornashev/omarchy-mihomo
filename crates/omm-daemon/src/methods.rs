@@ -13,8 +13,8 @@ use crate::state::State;
 
 
 /// URL used for latency tests unless the caller names one.
-const DEFAULT_TEST_URL: &str = "https://www.gstatic.com/generate_204";
-const DEFAULT_TEST_TIMEOUT_MS: u32 = 5000;
+pub const DEFAULT_TEST_URL: &str = "https://www.gstatic.com/generate_204";
+pub const DEFAULT_TEST_TIMEOUT_MS: u32 = 5000;
 
 type Reply = Result<Value, RpcError>;
 

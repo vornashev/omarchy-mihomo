@@ -68,12 +68,15 @@ Rectangle {
         { tag: "07-no-caps", key: "no_caps", core: {tun: false, tun_issue: {no_capabilities: true}}, text: "TUN: нет прав" },
         { tag: "08-other-core", key: "other_core", core: {}, issues: [{id: "other_core", detail: "Clash Verge"}], text: "мешает Clash Verge" },
         { tag: "09-stopped", key: "stopped", core: {running: false}, text: "трафик идёт напрямую" },
-        { tag: "10-disconnected", key: "disconnected", core: {}, disconnected: true, text: "состояние неизвестно" }
+        { tag: "10-disconnected", key: "disconnected", core: {}, disconnected: true, text: "состояние неизвестно" },
+        { tag: "11-offline", key: "offline", core: {}, network: {offline: true, settling: false}, text: "ошибки не учитываются" },
+        { tag: "12-settling", key: "settling", core: {}, network: {offline: false, settling: true}, text: "ошибки не учитываются" },
+        { tag: "13-offline-core-down", key: "stopped", core: {running: false}, network: {offline: true}, text: "трафик идёт напрямую" }
       ]
     }
     function test_all_design_states(data) {
       changeCore(data.core)
-      service.status = Object.assign({}, service.status, {core_operation: data.operation || null})
+      service.status = Object.assign({}, service.status, {core_operation: data.operation || null, network: data.network || null})
       service.issues = data.issues || []
       service.connected = !data.disconnected
       compare(footer.stateKey, data.key)

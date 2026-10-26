@@ -154,6 +154,8 @@ pub struct Status {
     pub system_proxy: SystemProxyStatus,
     #[serde(default)]
     pub config: ConfigStatus,
+    #[serde(default)]
+    pub network: NetworkStatus,
     /// What stands in the way, each with its fix when there is one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub issues: Vec<Issue>,
@@ -168,6 +170,15 @@ pub struct SystemProxyStatus {
     pub port: u16,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+}
+
+/// The machine's own connectivity, apart from the core.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct NetworkStatus {
+    /// No default route outside tunnels.
+    pub offline: bool,
+    /// Just woke up or changed networks: failures are not counted yet.
+    pub settling: bool,
 }
 
 /// A problem with the setup. Clients word it from `id` (and `detail`);

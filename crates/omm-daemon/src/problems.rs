@@ -57,6 +57,10 @@ pub async fn collect(state: Arc<State>, recorded: Arc<std::sync::atomic::AtomicU
                     }
                     let Some(line) = parse::parse(&l.payload) else { continue };
                     state.seen.lock().unwrap().record(&line, now_ms());
+                    // Offline or just woke up: everything fails, nothing is learned.
+                    if state.network_quiet() {
+                        continue;
+                    }
                     let next = state.autofix.lock().unwrap().observe(&line, now_ms());
                     match next {
                         Some(crate::autofix::Next::Check(host)) => drop(tokio::spawn(crate::autofix::check(state.clone(), host))),

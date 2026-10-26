@@ -1,6 +1,7 @@
 //! OS boundaries shared by the daemon, CLI and native clients.
 use std::path::PathBuf;
 pub mod helper;
+pub mod net;
 #[cfg(target_os = "macos")]
 pub mod macos;
 

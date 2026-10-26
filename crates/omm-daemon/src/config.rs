@@ -761,7 +761,8 @@ pub async fn expire_rules(state: Arc<State>) {
         tick.tick().await;
         let now = crate::problems::now_ms();
         let Ok((rules, _)) = state.config.rules().await else { continue };
-        let due: Vec<crate::user_rules::Stored> = rules.into_iter().filter(|s| s.expired(now, &boot)).collect();
+        let trials = state.autofix.lock().unwrap().trial_rules();
+        let due: Vec<crate::user_rules::Stored> = rules.into_iter().filter(|s| s.expired(now, &boot) && !trials.contains(&s.rule.id)).collect();
         if due.is_empty() {
             continue;
         }

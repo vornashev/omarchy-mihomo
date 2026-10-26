@@ -32,6 +32,7 @@ pub struct State {
     pub core_install: Mutex<crate::health::Install>,
     operation_serial: Mutex<u64>,
     pub autofix: Mutex<crate::autofix::Engine>,
+    pub network: Mutex<crate::network::Net>,
     /// Latest notices, newest last, one per key.
     notices: Mutex<VecDeque<Notice>>,
 }
@@ -67,6 +68,7 @@ impl State {
             core_operation: None,
             config: Default::default(),
             system_proxy: Default::default(),
+            network: Default::default(),
             issues: Vec::new(),
         };
         Self {
@@ -87,6 +89,7 @@ impl State {
             core_install: Mutex::default(),
             operation_serial: Mutex::default(),
             autofix: Mutex::new(autofix),
+            network: Mutex::default(),
             notices: Mutex::default(),
         }
     }
@@ -197,6 +200,25 @@ impl State {
                 return false;
             }
             s.core = core;
+            true
+        });
+        if changed {
+            self.publish(topic::STATUS, &self.status());
+        }
+    }
+
+    /// Offline, or just woke up or changed networks: failures now say
+    /// nothing about routes.
+    pub fn network_quiet(&self) -> bool {
+        self.network.lock().unwrap().quiet(crate::problems::now_ms())
+    }
+
+    pub fn set_network_status(&self, network: omm_proto::NetworkStatus) {
+        let changed = self.status.send_if_modified(|s| {
+            if s.network == network {
+                return false;
+            }
+            s.network = network;
             true
         });
         if changed {

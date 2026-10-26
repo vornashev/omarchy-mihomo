@@ -113,7 +113,8 @@ pub async fn watch_groups(state: Arc<State>) {
     let mut tick = tokio::time::interval(GROUPS_EVERY);
     loop {
         tick.tick().await;
-        if !state.core_running() {
+        // Health checks run while offline fail everywhere; wait for fresh ones.
+        if !state.core_running() || state.network_quiet() {
             continue;
         }
         let Ok(p) = state.core.proxies().await else {

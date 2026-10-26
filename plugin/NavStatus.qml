@@ -12,6 +12,7 @@ Item {
   property double now: Date.now()
   readonly property var core: service && service.status ? service.status.core || {} : ({})
   readonly property var operation: service && service.status ? service.status.core_operation : null
+  readonly property var network: service && service.status && service.status.network ? service.status.network : ({})
   readonly property var tunIssue: core.tun_issue || null
   readonly property var capsIssue: issue("core_no_caps")
   readonly property var otherIssue: issue("other_core")
@@ -22,6 +23,8 @@ Item {
     if ((operation && operation.kind === "downloading") || issue("core_installing")) return "downloading"
     if (operation && (operation.kind === "starting" || operation.kind === "applying")) return "starting"
     if (!core.running) return core.restarting ? "restarting" : (core.starting ? "starting" : "stopped")
+    if (network.offline) return "offline"
+    if (network.settling) return "settling"
     if (!core.tun && ((tunIssue && tunIssue.no_capabilities) || capsIssue)) return "no_caps"
     if (otherIssue || (tunIssue && tunIssue.other_core)) return "other_core"
     if (tunIssue || issue("tun_failed")) return "tun_failed"
@@ -74,6 +77,10 @@ Item {
       return [row(Icons.statusOff, I18n.t("coreStopped"), red),
         row(Icons.shieldOff, failure ? I18n.t("issue_" + failure.id).arg(failure.detail || "") : I18n.t(service && service.systemProxyWanted ? "navProxyUnavailable" : "navTrafficDirect"), faintColor),
         row(Icons.play, failure ? I18n.t("navOverview") : I18n.t("fix_start_core"), Color.accent, failure ? "overview" : "start")]
+    case "offline":
+      return [row(Icons.unplug, I18n.t("navOffline"), red), row(Icons.history, I18n.t("navCountingPaused"), faintColor), speed]
+    case "settling":
+      return [row(Icons.refresh, I18n.t("navNetworkChanged"), yellow), row(Icons.history, I18n.t("navCountingPaused"), faintColor), speed]
     case "no_caps":
       return [running, row(Icons.shieldAlert, I18n.t("navTunNoCaps"), yellow), row(Icons.terminal, I18n.t("navSetcapFix"), Color.accent, "setcap")]
     case "tun_failed":
@@ -143,7 +150,7 @@ Item {
         width: body.width
         height: Math.max(Style.space(13), label.implicitHeight)
         readonly property bool isProgress: root.stateKey === "downloading" && index === 1
-        readonly property bool isTraffic: index === 2 && ["running", "tun_off", "other_core"].indexOf(root.stateKey) !== -1
+        readonly property bool isTraffic: index === 2 && ["running", "tun_off", "other_core", "offline", "settling"].indexOf(root.stateKey) !== -1
         activeFocusOnTab: modelData.action !== ""
         Accessible.role: modelData.action ? Accessible.Button : Accessible.StaticText
         Accessible.name: modelData.text
@@ -171,7 +178,7 @@ Item {
           font.pixelSize: Style.space(11)
           color: line.modelData.iconColor
           RotationAnimation on rotation {
-            running: root.visible && line.index === 0 && (root.stateKey === "starting" || root.stateKey === "restarting")
+            running: root.visible && line.index === 0 && ["starting", "restarting", "settling"].indexOf(root.stateKey) !== -1
             from: 0; to: 360; duration: 1200; loops: Animation.Infinite
           }
         }
