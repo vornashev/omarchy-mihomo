@@ -1,6 +1,8 @@
 //! Profiles, settings and the generated runtime config.
 #[path = "proxy_config.rs"]
 mod proxy_config;
+#[path = "backup.rs"]
+pub mod backup;
 
 use std::collections::HashMap;
 use std::path::PathBuf;

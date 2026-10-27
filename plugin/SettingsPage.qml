@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import "." as Mihomo
 import qs.Commons
 
@@ -10,7 +11,7 @@ Item {
 
   property var s: null
   property bool saving: false
-  readonly property bool typing: portField.input.activeFocus || intervalField.input.activeFocus || automation.typing || core.typing || dnsPage.typing
+  readonly property bool typing: portField.input.activeFocus || intervalField.input.activeFocus || automation.typing || core.typing || dnsPage.typing || backupPath.input.activeFocus
 
   function reload() { svc.request("settings.get", null, function(r) { if (r) { s = r; portField.text = String(r["mixed-port"]); intervalField.text = String(r["update-interval-hours"]) } }) }
 
@@ -30,6 +31,22 @@ Item {
     for (var k in panel.settings) if (k !== "id") entry[k] = panel.settings[k]
     entry.locale = lang
     bar.shell.updateEntryInline(panel.moduleName, entry)
+  }
+
+  property string backupBusy: ""
+  function backup(method, params) {
+    backupBusy = method === "backup.export" ? "export" : "import"
+    svc.request(method, params, function(r, err) {
+      root.backupBusy = ""
+      if (err) { root.panel.notify(err.message); return }
+      if (method === "backup.export") {
+        backupPath.text = r.path
+        root.panel.notify(I18n.t("backupSaved").arg(r.rules).arg(r.profiles).arg(r.path))
+      } else {
+        root.panel.notify(I18n.t("backupLoaded").arg(r.rules).arg((r.profiles_added || []).length).arg((r.profiles_kept || []).length))
+        root.reload()
+      }
+    }, true)
   }
 
   property var traffic: null
@@ -93,12 +110,21 @@ Item {
     onSave: function(patch) { root.save(patch) }
   }
 
-  Column {
+  Flickable {
     visible: root.s !== null && root.panel.settingsTab === "main"
     anchors.top: header.bottom
     anchors.topMargin: Style.space(16)
     anchors.left: parent.left
     anchors.right: parent.right
+    anchors.bottom: parent.bottom
+    contentHeight: mainCol.implicitHeight
+    clip: true
+    boundsBehavior: Flickable.StopAtBounds
+    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+  Column {
+    id: mainCol
+    width: parent.width - Style.space(8)
     spacing: Style.space(16)
 
     IssueList { width: parent.width; svc: root.svc; only: ["other_core", "core_no_caps", "tun_failed", "core_stopped"] }
@@ -198,6 +224,38 @@ Item {
       }
     }
 
+    // One file for another machine or a reinstall.
+    Column {
+      width: parent.width
+      spacing: Style.space(6)
+      Txt { text: I18n.t("backupTitle") }
+      Txt { width: parent.width; text: I18n.t("backupHint"); dim: true; font.pixelSize: Style.font.caption; wrapMode: Text.Wrap }
+      Row {
+        width: parent.width
+        spacing: Style.space(8)
+        Field { id: backupPath; objectName: "backupPath"; width: parent.width - exportBtn.width - importBtn.width - Style.space(16); placeholder: I18n.t("backupPathHint") }
+        Btn {
+          id: exportBtn
+          objectName: "backupExport"
+          icon: Icons.down
+          text: I18n.t("backupExport")
+          busy: root.backupBusy === "export"
+          enabled: root.backupBusy === ""
+          onClicked: root.backup("backup.export", { path: backupPath.text.trim() || null, profiles: true })
+        }
+        Btn {
+          id: importBtn
+          objectName: "backupImport"
+          icon: Icons.up
+          text: I18n.t("backupImport")
+          busy: root.backupBusy === "import"
+          enabled: root.backupBusy === "" && backupPath.text.trim() !== ""
+          onClicked: root.backup("backup.import", { path: backupPath.text.trim() })
+        }
+      }
+    }
+
     Txt { width: parent.width; text: I18n.t("settingsFootnote"); faint: true; font.pixelSize: Style.font.caption; wrapMode: Text.Wrap }
+  }
   }
 }

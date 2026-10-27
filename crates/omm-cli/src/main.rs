@@ -85,6 +85,9 @@ enum Cmd {
     /// Move over from another proxy client.
     #[command(subcommand)]
     Migrate(MigrateCmd),
+    /// Save the setup to one file, or bring one in (another machine, a reinstall).
+    #[command(subcommand)]
+    Backup(BackupCmd),
     /// Call any daemon method: `omm call proxies.delay '{"name":"AI"}'`.
     Call { method: String, params: Option<String> },
     /// Open the rule editor for the focused window's program (bind it to a
@@ -104,6 +107,21 @@ enum MigrateCmd {
     /// Turn site-autotune's AUTO-* rules into your own rules and switch
     /// site-autotune off.
     Autotune,
+}
+
+#[derive(Debug, Subcommand)]
+enum BackupCmd {
+    /// Settings, automation, your rules and profiles into one private file
+    /// (default ~/omarchy-mihomo-<date>.json).
+    Export {
+        path: Option<String>,
+        /// Leave profiles out: they hold subscription links with tokens.
+        #[arg(long)]
+        no_profiles: bool,
+    },
+    /// Merge a backup in: nothing is deleted, existing profiles are kept,
+    /// and the state before is saved first.
+    Import { path: String },
 }
 
 #[derive(Debug, Subcommand)]
@@ -432,6 +450,35 @@ fn run(cli: Cli) -> Result<()> {
         Cmd::Rollback { name } => {
             let r: Value = conn.call("config.rollback", json!({ "name": name }))?;
             print_json(&r)?;
+        }
+        Cmd::Backup(BackupCmd::Export { path, no_profiles }) => {
+            let r: Value = conn.call("backup.export", serde_json::json!({ "path": path, "profiles": !no_profiles }))?;
+            if json {
+                return print_json(&r);
+            }
+            println!("saved {} rules and {} profiles to {}", r["rules"], r["profiles"], r["path"].as_str().unwrap_or(""));
+            if !no_profiles && r["profiles"].as_u64().unwrap_or(0) > 0 {
+                println!("the file holds subscription links: keep it private");
+            }
+        }
+        Cmd::Backup(BackupCmd::Import { path }) => {
+            let path = std::fs::canonicalize(&path).with_context(|| format!("reading {path}"))?;
+            let r: Value = conn.call("backup.import", serde_json::json!({ "path": path }))?;
+            if json {
+                return print_json(&r);
+            }
+            println!("rules added or updated: {}", r["rules"]);
+            let names = |k: &str| r[k].as_array().map(|a| a.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(", ")).unwrap_or_default();
+            if !names("profiles_added").is_empty() {
+                println!("profiles added: {}", names("profiles_added"));
+            }
+            if !names("profiles_kept").is_empty() {
+                println!("profiles kept as they were: {}", names("profiles_kept"));
+            }
+            if r["kept_tun"] == true {
+                println!("TUN settings kept: the backup comes from another platform");
+            }
+            println!("the state before: {}", r["before"].as_str().unwrap_or(""));
         }
         Cmd::Snapshots => {
             let r: Value = conn.call("config.snapshots", Value::Null)?;

@@ -21,6 +21,10 @@ bindd = SUPER ALT, P, Mihomo rule for window, exec, omm rule-for-window
 
 Every 3 seconds the daemon looks at the default routes outside tunnels and at the suspend clock. While the machine is offline, and for 30 seconds after it wakes up or joins another network, failed connections are not recorded as problems, autofix neither counts them nor decides trials, and dead-group notices wait. Five seconds after the change it closes the core's connections (only for its own core) and re-tests the url-test, fallback and load-balance groups. A trial rule measures time awake: a sleep moves its end by as long as the machine slept. The panel footer shows "offline" or "network changed" meanwhile.
 
+## Backup
+
+`omm backup export [path]` (or Settings → General → Backup) saves the settings (DNS and rule sets included), automation, your permanent rules and the profiles with their overrides into one private file, `~/omarchy-mihomo-<date>.json` by default; `--no-profiles` leaves out the profiles and their subscription links. `omm backup import <path>` merges one in without deleting anything: rules go through the rules journal (undoable in the history), profiles whose id exists stay as they are, a backup from another platform leaves this machine's TUN settings alone, and the state before is saved in `backup/` first. If the result does not apply, the import is undone.
+
 ## Rule sets
 
 Rules → Sets lists the profile's rule providers and your own, which apply to every profile. Add one by URL (mrs, yaml or text; domain, ipcidr or classical) or from the MetaCubeX meta-rules-dat catalog: `geosite:openai` or `geoip:ru` becomes a compact `.mrs` list of that category alone, without the whole GeoSite database. The rule editor offers the catalog for RULE-SET rules and adds the set when picked. A URL that does not answer is refused before the core sees it, a profile provider of the same name always wins, and a set your rules still use cannot be removed.

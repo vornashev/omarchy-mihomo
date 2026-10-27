@@ -162,7 +162,7 @@ Column {
     objectName: "geoNowBtn"
     visible: !!root.info && root.info.supported
     icon: Icons.refresh
-    busy: root.busy === "geo" || (!!root.info && root.info.geo_updating)
+    busy: root.busy === "geo" || (!!root.info && !!root.info.geo_updating)
     enabled: root.busy === ""
     text: I18n.t("geoNow")
     onClicked: root.call("core.update_geo", "geo", I18n.t("geoUpdated"))
