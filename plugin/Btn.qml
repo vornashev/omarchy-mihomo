@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import qs.Commons
 
 // Button: `primary` filled with the accent, `ghost` without a border.

@@ -15,7 +15,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
       - uses: Swatinem/rust-cache@v2
+      - name: Clippy
+        # Blocking where it is checked locally; advisory for the macOS-only code.
+        continue-on-error: ${{ runner.os == 'macOS' }}
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - name: Fetch the pinned core for the real-core tests
+        # Verified against its SHA-256. With CI set, those tests fail rather
+        # than skip when no core is given.
+        run: |
+          cargo run --locked -q -p omm-cli -- core install --dest "$RUNNER_TEMP/mihomo"
+          echo "OMM_TEST_MIHOMO=$RUNNER_TEMP/mihomo" >> "$GITHUB_ENV"
       - run: cargo test --locked --workspace
       - name: Build and test native app
         if: runner.os == 'macOS'
@@ -44,5 +56,5 @@ jobs:
         with:
           version: '6.10.2'
           cache: true
-      - run: mkdir -p target/qml-shots
-      - run: QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen qmltestrunner -input tests/qml -import tests/qml/stubs
+      - name: QML tests, plugin warnings and qmllint
+        run: scripts/qml-check.sh

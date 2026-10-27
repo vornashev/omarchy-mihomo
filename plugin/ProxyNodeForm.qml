@@ -1,9 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Dialogs
 import qs.Commons
-import "." as Mihomo
 import "ProxyModels.js" as Models
 import "ProxyNodeModels.js" as Nodes
 

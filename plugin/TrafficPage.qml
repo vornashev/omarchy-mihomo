@@ -695,9 +695,9 @@ Item {
             Canvas {
               id: donut
               anchors.fill: parent
-              property var data: sideCard.routeRows
+              property var rows: sideCard.routeRows
               property var lit: root.probe && root.probe.dim === "group" ? root.probe.value : ""
-              onDataChanged: requestPaint()
+              onRowsChanged: requestPaint()
               onLitChanged: requestPaint()
               onPaint: {
                 var ctx = getContext("2d")
@@ -707,13 +707,13 @@ Item {
                 ctx.strokeStyle = Util.alpha(Color.popups.text, 0.08)
                 ctx.beginPath(); ctx.arc(cx, cy, r - w / 2, 0, Math.PI * 2); ctx.stroke()
                 var a = -Math.PI / 2
-                for (var i = 0; i < data.length; i++) {
-                  var part = (data[i].up + data[i].down) / Math.max(sideCard.routeTotal, 1)
+                for (var i = 0; i < rows.length; i++) {
+                  var part = (rows[i].up + rows[i].down) / Math.max(sideCard.routeTotal, 1)
                   if (part <= 0) continue
-                  var c = root.routeColor(i, data[i].key)
-                  ctx.strokeStyle = lit !== "" && lit !== data[i].key ? Qt.rgba(c.r, c.g, c.b, 0.25) : c
-                  ctx.lineWidth = lit === data[i].key ? w + Style.space(3) : w
-                  ctx.beginPath(); ctx.arc(cx, cy, r - w / 2 - (lit === data[i].key ? 0 : 1), a, a + part * Math.PI * 2 - 0.03); ctx.stroke()
+                  var c = root.routeColor(i, rows[i].key)
+                  ctx.strokeStyle = lit !== "" && lit !== rows[i].key ? Qt.rgba(c.r, c.g, c.b, 0.25) : c
+                  ctx.lineWidth = lit === rows[i].key ? w + Style.space(3) : w
+                  ctx.beginPath(); ctx.arc(cx, cy, r - w / 2 - (lit === rows[i].key ? 0 : 1), a, a + part * Math.PI * 2 - 0.03); ctx.stroke()
                   a += part * Math.PI * 2
                 }
               }

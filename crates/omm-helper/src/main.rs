@@ -373,11 +373,11 @@ async fn main() -> Result<()> {
                 let _ = watcher.stop(&mut runtime).await;
                 runtime.error =
                     Some("Mihomo stopped unexpectedly. Start the session again.".into());
-            } else if runtime.proxy_port != 0 {
-                if let Err(e) = watcher.proxy("sync", runtime.proxy_port).await {
-                    runtime.error = Some(e.to_string());
-                    let _ = watcher.stop(&mut runtime).await;
-                }
+            } else if runtime.proxy_port != 0
+                && let Err(e) = watcher.proxy("sync", runtime.proxy_port).await
+            {
+                runtime.error = Some(e.to_string());
+                let _ = watcher.stop(&mut runtime).await;
             }
         }
     });

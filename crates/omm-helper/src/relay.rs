@@ -63,10 +63,8 @@ async fn forward(req: Request<Incoming>, service: Arc<Service>) -> Result<Respon
         .await
         .map_err(|e| anyhow::anyhow!(e.to_string()))?
         .to_bytes();
-    if parts.method == Method::PATCH {
-        if !crate::config::allowed_patch(&serde_json::from_slice(&bytes)?) {
-            bail!("configuration patch is not allowed");
-        }
+    if parts.method == Method::PATCH && !crate::config::allowed_patch(&serde_json::from_slice(&bytes)?) {
+        bail!("configuration patch is not allowed");
     }
     if parts.method == Method::PUT {
         let v: serde_json::Value = serde_json::from_slice(&bytes)?;

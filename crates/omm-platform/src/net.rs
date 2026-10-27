@@ -12,6 +12,8 @@ pub fn slept_ms() -> i64 {
     clock_ms(with) - clock_ms(without)
 }
 
+// `time_t` and `c_long` are i64 on the 64-bit targets we build, not everywhere.
+#[allow(clippy::unnecessary_cast)]
 fn clock_ms(clock: libc::clockid_t) -> i64 {
     let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
     unsafe { libc::clock_gettime(clock, &mut ts) };

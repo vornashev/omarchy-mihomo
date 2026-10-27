@@ -129,6 +129,18 @@ pub fn find_binary(explicit: Option<&Path>) -> Option<PathBuf> {
         .find(|p| p.is_file())
 }
 
+/// The mihomo binary integration tests run against (`OMM_TEST_MIHOMO`).
+/// Without one they skip, except on CI (`CI` set), where a missing core
+/// means the setup broke and must not pass silently.
+#[doc(hidden)]
+pub fn test_binary() -> Option<PathBuf> {
+    match std::env::var_os("OMM_TEST_MIHOMO") {
+        Some(p) => Some(PathBuf::from(p)),
+        None if std::env::var_os("CI").is_some() => panic!("CI runs the real-core tests: set OMM_TEST_MIHOMO to a mihomo binary"),
+        None => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,7 +174,7 @@ mod tests {
     /// Runs only where a mihomo binary is available (CI may lack one).
     #[tokio::test]
     async fn validate_with_real_core() {
-        let Some(bin) = std::env::var_os("OMM_TEST_MIHOMO").map(PathBuf::from) else { return };
+        let Some(bin) = test_binary() else { return };
         let dir = tempfile::tempdir().unwrap();
         let paths = Paths::new(dir.path());
         paths.ensure().unwrap();

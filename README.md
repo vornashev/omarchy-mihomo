@@ -54,10 +54,12 @@ Connections the core cannot name (other users' programs: pacman's `alpm`, root s
 ## Development
 
 ```sh
-cargo test --locked --workspace
-mkdir -p target/qml-shots
-QML_XHR_ALLOW_FILE_READ=1 QT_QPA_PLATFORM=offscreen /usr/lib/qt6/bin/qmltestrunner -input tests/qml -import tests/qml/stubs
+cargo clippy --locked --workspace --all-targets -- -D warnings
+omm core install --dest /tmp/mihomo && OMM_TEST_MIHOMO=/tmp/mihomo cargo test --locked --workspace
+scripts/qml-check.sh
 ```
+
+The real-core tests skip without `OMM_TEST_MIHOMO`, except on CI, where they fail. `scripts/qml-check.sh` runs the QML tests offscreen, fails on QML warnings from the plugin's own files (a `ReferenceError` does not fail a QML test by itself) and runs `qmllint` with the categories the `qs.*` stubs can check.
 
 UI strings live in `plugin/i18n/ru.js` and `en.js`; `tst_i18n.qml` fails when a key is missing from either, defined twice, has different placeholders, or is used in the plugin without a translation.
 

@@ -1,7 +1,5 @@
 import QtQuick
-import QtQuick.Controls
 import qs.Commons
-import "ProxyModels.js" as Models
 
 // Header of the proxies page: title and tabs, search and filters, bulk
 // actions on the selection, and the import and create buttons.

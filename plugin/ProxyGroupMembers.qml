@@ -1,8 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import qs.Commons
-import "." as Mihomo
 import "ProxyModels.js" as Models
 
 // Group form → Members: by hand (ordered list and available nodes) or

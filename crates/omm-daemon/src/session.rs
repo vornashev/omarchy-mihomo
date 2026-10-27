@@ -88,10 +88,10 @@ async fn service(verb: &str) -> Result<Value, RpcError> {
     Ok(json!({"ok":true}))
 }
 pub async fn detached(state: &State) {
-    if omm_platform::IS_MACOS {
-        if let Err(e) = stop(state).await {
-            tracing::warn!("ending UI session: {e}");
-        }
+    if omm_platform::IS_MACOS
+        && let Err(e) = stop(state).await
+    {
+        tracing::warn!("ending UI session: {e}");
     }
     state.session.ui_attached.store(false, Ordering::Release);
 }

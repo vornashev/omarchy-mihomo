@@ -255,7 +255,7 @@ fn write(path: &Path, b: &Backup) -> Result<(), RpcError> {
 /// `~/omarchy-mihomo-<date>.json` unless a path is given.
 fn export_path(path: Option<String>) -> PathBuf {
     match path.filter(|p| !p.trim().is_empty()) {
-        Some(p) => PathBuf::from(p.strip_prefix("~/").map(|rest| omm_platform::home().join(rest)).unwrap_or_else(|| PathBuf::from(&p))),
+        Some(p) => p.strip_prefix("~/").map(|rest| omm_platform::home().join(rest)).unwrap_or_else(|| PathBuf::from(&p)),
         None => {
             let day = crate::problems::now_ms() / 86_400_000;
             omm_platform::home().join(format!("omarchy-mihomo-{}.json", civil_date(day)))

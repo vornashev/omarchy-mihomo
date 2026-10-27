@@ -16,15 +16,17 @@ fn runtime() -> Result<tokio::runtime::Runtime> {
 }
 
 /// Download and install the core; `version` None = pinned, "latest" = newest.
-pub fn core_install(version: Option<&str>, proxy: Option<&str>) -> Result<()> {
-    let dest = core_bin::default_path();
+pub fn core_install(version: Option<&str>, proxy: Option<&str>, dest: Option<PathBuf>) -> Result<()> {
+    // Only the core the unit runs needs TUN capabilities.
+    let ours = dest.is_none();
+    let dest = dest.unwrap_or_else(core_bin::default_path);
     let rt = runtime()?;
     let rel = rt.block_on(core_bin::resolve(version, proxy))?;
     println!("downloading {} ({})", rel.asset, rel.version);
     let installed = rt.block_on(core_bin::install(&rel, &dest, proxy))?;
     println!("installed {} → {}", installed, dest.display());
     println!("sha256 {} verified", rel.sha256);
-    if core_bin::has_capabilities(&dest) != Some(true) {
+    if ours && core_bin::has_capabilities(&dest) != Some(true) {
         println!("TUN needs capabilities on the new binary: run `omm core setcap`");
     }
     Ok(())

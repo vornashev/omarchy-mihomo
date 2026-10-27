@@ -210,10 +210,10 @@ impl Store {
             }
             let new_hour = self.bucket.div_euclid(HOUR) != bucket.div_euclid(HOUR);
             self.bucket = bucket;
-            if new_hour {
-                if let Err(e) = self.maintain(bucket) {
-                    tracing::warn!("rolling up traffic: {e}");
-                }
+            if new_hour
+                && let Err(e) = self.maintain(bucket)
+            {
+                tracing::warn!("rolling up traffic: {e}");
             }
         }
         if self.enabled {

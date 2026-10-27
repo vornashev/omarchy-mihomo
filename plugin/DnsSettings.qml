@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls
-import "." as Mihomo
 import qs.Commons
 
 // Settings → DNS: the user's values on top of the profile's, per-site

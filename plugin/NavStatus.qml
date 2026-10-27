@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import qs.Commons
 
 // Shared footer for every page. Only confirmed daemon data is shown;

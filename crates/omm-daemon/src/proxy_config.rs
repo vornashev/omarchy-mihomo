@@ -751,7 +751,7 @@ mod tests {
     use super::*;
     const PROFILE: &str = "proxies: [{name: A, type: direct}, {name: B, type: direct}]\nproxy-groups: [{name: G, type: select, proxies: [A, B, DIRECT]}]\nrules: ['DOMAIN,example.net,A','MATCH,G']\n";
     async fn setup() -> Option<(tempfile::TempDir, State)> {
-        let binary = std::env::var_os("OMM_TEST_MIHOMO").map(PathBuf::from)?;
+        let binary = omm_config::runtime::test_binary()?;
         let dir = tempfile::tempdir().unwrap();
         let paths = Paths::new(dir.path());
         let manager = Manager::open(paths.clone(), Some(binary)).unwrap();

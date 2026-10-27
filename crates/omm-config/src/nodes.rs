@@ -428,13 +428,13 @@ mod tests {
     #[tokio::test]
     async fn all_catalog_types_validate_with_real_core() {
         use serde_json::json;
-        let Some(binary) = std::env::var_os("OMM_TEST_MIHOMO") else {
+        let Some(binary) = crate::runtime::test_binary() else {
             return;
         };
         let dir = tempfile::tempdir().unwrap();
         let paths = Paths::new(dir.path());
         paths.ensure().unwrap();
-        let runtime = crate::runtime::Runtime::new(paths, std::path::PathBuf::from(binary));
+        let runtime = crate::runtime::Runtime::new(paths, binary);
         let uuid = "00000000-0000-4000-8000-000000000001";
         let key = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=";
         let extras: serde_json::Value =

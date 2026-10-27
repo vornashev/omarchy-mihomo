@@ -89,12 +89,14 @@ fn validate_files(value: &Value, parent: &str) -> Result<()> {
                         parent,
                         "ws-opts" | "http-opts" | "h2-opts" | "grpc-opts" | "xhttp-opts"
                     ));
-                if file && let Some(s) = value.as_str() {
-                    if !s.contains("-----BEGIN ") && !safe_relative(s) {
-                        bail!(
-                            "{key} must reference a file within the managed runtime (or contain a PEM value)"
-                        );
-                    }
+                if file
+                    && let Some(s) = value.as_str()
+                    && !s.contains("-----BEGIN ")
+                    && !safe_relative(s)
+                {
+                    bail!(
+                        "{key} must reference a file within the managed runtime (or contain a PEM value)"
+                    );
                 }
                 validate_files(value, key)?;
             }

@@ -87,27 +87,6 @@ fn apply_lifecycle(core: &mut CoreStatus, properties: &str, uptime: Option<f64>,
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn lifecycle_distinguishes_restart_start_and_stop() {
-        let mut core = CoreStatus::default();
-        apply_lifecycle(&mut core, "ActiveState=activating\nSubState=auto-restart\nNRestarts=2\nExecMainExitTimestampMonotonic=60000000", Some(100.0), 200_000);
-        assert!(core.restarting);
-        assert!(!core.starting);
-        assert_eq!(core.restart_count, 2);
-        assert_eq!(core.crashed_at, Some(160_000));
-        let mut core = CoreStatus::default();
-        apply_lifecycle(&mut core, "ActiveState=active\nSubState=running", None, 0);
-        assert!(core.starting);
-        let mut core = CoreStatus::default();
-        apply_lifecycle(&mut core, "ActiveState=failed\nSubState=failed\nNRestarts=5", None, 0);
-        assert!(!core.restarting && !core.starting);
-    }
-}
-
 /// mihomo turns TUN off by itself when it cannot open the device, and says
 /// so only in its log. Explain the gap between the settings and the core.
 async fn tun_issue(state: &State, tun_on: bool) -> Option<TunIssue> {
@@ -161,5 +140,26 @@ pub async fn pump_traffic(state: Arc<State>) {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lifecycle_distinguishes_restart_start_and_stop() {
+        let mut core = CoreStatus::default();
+        apply_lifecycle(&mut core, "ActiveState=activating\nSubState=auto-restart\nNRestarts=2\nExecMainExitTimestampMonotonic=60000000", Some(100.0), 200_000);
+        assert!(core.restarting);
+        assert!(!core.starting);
+        assert_eq!(core.restart_count, 2);
+        assert_eq!(core.crashed_at, Some(160_000));
+        let mut core = CoreStatus::default();
+        apply_lifecycle(&mut core, "ActiveState=active\nSubState=running", None, 0);
+        assert!(core.starting);
+        let mut core = CoreStatus::default();
+        apply_lifecycle(&mut core, "ActiveState=failed\nSubState=failed\nNRestarts=5", None, 0);
+        assert!(!core.restarting && !core.starting);
     }
 }

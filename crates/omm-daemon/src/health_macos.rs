@@ -61,3 +61,7 @@ pub async fn run(state: &Arc<State>, id: &str) -> Result<Value, RpcError> {
 }
 pub async fn auto(_: Arc<State>) {}
 pub async fn start_core_if_free(_: &State) {}
+/// The privileged helper owns the core on macOS; updates come with the app.
+pub async fn download_core(_: &State, _: Option<&str>, _: &str) -> Result<String, String> {
+    Err("the core is installed with the app: run packaging/macos/install.sh".into())
+}

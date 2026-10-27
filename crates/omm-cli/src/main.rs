@@ -134,6 +134,9 @@ enum CoreCmd {
         /// Download through a proxy, e.g. http://127.0.0.1:7897.
         #[arg(long)]
         proxy: Option<String>,
+        /// Install there instead of the core's usual place (tests, CI).
+        #[arg(long)]
+        dest: Option<std::path::PathBuf>,
     },
     /// Give the core the capabilities TUN needs (asks for sudo).
     Setcap,
@@ -296,7 +299,7 @@ fn run(cli: Cli) -> Result<()> {
     match &cli.cmd {
         Some(Cmd::Core(c)) => {
             return match c {
-                CoreCmd::Install { version, proxy } => system::core_install(version.as_deref(), proxy.as_deref()),
+                CoreCmd::Install { version, proxy, dest } => system::core_install(version.as_deref(), proxy.as_deref(), dest.clone()),
                 CoreCmd::Setcap => system::core_setcap(),
                 CoreCmd::Rollback => system::core_rollback(),
                 CoreCmd::Start => system::core_unit("start"),

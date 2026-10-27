@@ -86,13 +86,13 @@ fn setcap(socket: &PathBuf) -> Result<()> {
 fn update_core(socket: &PathBuf) -> Result<()> {
     let bin = core_bin::default_path();
     let had_caps = core_bin::has_capabilities(&bin) == Some(true);
-    if let Err(e) = system::core_install(Some("latest"), None) {
+    if let Err(e) = system::core_install(Some("latest"), None, None) {
         // GitHub may be blocked; the core's own proxy may reach it.
         let status: Option<Status> = Conn::open(socket).ok().and_then(|mut c| c.call("status", Value::Null).ok());
         let port = status.filter(|s| s.core.running).map(|s| s.core.mixed_port).filter(|p| *p > 0);
         let Some(port) = port else { return Err(e) };
         say(&format!("direct download failed ({e:#}), retrying through the core"));
-        system::core_install(Some("latest"), Some(&format!("http://127.0.0.1:{port}")))?;
+        system::core_install(Some("latest"), Some(&format!("http://127.0.0.1:{port}")), None)?;
     }
     if had_caps {
         system::core_setcap()?;

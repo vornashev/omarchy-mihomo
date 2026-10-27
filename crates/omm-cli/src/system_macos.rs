@@ -1,9 +1,20 @@
 use anyhow::{Result, bail};
 use serde_json::{Value, json};
-pub fn core_install(_: Option<&str>, _: Option<&str>) -> Result<()> {
-    bail!(
-        "Run packaging/macos/build.sh and packaging/macos/install.sh to update the installed core"
-    )
+/// The installed core belongs to the privileged helper; `dest` downloads
+/// a verified copy elsewhere (the real-core tests on CI).
+pub fn core_install(version: Option<&str>, proxy: Option<&str>, dest: Option<std::path::PathBuf>) -> Result<()> {
+    let Some(dest) = dest else {
+        bail!("Run packaging/macos/build.sh and packaging/macos/install.sh to update the installed core")
+    };
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+    let rel = rt.block_on(omm_config::core_bin::resolve(version, proxy))?;
+    println!("downloading {} ({})", rel.asset, rel.version);
+    let installed = rt.block_on(omm_config::core_bin::install(&rel, &dest, proxy))?;
+    println!("installed {} → {}", installed, dest.display());
+    Ok(())
+}
+pub fn core_rollback() -> Result<()> {
+    bail!("macOS uses the network helper; run packaging/macos/install.sh")
 }
 pub fn core_setcap() -> Result<()> {
     bail!("macOS uses the network helper; run packaging/macos/install.sh")
