@@ -55,7 +55,7 @@ Item {
   property point dragScene
   // Reordering a filtered or delay-sorted view would be ambiguous.
   readonly property bool canReorder: group && !search && !protocolFilter && !sourceFilter && !failedOnly && !sortDelay && (metadata.items || []).length > 1
-  readonly property bool typing: stage !== "list" || searchField.input.activeFocus || !!deleting || addingToGroup || entryMenu.visible || (quickSwitchCard && quickSwitchCard.popupOpen)
+  readonly property bool typing: stage !== "list" || head.searchField.input.activeFocus || !!deleting || addingToGroup || entryMenu.visible || (quickSwitchCard && quickSwitchCard.popupOpen)
   readonly property var listItems: (metadata.items || []).concat(group && runtimeGroups.some(function (g) {
     return g.name === "GLOBAL";
   }) && !(metadata.items || []).some(function (g) {
@@ -312,7 +312,7 @@ Item {
   }
   function textKey(t) {
     if (t === "/")
-      searchField.input.forceActiveFocus();
+      head.searchField.input.forceActiveFocus();
     else if (t === "r")
       reload();
     else if (t === "n")
@@ -470,243 +470,10 @@ Item {
   Item {
     anchors.fill: parent
     visible: root.stage === "list"
-    Column {
+    ProxiesToolbar {
       id: head
       width: parent.width
-      spacing: Style.space(9)
-      Row {
-        width: parent.width
-        spacing: Style.space(8)
-        Column {
-          width: parent.width - importButton.width - createButton.width - Style.space(16)
-          spacing: Style.space(4)
-          Txt {
-            text: I18n.t("navProxies")
-            bold: true
-            font.pixelSize: Style.font.heading
-          }
-          Txt {
-            width: parent.width
-            text: (root.metadata.profile_name || I18n.t("proxyNoProfile")) + " · " + I18n.t("proxyProfileHint")
-            dim: true
-            elide: Text.ElideRight
-            font.pixelSize: Style.font.caption
-          }
-        }
-        Btn {
-          id: importButton
-          text: I18n.t("proxyImport")
-          icon: Icons.down
-          enabled: !!root.metadata.profile_id
-          onClicked: root.stage = "import"
-        }
-        Btn {
-          id: createButton
-          text: I18n.t(root.group ? "proxyGroup" : "proxyNode")
-          icon: Icons.add
-          primary: true
-          enabled: !!root.metadata.profile_id && !root.busy
-          onClicked: root.create()
-        }
-      }
-      Row {
-        width: parent.width
-        spacing: Style.space(8)
-        Seg {
-          current: root.group ? "groups" : "nodes"
-          model: [
-            {
-              key: "groups",
-              label: I18n.t("proxyGroups") + " · " + root.groupCount
-            },
-            {
-              key: "nodes",
-              label: I18n.t("proxyNodes") + " · " + root.nodeCount
-            }
-          ]
-          onPicked: function (k) {
-            root.switchTab(k === "groups");
-          }
-        }
-        Btn {
-          visible: root.group
-          text: I18n.t("testAll")
-          icon: Icons.test
-          onClicked: root.visibleItems.filter(function (i) {
-            return i.source !== "builtin";
-          }).forEach(function (i) {
-            root.test(i);
-          })
-        }
-      }
-      Row {
-        width: parent.width
-        spacing: Style.space(6)
-        Field {
-          id: searchField
-          width: root.group ? parent.width : (parent.width - Style.space(12)) * 0.46
-          placeholder: I18n.t(root.group ? "proxyGroupSearch" : "proxyNodeSearch")
-          icon: Icons.search
-          text: root.search
-          input.onTextEdited: root.search = text
-        }
-        ProxyChoice {
-          visible: !root.group
-          width: (parent.width - Style.space(12)) * 0.25
-          model: [I18n.t("proxyAllTypes")].concat(root.catalog.nodes.map(function (s) {
-            return s.type;
-          }))
-          currentIndex: Math.max(0, model.indexOf(root.protocolFilter))
-          onActivated: root.protocolFilter = currentIndex ? currentText : ""
-        }
-        ProxyChoice {
-          visible: !root.group
-          width: (parent.width - Style.space(12)) * 0.29
-          model: [I18n.t("proxyAllSources"), I18n.t("proxySourceProfile"), I18n.t("proxySourceModified"), I18n.t("proxySourceLocal"), I18n.t("proxySourceProvider")]
-          currentIndex: ["", "profile", "modified", "local", "provider"].indexOf(root.sourceFilter)
-          onActivated: root.sourceFilter = ["", "profile", "modified", "local", "provider"][currentIndex]
-        }
-      }
-      Row {
-        visible: !root.group
-        spacing: Style.space(8)
-        Btn {
-          text: I18n.t("proxyUnresponsive") + " · " + (root.metadata.items || []).filter(function (i) {
-            return i.delay === 0;
-          }).length
-          primary: root.failedOnly
-          onClicked: root.failedOnly = !root.failedOnly
-        }
-        Btn {
-          text: I18n.t("proxySortDelay")
-          primary: root.sortDelay
-          onClicked: root.sortDelay = !root.sortDelay
-        }
-      }
-      Row {
-        visible: !root.group && root.selection.length > 0
-        spacing: Style.space(8)
-        Txt {
-          text: I18n.t("proxySelected").arg(root.selection.length)
-          anchors.verticalCenter: parent.verticalCenter
-          font.pixelSize: Style.font.bodySmall
-        }
-        Btn {
-          text: I18n.t("proxyCheckNow")
-          onClicked: root.selection.forEach(function (i) {
-            root.test(i);
-          })
-        }
-        Btn {
-          text: I18n.t("proxyAddToGroup")
-          onClicked: {
-            root.addGroup = (root.metadata.groups || [])[0] || "";
-            root.addingToGroup = true;
-          }
-        }
-        Btn {
-          text: I18n.t("delete")
-          enabled: root.selection.some(function (i) {
-            return i.source !== "provider";
-          })
-          onClicked: root.removeSelected()
-        }
-      }
-      Row {
-        visible: !root.group
-        width: parent.width
-        leftPadding: Style.space(28)
-        Repeater {
-          model: [
-            {
-              label: "proxyNode",
-              fraction: 0.35
-            },
-            {
-              label: "proxyProtocolColumn",
-              fraction: 0.16
-            },
-            {
-              label: "proxyDelay",
-              fraction: 0.16
-            },
-            {
-              label: "proxyGroupColumn",
-              fraction: 0.16
-            },
-            {
-              label: "proxySourceColumn",
-              fraction: 0.17
-            }
-          ]
-          Txt {
-            required property var modelData
-            width: (parent.width - Style.space(28)) * modelData.fraction
-            text: I18n.t(modelData.label).toUpperCase()
-            faint: true
-            font.pixelSize: Style.font.caption
-            elide: Text.ElideRight
-          }
-        }
-      }
-      Banner {
-        width: parent.width
-        visible: root.svc.coreRunning === false || root.pendingApply
-        text: I18n.t(root.pendingApply ? "nodeSavedOffline" : "nodeCoreStoppedHint")
-      }
-      Btn {
-        visible: root.svc.coreRunning === false
-        text: I18n.t("nodeStartCore")
-        onClicked: root.svc.request("core.start", null, function (r, e) {
-          if (e)
-            root.error = e.message;
-          else {
-            root.pendingApply = false;
-            root.reload();
-          }
-        })
-      }
-      Row {
-        visible: root.busy
-        width: parent.width
-        spacing: Style.space(8)
-        Repeater {
-          model: 3
-          Rectangle {
-            width: (parent.width - Style.space(16)) / 3
-            height: Style.space(24)
-            radius: Style.cornerRadius
-            color: Util.alpha(Color.popups.text, 0.08)
-          }
-        }
-      }
-      Txt {
-        text: root.error
-        visible: text !== ""
-        width: parent.width
-        wrapMode: Text.Wrap
-        color: Color.urgent
-        font.pixelSize: Style.font.bodySmall
-      }
-      Btn {
-        visible: !root.metadata.profile_id
-        text: I18n.t("navProfiles")
-        onClicked: root.panel.showPage("profiles")
-      }
-      Row {
-        visible: (root.metadata.removed || []).length > 0
-        spacing: Style.space(7)
-        ProxyChoice {
-          id: removed
-          model: root.metadata.removed || []
-          width: Style.space(220)
-        }
-        Btn {
-          text: I18n.t("proxyRestore")
-          enabled: !root.busy
-          onClicked: root.mutate("reset", removed.currentText, "")
-        }
-      }
+      page: root
     }
     ListView {
       id: list
@@ -780,103 +547,14 @@ Item {
         }
         Component {
           id: nodeRow
-          Rectangle {
+          ProxyNodeRow {
             width: entry.width
-            height: Style.space(54)
-            radius: Style.cornerRadius
-            color: root.selected[entry.modelData.name] ? Style.selectedFillFor(Color.popups.text, Color.accent) : Util.alpha(Color.popups.text, entry.index % 2 ? 0.02 : 0.04)
-            MouseArea {
-              anchors.fill: parent
-              acceptedButtons: Qt.LeftButton | Qt.RightButton
-              cursorShape: Qt.PointingHandCursor
-              onClicked: function (mouse) {
-                root.cursor = entry.index;
-                if (mouse.button === Qt.RightButton) {
-                  entryMenu.entry = entry.modelData;
-                  entryMenu.popup();
-                } else
-                  root.edit(entry.modelData, false);
-              }
-            }
-            Row {
-              anchors.fill: parent
-              ProxyCheck {
-                width: Style.space(28)
-                anchors.verticalCenter: parent.verticalCenter
-                checked: !!root.selected[entry.modelData.name]
-                onToggled: root.selected = Models.put(root.selected, entry.modelData.name, checked)
-              }
-              Column {
-                width: (parent.width - Style.space(28)) * 0.35
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: Style.space(4)
-                Txt {
-                  width: parent.width
-                  text: entry.modelData.name
-                  elide: Text.ElideRight
-                  font.pixelSize: Style.font.bodySmall
-                }
-                Txt {
-                  width: parent.width
-                  text: entry.modelData.server ? entry.modelData.server + ":" + (entry.modelData.port || "") : "—"
-                  elide: Text.ElideRight
-                  faint: true
-                  font.pixelSize: Style.font.caption
-                }
-              }
-              Txt {
-                width: (parent.width - Style.space(28)) * 0.16
-                text: entry.modelData.type
-                color: Color.accent
-                anchors.verticalCenter: parent.verticalCenter
-                elide: Text.ElideRight
-                font.pixelSize: Style.font.caption
-              }
-              Item {
-                id: delayCell
-                readonly property var history: root.latency[entry.modelData.name] || null
-                width: (parent.width - Style.space(28)) * 0.16
-                height: Style.space(16)
-                anchors.verticalCenter: parent.verticalCenter
-                Txt {
-                  id: nodeDelay
-                  anchors.verticalCenter: parent.verticalCenter
-                  text: root.testing[entry.modelData.name] ? "…" : entry.modelData.delay === 0 ? I18n.t("timeout") : Models.delayText(entry.modelData.delay, I18n.t("ms"))
-                  color: entry.modelData.delay === 0 ? root.svc.red : entry.modelData.delay > 0 ? root.svc.green : Color.muted
-                  font.pixelSize: Style.font.caption
-                }
-                Sparkline {
-                  objectName: "nodeSpark"
-                  visible: !!delayCell.history && width > Style.space(16)
-                  anchors.left: nodeDelay.right
-                  anchors.leftMargin: Style.space(6)
-                  anchors.right: parent.right
-                  anchors.rightMargin: Style.space(6)
-                  anchors.verticalCenter: parent.verticalCenter
-                  height: Style.space(12)
-                  points: delayCell.history ? delayCell.history.points : []
-                  color: Models.latencyLoss(delayCell.history) >= 10 ? root.svc.yellow : root.svc.green
-                  failColor: root.svc.red
-                }
-                HoverHandler { id: delayHover }
-                Hint { visible: delayHover.hovered && !!delayCell.history; text: Models.latencyHint(delayCell.history, I18n.t) }
-              }
-              Txt {
-                width: (parent.width - Style.space(28)) * 0.16
-                text: root.groupsFor(entry.modelData)
-                dim: true
-                anchors.verticalCenter: parent.verticalCenter
-                elide: Text.ElideRight
-                font.pixelSize: Style.font.caption
-              }
-              Txt {
-                width: (parent.width - Style.space(28)) * 0.17
-                text: I18n.t("proxySource" + entry.modelData.source.charAt(0).toUpperCase() + entry.modelData.source.slice(1))
-                dim: true
-                anchors.verticalCenter: parent.verticalCenter
-                elide: Text.ElideRight
-                font.pixelSize: Style.font.caption
-              }
+            page: root
+            item: entry.modelData
+            index: entry.index
+            onMenuRequested: {
+              entryMenu.entry = entry.modelData;
+              entryMenu.popup();
             }
           }
         }

@@ -395,6 +395,20 @@ Rectangle {
       compare(p.stage, "editor");
       wait(50);
     }
+    function test_node_rows_open_the_editor_and_the_menu() {
+      var p = createTemporaryObject(pageComponent, scene);
+      p.switchTab(false);
+      tryVerify(function () { return p.visibleItems.length > 0; }, 2000);
+      waitForRendering(p);
+      var row = findChild(p, "proxyNodeRow");
+      verify(row, "a node row");
+      compare(row.item.name, p.visibleItems[0].name);
+      mouseClick(row, row.width / 2, row.height / 2, Qt.RightButton);
+      verify(findChild(p, "proxyEntryMenu").visible, "right click opens the menu");
+      findChild(p, "proxyEntryMenu").close();
+      mouseClick(row, row.width / 2, row.height / 2);
+      compare(p.stage, "editor");
+    }
     function test_unknown_fields_and_conflict_keep_input() {
       var e = createTemporaryObject(editorComponent, scene);
       verify(e);
