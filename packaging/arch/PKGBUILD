@@ -1,0 +1,66 @@
+# Maintainer: vornashev
+# Builds the latest commit. After `makepkg -si`, every user runs
+# `omarchy-mihomo-setup` once: services, the mihomo core and the bar widget.
+pkgname=omarchy-mihomo-git
+pkgver=0.2.0
+pkgrel=1
+pkgdesc='mihomo for Omarchy: profiles, rules, autofix, traffic and DNS in the bar, backed by a daemon'
+arch=(x86_64 aarch64)
+url='https://github.com/vornashev/omarchy-mihomo'
+license=(MIT)
+depends=(gcc-libs glibc libcap systemd)
+makedepends=(cargo git)
+optdepends=('omarchy: the bar widget and its settings'
+            'rsync: source installs of the plugin')
+provides=(omarchy-mihomo)
+conflicts=(omarchy-mihomo)
+install=omarchy-mihomo.install
+# makepkg's -flto turns aws-lc's C objects into bitcode rust-lld cannot link.
+options=('!lto')
+source=("$pkgname::git+$url.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "$pkgname"
+  local version
+  version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+  printf '%s.r%s.g%s' "$version" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+  cd "$pkgname"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$pkgname"
+  export RUSTUP_TOOLCHAIN=stable CARGO_TARGET_DIR=target
+  cargo build --frozen --release -p omm-daemon -p omm-cli
+}
+
+check() {
+  cd "$pkgname"
+  export RUSTUP_TOOLCHAIN=stable CARGO_TARGET_DIR=target
+  cargo test --frozen --workspace
+}
+
+package() {
+  cd "$pkgname"
+  install -Dm755 target/release/omm "$pkgdir/usr/bin/omm"
+  install -Dm755 target/release/omarchy-mihomod "$pkgdir/usr/bin/omarchy-mihomod"
+  # The per-user part of packaging/install.sh; it notices the package.
+  install -Dm755 packaging/install.sh "$pkgdir/usr/bin/omarchy-mihomo-setup"
+
+  sed 's|%h/.local/bin/omarchy-mihomod|/usr/bin/omarchy-mihomod|' packaging/systemd/omarchy-mihomod.service \
+    | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/omarchy-mihomod.service"
+  # The core stays per user in ~/.local/lib: it carries TUN capabilities.
+  install -Dm644 packaging/systemd/omarchy-mihomo-core.service "$pkgdir/usr/lib/systemd/user/omarchy-mihomo-core.service"
+
+  install -Dm644 manifest.json "$pkgdir/usr/share/omarchy-mihomo/manifest.json"
+  cp -r --no-preserve=ownership plugin "$pkgdir/usr/share/omarchy-mihomo/plugin"
+  find "$pkgdir/usr/share/omarchy-mihomo" -type d -exec chmod 755 {} + -o -type f -exec chmod 644 {} +
+
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

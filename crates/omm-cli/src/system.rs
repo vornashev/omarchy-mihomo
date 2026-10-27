@@ -9,6 +9,7 @@ use omm_config::paths::Paths;
 use serde_json::Value;
 
 pub use omm_config::host::{CORE_UNIT, DAEMON_UNIT};
+const SETUP_HINT: &str = "run packaging/install.sh, or omarchy-mihomo-setup after installing the package";
 const PLUGIN_ID: &str = "tema.omarchy-mihomo";
 
 fn runtime() -> Result<tokio::runtime::Runtime> {
@@ -123,11 +124,14 @@ pub fn doctor(daemon: Option<Value>) -> Result<bool> {
     let paths = Paths::new(Paths::default_root());
 
     r.section("Programs");
-    for (name, path) in [("omm", home().join(".local/bin/omm")), ("omarchy-mihomod", home().join(".local/bin/omarchy-mihomod"))] {
+    // Next to this omm: ~/.local/bin from source, /usr/bin from the package.
+    let here = std::env::current_exe().ok().and_then(|p| p.parent().map(Path::to_path_buf)).unwrap_or_else(|| home().join(".local/bin"));
+    for name in ["omm", "omarchy-mihomod"] {
+        let path = here.join(name);
         if path.is_file() {
-            r.line(Level::Ok, format!("{name} installed"), None);
+            r.line(Level::Ok, format!("{name} installed in {}", here.display()), None);
         } else {
-            r.line(Level::Fail, format!("{name} missing at {}", path.display()), Some("run packaging/install.sh"));
+            r.line(Level::Fail, format!("{name} missing at {}", path.display()), Some(SETUP_HINT));
         }
     }
     let bin = core_bin::default_path();
@@ -147,9 +151,10 @@ pub fn doctor(daemon: Option<Value>) -> Result<bool> {
 
     r.section("Services");
     for (unit, required) in [(DAEMON_UNIT, true), (CORE_UNIT, true)] {
-        let installed = home().join(".config/systemd/user").join(unit).is_file();
+        // Ours from source, the package's in /usr/lib (or /etc for admins).
+        let installed = [home().join(".config/systemd/user"), PathBuf::from("/usr/lib/systemd/user"), PathBuf::from("/etc/systemd/user")].iter().any(|d| d.join(unit).is_file());
         if !installed {
-            r.line(Level::Fail, format!("{unit} not installed"), Some("run packaging/install.sh"));
+            r.line(Level::Fail, format!("{unit} not installed"), Some(SETUP_HINT));
             continue;
         }
         let enabled = systemctl(&["--user", "is-enabled", unit]);
@@ -224,7 +229,7 @@ pub fn doctor(daemon: Option<Value>) -> Result<bool> {
     if plugin.is_file() {
         r.line(Level::Ok, "plugin installed", None);
     } else {
-        r.line(Level::Warn, "plugin not installed", Some("run packaging/install.sh"));
+        r.line(Level::Warn, "plugin not installed", Some(SETUP_HINT));
     }
     let shell_json = std::fs::read_to_string(home().join(".config/omarchy/shell.json")).unwrap_or_default();
     if shell_json.contains(PLUGIN_ID) {

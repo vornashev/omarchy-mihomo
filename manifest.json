@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "id": "tema.omarchy-mihomo",
   "name": "Mihomo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "tema",
   "license": "MIT",
-  "description": "mihomo for Omarchy: problem resources with a new-errors badge, manual per-resource routing with checks and rollback, proxies, profiles and logs. Backed by the omarchy-mihomod daemon.",
+  "description": "mihomo for Omarchy: profiles and subscriptions, proxy and group editors, your own routing rules and rule sets, failed connections with autofix, traffic statistics, node latency history, DNS, notifications and core updates. Backed by the omarchy-mihomod daemon.",
   "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "plugin/Panel.qml"
   },
   "barWidget": {
     "displayName": "Mihomo",
-    "description": "Proxy status, problem resources and routing rules",
+    "description": "Proxy status, problems and autofix, rules, traffic",
     "category": "Network",
     "allowMultiple": false,
     "defaultSection": "right",

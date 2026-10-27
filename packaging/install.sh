@@ -8,6 +8,11 @@
 # The core is enabled but not started while Clash Verge Rev runs: two cores
 # with TUN would fight over routes. `omm migrate cvr` does the switch.
 #
+# Installed by the package as omarchy-mihomo-setup, it does only the
+# per-user part: the binaries are in /usr/bin, the services in
+# /usr/lib/systemd/user and the plugin in /usr/share/omarchy-mihomo, linked
+# into ~/.config/omarchy/plugins. A source install found there is replaced.
+#
 # Options:
 #   --yes          do not ask; skip steps that need sudo (setcap)
 #   --setcap       grant TUN capabilities without asking (uses sudo)
@@ -17,7 +22,13 @@
 set -euo pipefail
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
+share="${OMM_SHARE:-/usr/share/omarchy-mihomo}"
+# Without sources next to it, this is the packaged omarchy-mihomo-setup.
+packaged=0
+[[ -f $repo/Cargo.toml ]] || packaged=1
 bin_dir="$HOME/.local/bin"
+# The package puts omm next to this script, in /usr/bin.
+[[ $packaged == 1 ]] && bin_dir=$(cd "$(dirname "$0")" && pwd)
 unit_dir="$HOME/.config/systemd/user"
 plugin_id="tema.omarchy-mihomo"
 plugin_dir="$HOME/.config/omarchy/plugins/$plugin_id"
@@ -33,7 +44,7 @@ for arg in "$@"; do
     --upgrade-core) upgrade_core=1 ;;
     --uninstall) uninstall=1 ;;
     --purge) purge=1 ;;
-    -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,25p' "$0"; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -52,8 +63,10 @@ if [[ $uninstall == 1 ]]; then
   systemctl --user disable --now omarchy-mihomo-core.service omarchy-mihomod.service 2>/dev/null || true
   rm -f "$unit_dir/omarchy-mihomo-core.service" "$unit_dir/omarchy-mihomod.service"
   systemctl --user daemon-reload
-  rm -f "$bin_dir/omm" "$bin_dir/omarchy-mihomod" "$core_bin"
-  if [[ -d $plugin_dir ]]; then
+  # The package's own files go with pacman -R.
+  [[ $packaged == 1 ]] || rm -f "$bin_dir/omm" "$bin_dir/omarchy-mihomod"
+  rm -f "$core_bin" "$(dirname "$core_bin")/mihomo.prev"
+  if [[ -e $plugin_dir || -L $plugin_dir ]]; then
     say "removing the shell plugin"
     omarchy plugin disable "$plugin_id" >/dev/null 2>&1 || true
     rm -rf "$plugin_dir"
@@ -68,22 +81,34 @@ if [[ $uninstall == 1 ]]; then
   exit 0
 fi
 
-cargo=$(command -v cargo 2>/dev/null || true)
-[[ -x $HOME/.cargo/bin/cargo ]] && cargo="$HOME/.cargo/bin/cargo"
-[[ -n $cargo ]] || { echo "cargo not found (install rustup)" >&2; exit 1; }
+if [[ $packaged == 1 ]]; then
+  # A source install would shadow the package: ~/.local/bin comes first in
+  # PATH and units in ~/.config/systemd/user win over /usr/lib.
+  for old in "$HOME/.local/bin/omm" "$HOME/.local/bin/omarchy-mihomod" "$unit_dir/omarchy-mihomod.service" "$unit_dir/omarchy-mihomo-core.service"; do
+    if [[ -e $old ]]; then
+      say "removing the source install's $old"
+      rm -f "$old"
+    fi
+  done
+  systemctl --user daemon-reload
+else
+  cargo=$(command -v cargo 2>/dev/null || true)
+  [[ -x $HOME/.cargo/bin/cargo ]] && cargo="$HOME/.cargo/bin/cargo"
+  [[ -n $cargo ]] || { echo "cargo not found (install rustup)" >&2; exit 1; }
 
-say "building (release)"
-"$cargo" build --release --locked --manifest-path "$repo/Cargo.toml" -p omm-daemon -p omm-cli
+  say "building (release)"
+  "$cargo" build --release --locked --manifest-path "$repo/Cargo.toml" -p omm-daemon -p omm-cli
 
-say "installing binaries to $bin_dir"
-install -Dm755 "$repo/target/release/omm" "$bin_dir/omm"
-install -Dm755 "$repo/target/release/omarchy-mihomod" "$bin_dir/omarchy-mihomod"
+  say "installing binaries to $bin_dir"
+  install -Dm755 "$repo/target/release/omm" "$bin_dir/omm"
+  install -Dm755 "$repo/target/release/omarchy-mihomod" "$bin_dir/omarchy-mihomod"
+
+  say "installing services"
+  install -Dm644 "$repo/packaging/systemd/omarchy-mihomod.service" "$unit_dir/omarchy-mihomod.service"
+  install -Dm644 "$repo/packaging/systemd/omarchy-mihomo-core.service" "$unit_dir/omarchy-mihomo-core.service"
+  systemctl --user daemon-reload
+fi
 omm="$bin_dir/omm"
-
-say "installing services"
-install -Dm644 "$repo/packaging/systemd/omarchy-mihomod.service" "$unit_dir/omarchy-mihomod.service"
-install -Dm644 "$repo/packaging/systemd/omarchy-mihomo-core.service" "$unit_dir/omarchy-mihomo-core.service"
-systemctl --user daemon-reload
 
 if [[ ! -x $core_bin || $upgrade_core == 1 ]]; then
   say "installing the mihomo core"
@@ -122,9 +147,17 @@ fi
 
 if [[ $plugin == 1 ]] && command -v omarchy >/dev/null; then
   say "installing the shell plugin"
-  mkdir -p "$plugin_dir/plugin"
-  install -m644 "$repo/manifest.json" "$plugin_dir/manifest.json"
-  rsync -a --delete "$repo/plugin/" "$plugin_dir/plugin/"
+  if [[ $packaged == 1 ]]; then
+    # A link follows package upgrades; a copied plugin would go stale.
+    [[ -L $plugin_dir ]] || rm -rf "$plugin_dir"
+    mkdir -p "$(dirname "$plugin_dir")"
+    ln -sfn "$share" "$plugin_dir"
+  else
+    [[ -L $plugin_dir ]] && rm -f "$plugin_dir"
+    mkdir -p "$plugin_dir/plugin"
+    install -m644 "$repo/manifest.json" "$plugin_dir/manifest.json"
+    rsync -a --delete "$repo/plugin/" "$plugin_dir/plugin/"
+  fi
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
   if ! grep -q "\"$plugin_id\"" "$HOME/.config/omarchy/shell.json" 2>/dev/null; then
     omarchy plugin enable "$plugin_id" --section right >/dev/null 2>&1 || warn "enable the widget with: omarchy plugin enable $plugin_id"

@@ -67,9 +67,10 @@ Item {
   // as `omm fix` in Omarchy's floating terminal, where sudo can ask.
   function runFix(fix) {
     if (fix.privileged) {
-      var omm = Quickshell.env("HOME") + "/.local/bin/omm"
+      // A source install lives in ~/.local/bin, a package in the PATH.
+      var omm = 'omm="$HOME/.local/bin/omm"; [[ -x $omm ]] || omm=omm; "$omm"'
       var args = fix.id === "migrate_cvr" ? "migrate cvr" : "fix " + fix.id
-      Quickshell.execDetached(["omarchy-launch-floating-terminal-with-presentation", "'" + omm + "' " + args])
+      Quickshell.execDetached(["omarchy-launch-floating-terminal-with-presentation", omm + " " + args])
       return
     }
     setFixing(fix.id, true)

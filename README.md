@@ -5,6 +5,12 @@ Mihomo profiles, subscriptions, proxy/group editors, routing rules, connection d
 - **Linux / Omarchy:** the existing QML panel in `plugin/` and systemd installer in `packaging/install.sh`.
 - **macOS / Apple Silicon:** a native SwiftUI application, user daemon and privileged network helper. See [macOS build, install and verification](docs/macos.md).
 
+## Install (Omarchy)
+
+From source, for the current user: `packaging/install.sh` builds the daemon and `omm` into `~/.local/bin`, installs the user services, fetches the pinned mihomo core (SHA-256 checked), offers `sudo setcap` for TUN and adds the widget to the bar. `--uninstall` undoes it, keeping your data unless `--purge`.
+
+As an Arch package: `cd packaging/arch && makepkg -si` builds the latest commit as `omarchy-mihomo-git` (binaries in `/usr/bin`, user services in `/usr/lib/systemd/user`, the plugin in `/usr/share/omarchy-mihomo`). Then every user runs `omarchy-mihomo-setup` once: it links the plugin into `~/.config/omarchy/plugins`, starts the services, fetches the core and asks for TUN capabilities. A source install found in `~/.local` is replaced. The core stays per user in `~/.local/lib/omarchy-mihomo`, since it carries the capabilities.
+
 ## Autofix and notifications (Omarchy)
 
 When a host keeps failing (3 failures in 5 minutes by default, none successful), the daemon checks it through the profile's groups. A working route goes on trial as a temporary rule: it is kept if the host keeps working and removed if it does not. Only traffic nobody directed is fixed — the final `Match`, or DIRECT by default: anything an explicit rule sent to a group (yours, by domain, process, path or IP, or the subscription's) is left alone, as are local addresses, DNS failures and the hosts and processes (`process:name`) you list. Strict groups (a work VPN) never lose traffic to another group and never receive it; when one goes down you only get a notification. Before a trial rule is kept, the original route is tried again and the rule is dropped if it works. Settings → Automation chooses between showing, suggesting and trying; Settings → Notifications chooses which events notify.
