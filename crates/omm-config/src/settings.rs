@@ -41,6 +41,8 @@ pub struct Settings {
     /// Hours between those refreshes.
     pub geo_update_interval: u32,
     pub dns: Dns,
+    /// The user's rule providers, for `RULE-SET` rules.
+    pub rule_sets: Vec<crate::rule_sets::RuleSet>,
 }
 
 /// DNS on top of the profile's, which is often tuned with care: each `Some`
@@ -169,6 +171,7 @@ impl Default for Settings {
             geo_auto_update: true,
             geo_update_interval: 24,
             dns: Dns::default(),
+            rule_sets: Vec::new(),
         }
     }
 }
@@ -221,6 +224,7 @@ impl Settings {
         set(config, "tcp-concurrent", self.tcp_concurrent.into());
         set(config, "geo-auto-update", self.geo_auto_update.into());
         self.dns.enforce(config);
+        crate::rule_sets::apply(&self.rule_sets, config);
         set(config, "geo-update-interval", self.geo_update_interval.clamp(1, 24 * 30).into());
 
         // Listeners other than mixed-port are profile noise; drop them.

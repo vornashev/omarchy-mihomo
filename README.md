@@ -21,6 +21,10 @@ bindd = SUPER ALT, P, Mihomo rule for window, exec, omm rule-for-window
 
 Every 3 seconds the daemon looks at the default routes outside tunnels and at the suspend clock. While the machine is offline, and for 30 seconds after it wakes up or joins another network, failed connections are not recorded as problems, autofix neither counts them nor decides trials, and dead-group notices wait. Five seconds after the change it closes the core's connections (only for its own core) and re-tests the url-test, fallback and load-balance groups. A trial rule measures time awake: a sleep moves its end by as long as the machine slept. The panel footer shows "offline" or "network changed" meanwhile.
 
+## Rule sets
+
+Rules → Sets lists the profile's rule providers and your own, which apply to every profile. Add one by URL (mrs, yaml or text; domain, ipcidr or classical) or from the MetaCubeX meta-rules-dat catalog: `geosite:openai` or `geoip:ru` becomes a compact `.mrs` list of that category alone, without the whole GeoSite database. The rule editor offers the catalog for RULE-SET rules and adds the set when picked. A URL that does not answer is refused before the core sees it, a profile provider of the same name always wins, and a set your rules still use cannot be removed.
+
 ## Node latency history
 
 The core keeps only a node's last few delay tests. Every minute the daemon folds the new ones into 5-minute buckets kept for a week in `latency.db` (tests, failures, mean, min and max), skipping the time around sleep and network changes. Nodes the core never tests itself, such as members of selector groups only, are tested every 15 minutes (Settings → Automation → Test nodes in the background). The Proxies page draws the last day next to each node, with the mean and the share of failed tests on hover. Autofix uses it too: among working routes, one whose node lost fewer tests over the last 6 hours wins before a faster one.

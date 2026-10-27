@@ -14,6 +14,7 @@ mod notices;
 mod problems;
 mod procs;
 mod route_check;
+mod rule_sets;
 mod seen;
 mod state;
 mod suggest;

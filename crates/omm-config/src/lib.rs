@@ -24,6 +24,7 @@ pub mod paths;
 pub mod profiles;
 pub mod proxy_import;
 pub mod rules;
+pub mod rule_sets;
 pub mod runtime;
 pub mod seq;
 pub mod settings;

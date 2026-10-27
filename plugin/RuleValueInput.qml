@@ -15,6 +15,9 @@ Rectangle {
   property string placeholder: ""
   property var items: []
   property string note: ""
+  // Why the last catalog pick failed, shown under the field.
+  property string addError: ""
+  property bool adding: false
   property int highlighted: -1
   property bool suggestOpen: false
   property int serial: 0
@@ -39,6 +42,7 @@ Rectangle {
   function refresh() {
     if (!svc) return
     var mine = ++serial
+    addError = ""
     svc.request("rules.suggest", { kind: kind, query: input.text }, function(r, err) {
       if (mine !== serial) return
       items = err || !r ? [] : r.items
@@ -56,9 +60,22 @@ Rectangle {
     if (next !== -1) { highlighted = next; list.positionViewAtIndex(next, ListView.Contain) }
   }
   function pick(item) {
-    input.text = item.value
     suggestOpen = false
+    if (item.source === "catalog") { addFromCatalog(item); return }
+    input.text = item.value
     picked(item)
+  }
+  // A catalog list becomes one of the user's rule sets before the rule
+  // can name it.
+  function addFromCatalog(item) {
+    adding = true
+    addError = ""
+    svc.request("rule_sets.add", { catalog: item.detail }, function(r, err) {
+      root.adding = false
+      if (err) { root.addError = I18n.t("catalogFailed").arg(err.message); root.items = []; root.suggestOpen = true; return }
+      input.text = r.name
+      root.picked({ value: r.name, source: "provider" })
+    }, true)
   }
   function submit() {
     if (suggestOpen && current) pick(current)
@@ -75,6 +92,7 @@ Rectangle {
     if (it.source === "problem") parts.push("×" + it.count)
     if (it.source === "db") parts.push(I18n.t("suggestDomains").arg(it.count))
     if (it.source === "provider") parts.push(I18n.t("suggestRules").arg(it.count))
+    if (it.source === "catalog") parts.push(it.detail + " · " + I18n.t("catalogAdds"))
     if (it.source === "user" && it.count) parts.push(I18n.t("suggestConns").arg(it.count))
     if (it.route) parts.push(it.route)
     return parts.join(" · ")
@@ -160,10 +178,10 @@ Rectangle {
     contentItem: Column {
       spacing: 0
       Txt {
-        visible: root.rows.length === 0 && root.note !== ""
+        visible: root.rows.length === 0 && (root.note !== "" || root.addError !== "" || root.adding)
         width: parent.width
         leftPadding: Style.space(8); topPadding: Style.space(6); bottomPadding: Style.space(6)
-        text: root.note ? I18n.t("note_" + root.note) : ""
+        text: root.adding ? I18n.t("catalogAdding") : root.addError || (root.note ? I18n.t("note_" + root.note) : "")
         dim: true; wrapMode: Text.Wrap; font.pixelSize: Style.font.bodySmall
       }
       ListView {

@@ -13,6 +13,9 @@ Item {
   property var rules: []
   property var history: []
   property bool showHistory: false
+  property bool showSets: false
+  onShowHistoryChanged: if (showHistory) showSets = false
+  onShowSetsChanged: if (showSets) showHistory = false
   property int cursor: 0
   readonly property bool typing: false
 
@@ -88,11 +91,12 @@ Item {
       width: parent.width
       spacing: Style.space(10)
       Column {
-        width: parent.width - histBtn.width - Style.space(10)
+        width: parent.width - histBtn.width - setsBtn.width - Style.space(20)
         spacing: Style.space(3)
         Txt { text: I18n.t("rulesTitle"); bold: true; font.pixelSize: Style.font.heading }
         Txt { text: I18n.t("rulesSubtitle").arg(root.rules.length); dim: true; font.pixelSize: Style.font.bodySmall }
       }
+      Btn { id: setsBtn; objectName: "ruleSetsBtn"; anchors.verticalCenter: parent.verticalCenter; icon: Icons.sets; text: I18n.t("ruleSets"); primary: root.showSets; onClicked: root.showSets = !root.showSets }
       Btn { id: histBtn; anchors.verticalCenter: parent.verticalCenter; icon: Icons.history; text: I18n.t("history"); onClicked: root.showHistory = !root.showHistory }
     }
 
@@ -137,7 +141,7 @@ Item {
 
   ListView {
     id: list
-    visible: !root.showHistory
+    visible: !root.showHistory && !root.showSets
     anchors.top: head.bottom
     anchors.topMargin: Style.space(10)
     anchors.left: parent.left
@@ -168,6 +172,14 @@ Item {
       Txt { anchors.horizontalCenter: parent.horizontalCenter; text: I18n.t("noRules"); dim: true }
       Txt { anchors.horizontalCenter: parent.horizontalCenter; text: I18n.t("noRulesHint"); faint: true; font.pixelSize: Style.font.bodySmall }
     }
+  }
+
+  RuleSetsPanel {
+    objectName: "ruleSetsPanel"
+    visible: root.showSets
+    anchors.fill: list
+    svc: root.svc
+    panel: root.panel
   }
 
   ListView {

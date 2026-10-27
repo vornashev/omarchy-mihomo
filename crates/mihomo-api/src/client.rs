@@ -169,6 +169,11 @@ impl Client {
         self.get("/providers/rules").await
     }
 
+    /// Download a rule provider again now.
+    pub async fn update_rule_provider(&self, name: &str) -> Result<()> {
+        self.call(Method::PUT, &format!("/providers/rules/{}", seg(name)), None, Duration::from_secs(60)).await.map(drop)
+    }
+
     pub async fn connections(&self) -> Result<Connections> {
         self.get("/connections").await
     }

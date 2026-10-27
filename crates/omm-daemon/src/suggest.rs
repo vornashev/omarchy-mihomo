@@ -170,9 +170,25 @@ pub async fn suggest(state: &State, kind: MatchKind, query: &str) -> Suggestions
                 .map(|p| p.providers)
                 .unwrap_or_default()
                 .into_values()
-                .filter(|p| q.is_empty() || p.name.to_lowercase().contains(&q))
+                // `geosite:openai` finds the set added from it as `geosite-openai`.
+                .filter(|p| q.is_empty() || p.name.to_lowercase().contains(&q) || p.name.to_lowercase().contains(&q.replace(':', "-")))
                 .map(|p| Item { detail: p.behavior.to_lowercase(), count: p.rule_count, value: p.name, source: "provider", ..Default::default() })
+                .collect::<Vec<_>>();
+            // Ready-made lists the user can add with one pick; typing
+            // `geosite:<anything>` offers that category too.
+            let mut specs: Vec<String> = omm_config::rule_sets::POPULAR.iter().map(|s| (*s).to_owned()).collect();
+            if q.contains(':') && !specs.contains(&q) {
+                specs.insert(0, q.clone());
+            }
+            let catalog: Vec<Item> = specs
+                .into_iter()
+                .filter_map(|spec| omm_config::rule_sets::catalog(&spec).map(|set| (spec, set)))
+                .filter(|(spec, set)| (q.is_empty() || spec.contains(&q) || set.name.contains(&q)) && !items.iter().any(|i| i.value == set.name))
+                .take(12)
+                .map(|(spec, set)| Item { value: set.name, detail: spec, source: "catalog", ..Default::default() })
                 .collect();
+            let mut items = items;
+            items.extend(catalog);
             Suggestions { items, note: None }
         }
         And | Or | Not => Suggestions::default(),

@@ -101,7 +101,7 @@ function lifetimeKey(rule) {
 }
 
 // Suggestion sections in display order.
-var sources = ["common", "conn", "window", "running", "log", "problem", "user", "db", "provider", "known"]
+var sources = ["common", "conn", "window", "running", "log", "problem", "user", "db", "provider", "catalog", "known"]
 
 // Rows for the suggestion list: section headers + items.
 function rows(items) {
