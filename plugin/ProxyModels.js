@@ -56,6 +56,19 @@ function section(field, group) {
 function delayText(delay, unit) {
   return delay === undefined || delay === null ? "—" : delay === 0 ? "×" : String(delay) + " " + (unit || "ms")
 }
+// "24 h: 45 ms on average · 3% lost · 288 tests" for a latency.query view.
+function latencyHint(view, t) {
+  if (!view || !view.tests) return ""
+  var loss = Math.round(view.failures * 100 / view.tests)
+  var parts = [view.avg ? t("latencyAvg").arg(view.avg) : t("latencyAllFailed")]
+  if (view.avg && loss > 0) parts.push(t("latencyLoss").arg(loss))
+  parts.push(t("latencyTests").arg(view.tests))
+  return t("latencyWindow") + " " + parts.join(" · ")
+}
+// Share of failed tests, 0-100, or -1 without enough tests to judge.
+function latencyLoss(view) {
+  return view && view.tests >= 5 ? Math.round(view.failures * 100 / view.tests) : -1
+}
 function moveMember(members, from, to) {
   var next = (members || []).slice()
   if (from < 0 || to < 0 || from >= next.length || to >= next.length) return next

@@ -12,6 +12,8 @@ Item {
   property var runtimeGroups: []
   // Bytes per group over the last week: {name: {up, down}}.
   property var groupTraffic: ({})
+  // Delay history per node over the last day, from latency.query.
+  property var latency: ({})
   readonly property var choiceDetails: Models.choiceDetails(metadata.items, runtimeGroups)
   property var testing: ({})
   property int groupCount: 0
@@ -89,6 +91,10 @@ Item {
     svc.request("proxies.list", null, function (r, e) {
       if (!e && generation === requestGeneration)
         runtimeGroups = r || [];
+    });
+    svc.request("latency.query", { hours: 24, points: 24 }, function (r, e) {
+      if (!e && r && generation === requestGeneration)
+        latency = r;
     });
     svc.request("traffic.totals", { by: "group" }, function (r, e) {
       if (!e && r && generation === requestGeneration)
@@ -753,6 +759,7 @@ Item {
             })[0] || ({})
             svc: root.svc
             traffic: root.groupTraffic[entry.modelData.name] || null
+            latency: root.latency
             testing: !!root.testing[entry.modelData.name]
             draggable: root.canReorder && entry.modelData.source !== "builtin"
             opacity: root.dragFrom === entry.index ? 0.5 : 1
@@ -825,12 +832,34 @@ Item {
                 elide: Text.ElideRight
                 font.pixelSize: Style.font.caption
               }
-              Txt {
+              Item {
+                id: delayCell
+                readonly property var history: root.latency[entry.modelData.name] || null
                 width: (parent.width - Style.space(28)) * 0.16
-                text: root.testing[entry.modelData.name] ? "…" : entry.modelData.delay === 0 ? I18n.t("timeout") : Models.delayText(entry.modelData.delay, I18n.t("ms"))
-                color: entry.modelData.delay === 0 ? root.svc.red : entry.modelData.delay > 0 ? root.svc.green : Color.muted
+                height: Style.space(16)
                 anchors.verticalCenter: parent.verticalCenter
-                font.pixelSize: Style.font.caption
+                Txt {
+                  id: nodeDelay
+                  anchors.verticalCenter: parent.verticalCenter
+                  text: root.testing[entry.modelData.name] ? "…" : entry.modelData.delay === 0 ? I18n.t("timeout") : Models.delayText(entry.modelData.delay, I18n.t("ms"))
+                  color: entry.modelData.delay === 0 ? root.svc.red : entry.modelData.delay > 0 ? root.svc.green : Color.muted
+                  font.pixelSize: Style.font.caption
+                }
+                Sparkline {
+                  objectName: "nodeSpark"
+                  visible: !!delayCell.history && width > Style.space(16)
+                  anchors.left: nodeDelay.right
+                  anchors.leftMargin: Style.space(6)
+                  anchors.right: parent.right
+                  anchors.rightMargin: Style.space(6)
+                  anchors.verticalCenter: parent.verticalCenter
+                  height: Style.space(12)
+                  points: delayCell.history ? delayCell.history.points : []
+                  color: Models.latencyLoss(delayCell.history) >= 10 ? root.svc.yellow : root.svc.green
+                  failColor: root.svc.red
+                }
+                HoverHandler { id: delayHover }
+                Hint { visible: delayHover.hovered && !!delayCell.history; text: Models.latencyHint(delayCell.history, I18n.t) }
               }
               Txt {
                 width: (parent.width - Style.space(28)) * 0.16

@@ -6,6 +6,7 @@ mod geosite;
 #[cfg_attr(target_os = "macos", path = "health_macos.rs")]
 mod health;
 mod ipc;
+mod latency;
 mod logs;
 mod methods;
 mod network;
@@ -85,6 +86,7 @@ async fn main() -> Result<()> {
     let core_watcher = tokio::spawn(core::watch(state.clone()));
     tokio::spawn(core::pump_traffic(state.clone()));
     tokio::spawn(traffic::collect(state.clone()));
+    tokio::spawn(latency::collect(state.clone()));
     tokio::spawn(config::watch_files(state.clone()));
     tokio::spawn(health::auto(state.clone()));
     let recorded = Arc::default();

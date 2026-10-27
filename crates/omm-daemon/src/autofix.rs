@@ -102,6 +102,8 @@ pub struct Automation {
     /// `192.168.0.0/16`, `process:slack`.
     pub ignore: Vec<String>,
     pub notify: Notify,
+    /// Test nodes the core leaves untested, for their latency history.
+    pub probe_nodes: bool,
 }
 
 impl Default for Automation {
@@ -116,6 +118,7 @@ impl Default for Automation {
             strict_groups: Vec::new(),
             ignore: Vec::new(),
             notify: Notify::default(),
+            probe_nodes: true,
         }
     }
 }
@@ -601,8 +604,9 @@ pub async fn check(state: Arc<State>, host: String) {
     }
     publish(&state, &fix);
     let mode = settings.mode;
-    let groups = match state.core.proxies().await {
-        Ok(p) => crate::methods::targets(&p)
+    let proxies = state.core.proxies().await;
+    let groups = match &proxies {
+        Ok(p) => crate::methods::targets(p)
             .into_iter()
             .filter(|t| settings.usable(t))
             .collect::<Vec<_>>(),
@@ -622,7 +626,10 @@ pub async fn check(state: Arc<State>, host: String) {
     }
     let probe = crate::route_check::probe_for(&host, fix.port);
     let mut results = crate::route_check::check(&state, &probe, &targets).await;
-    results.sort_by_key(|o| (!o.ok, o.target == fix.was, o.delay.unwrap_or(u32::MAX)));
+    // One probe can be lucky: among working routes, a node that lost fewer
+    // tests over the last hours wins before a faster one.
+    let loss = proxies.as_ref().map(|p| loss_tiers(&state, p, &targets)).unwrap_or_default();
+    results.sort_by_key(|o| (!o.ok, o.target == fix.was, loss.get(&o.target).copied().unwrap_or(0), o.delay.unwrap_or(u32::MAX)));
     let t = now();
     let was_ok = results.iter().any(|o| o.ok && o.target == fix.was);
     let best = results
@@ -731,6 +738,34 @@ fn protection(
         });
     }
     None
+}
+
+/// The node a group routes through now, following nested groups.
+fn node_of(p: &mihomo_api::model::Proxies, target: &str) -> Option<String> {
+    let mut name = target.to_owned();
+    for _ in 0..8 {
+        let proxy = p.proxies.get(&name)?;
+        match &proxy.now {
+            Some(next) if proxy.is_group() => name = next.clone(),
+            _ => return (!proxy.is_group()).then_some(name),
+        }
+    }
+    None
+}
+
+/// Each target's share of failed delay tests over the last 6 hours, in
+/// 10% steps so that noise does not outweigh speed.
+fn loss_tiers(state: &State, p: &mihomo_api::model::Proxies, targets: &[String]) -> HashMap<String, u32> {
+    let nodes: Vec<(String, String)> = targets.iter().filter_map(|t| node_of(p, t).map(|n| (t.clone(), n))).collect();
+    let q = crate::latency::Query { hours: 6, points: 1, nodes: Some(nodes.iter().map(|(_, n)| n.clone()).collect()) };
+    let Ok(views) = state.latency.lock().unwrap().query(&q, now()) else { return HashMap::new() };
+    nodes
+        .into_iter()
+        .filter_map(|(t, n)| {
+            let v = views.get(&n).filter(|v| v.tests >= 5)?;
+            Some((t, (v.failures * 10 + v.tests / 2) / v.tests))
+        })
+        .collect()
 }
 
 /// Add the rule for `target` with a trial expiry.
@@ -1205,6 +1240,21 @@ mod tests {
         assert_eq!(e.observe(&line, 6 * 60_000), None);
         assert_eq!(e.observe(&line, 6 * 60_000 + 20_000), None, "only two inside the window");
         assert_eq!(e.observe(&line, 6 * 60_000 + 40_000), Some(Next::Check("z.org".into())));
+    }
+
+    #[test]
+    fn groups_resolve_to_their_node() {
+        let p: mihomo_api::model::Proxies = serde_json::from_value(json!({ "proxies": {
+            "AI": { "name": "AI", "type": "Selector", "now": "AUTO" },
+            "AUTO": { "name": "AUTO", "type": "URLTest", "now": "FI" },
+            "FI": { "name": "FI", "type": "Vless" },
+            "LOOP": { "name": "LOOP", "type": "Selector", "now": "LOOP" }
+        }}))
+        .unwrap();
+        assert_eq!(node_of(&p, "AI").as_deref(), Some("FI"));
+        assert_eq!(node_of(&p, "FI").as_deref(), Some("FI"));
+        assert_eq!(node_of(&p, "LOOP"), None);
+        assert_eq!(node_of(&p, "GONE"), None);
     }
 
     #[test]

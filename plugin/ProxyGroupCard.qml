@@ -10,6 +10,8 @@ Rectangle {
   property var svc
   // Bytes through this group over the last week, {up, down}, or null.
   property var traffic: null
+  // Delay history per node, from latency.query.
+  property var latency: ({})
   property bool testing: false
   property bool draggable: false
   readonly property bool popupOpen: quickSwitch.visible
@@ -128,7 +130,8 @@ Rectangle {
           id: member
           required property var modelData
           required property int index
-          width: Math.min(memberLabel.implicitWidth + latency.implicitWidth + Style.space(22), parent.width)
+          readonly property var history: root.latency[modelData.name] || null
+          width: Math.min(memberLabel.implicitWidth + latency.implicitWidth + (spark.visible ? spark.width + Style.space(6) : 0) + Style.space(22), parent.width)
           height: Style.space(25)
           radius: Style.cornerRadius
           color: modelData.name === root.current ? Util.alpha(Color.accent, 0.12) : Util.alpha(Color.popups.text, 0.04)
@@ -140,7 +143,7 @@ Rectangle {
             spacing: Style.space(6)
             Txt {
               id: memberLabel
-              width: Math.min(implicitWidth, parent.width - latency.width - parent.spacing)
+              width: Math.min(implicitWidth, parent.width - latency.width - (spark.visible ? spark.width + parent.spacing : 0) - parent.spacing)
               text: (root.entry.type === "fallback" ? (member.index + 1) + "  " : "") + member.modelData.name
               font.pixelSize: Style.font.bodySmall
               bold: member.modelData.name === root.current
@@ -154,7 +157,20 @@ Rectangle {
                 : member.modelData.delay === 0 ? (root.svc ? root.svc.red : Color.urgent)
                 : member.modelData.delay < 150 ? (root.svc ? root.svc.green : Color.accent) : (root.svc ? root.svc.yellow : Color.accent)
             }
+            Sparkline {
+              id: spark
+              objectName: "memberSpark"
+              visible: !!member.history
+              width: Style.space(36)
+              height: Style.space(11)
+              anchors.verticalCenter: parent.verticalCenter
+              points: member.history ? member.history.points : []
+              color: Models.latencyLoss(member.history) >= 10 ? (root.svc ? root.svc.yellow : Color.accent) : (root.svc ? root.svc.green : Color.accent)
+              failColor: root.svc ? root.svc.red : Color.urgent
+            }
           }
+          HoverHandler { id: memberHover }
+          Hint { visible: memberHover.hovered && !!member.history; text: Models.latencyHint(member.history, I18n.t) }
           MouseArea {
             anchors.fill: parent
             cursorShape: root.selectable ? Qt.PointingHandCursor : Qt.ArrowCursor

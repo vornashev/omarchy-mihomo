@@ -21,6 +21,10 @@ bindd = SUPER ALT, P, Mihomo rule for window, exec, omm rule-for-window
 
 Every 3 seconds the daemon looks at the default routes outside tunnels and at the suspend clock. While the machine is offline, and for 30 seconds after it wakes up or joins another network, failed connections are not recorded as problems, autofix neither counts them nor decides trials, and dead-group notices wait. Five seconds after the change it closes the core's connections (only for its own core) and re-tests the url-test, fallback and load-balance groups. A trial rule measures time awake: a sleep moves its end by as long as the machine slept. The panel footer shows "offline" or "network changed" meanwhile.
 
+## Node latency history
+
+The core keeps only a node's last few delay tests. Every minute the daemon folds the new ones into 5-minute buckets kept for a week in `latency.db` (tests, failures, mean, min and max), skipping the time around sleep and network changes. Nodes the core never tests itself, such as members of selector groups only, are tested every 15 minutes (Settings → Automation → Test nodes in the background). The Proxies page draws the last day next to each node, with the mean and the share of failed tests on hover. Autofix uses it too: among working routes, one whose node lost fewer tests over the last 6 hours wins before a faster one.
+
 ## Core and database updates (Omarchy)
 
 Once a day the daemon asks GitHub for the newest stable mihomo (directly, then through the core) and, when it is newer than the running core, shows it in Settings → Core, among the setup issues and once per release as a notification. It never replaces the core on its own. With TUN capabilities on the binary the update runs `omm fix update_core` in a terminal: the download is verified against the release's SHA-256, smoke-tested, installed, given its capabilities back with sudo and restarted. The replaced binary stays as `mihomo.prev`, a hard link that keeps its capabilities; Settings → Core or `omm core rollback` puts it back.

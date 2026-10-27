@@ -157,6 +157,11 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
             Ok(json!({ "ok": true }))
         }
 
+        "latency.query" => {
+            let q: crate::latency::Query = parse(params)?;
+            to_value(state.latency.lock().unwrap().query(&q, crate::problems::now_ms()).map_err(db_err)?)
+        }
+
         "traffic.query" => {
             let q: crate::traffic::Query = parse(params)?;
             to_value(state.traffic.lock().unwrap().query(&q, crate::problems::now_ms()).map_err(db_err)?)

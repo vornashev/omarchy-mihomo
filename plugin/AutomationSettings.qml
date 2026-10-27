@@ -248,6 +248,24 @@ Item {
           onEscaped: { root.sync(); input.focus = false; root.panel.forceKeys() }
         }
       }
+
+      // Outside the autofix block: the history serves the proxy cards too.
+      Row {
+        width: parent.width
+        Column {
+          width: parent.width - probeSwitch.width
+          spacing: Style.space(2)
+          Txt { text: I18n.t("probeNodes") }
+          Txt { width: parent.width - Style.space(16); text: I18n.t("probeNodesHint"); dim: true; font.pixelSize: Style.font.caption; wrapMode: Text.Wrap }
+        }
+        Mihomo.Switch {
+          id: probeSwitch
+          objectName: "probeNodesSwitch"
+          anchors.verticalCenter: parent.verticalCenter
+          checked: !!root.a && root.a.probe_nodes !== false
+          onToggled: root.save({ probe_nodes: !(root.a && root.a.probe_nodes !== false) })
+        }
+      }
     }
 
     // ------------------------------------------------------------ notifications

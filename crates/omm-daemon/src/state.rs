@@ -23,6 +23,8 @@ pub struct State {
     pub seen: Mutex<crate::seen::Seen>,
     /// Bytes per app, host and route over time.
     pub traffic: Mutex<crate::traffic::Store>,
+    /// Node delays over time.
+    pub latency: Mutex<crate::latency::Store>,
     status: watch::Sender<Status>,
     events: broadcast::Sender<Arc<Published>>,
     listeners: Mutex<HashMap<&'static str, usize>>,
@@ -56,6 +58,10 @@ impl State {
     pub fn new(core: mihomo_api::Client, config: crate::config::Manager, problems: omm_problems::Collector, system_proxy: crate::system_proxy::Manager) -> Self {
         let autofix = crate::autofix::Engine::load(&config.paths().root);
         let updates = crate::updates::Updates::load(&config.paths().root);
+        let latency = crate::latency::Store::open(&config.paths().root.join("latency.db")).unwrap_or_else(|e| {
+            tracing::warn!("latency history unavailable: {e}");
+            crate::latency::Store::in_memory()
+        });
         let traffic = crate::traffic::Store::open(&config.paths().root.join("traffic.db"), &config.paths().runtime()).unwrap_or_else(|e| {
             tracing::warn!("traffic history unavailable: {e}");
             crate::traffic::Store::in_memory()
@@ -82,6 +88,7 @@ impl State {
             logs: Mutex::default(),
             seen: Mutex::default(),
             traffic: Mutex::new(traffic),
+            latency: Mutex::new(latency),
             status: watch::channel(status).0,
             // Slow clients lag and skip events rather than stall the daemon.
             events: broadcast::channel(256).0,
