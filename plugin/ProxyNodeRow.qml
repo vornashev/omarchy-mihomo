@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyModels.js" as Models
 
 // One node in the proxies list: name and server, protocol, delay with its
@@ -14,7 +15,7 @@ Rectangle {
   signal menuRequested
   height: Style.space(54)
   radius: Style.cornerRadius
-  color: row.page.selected[row.item.name] ? Style.selectedFillFor(Color.popups.text, Color.accent) : Util.alpha(Color.popups.text, row.index % 2 ? 0.02 : 0.04)
+  color: row.page.selected[row.item.name] ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent) : Util.alpha(Commons.Color.popups.text, row.index % 2 ? 0.02 : 0.04)
   MouseArea {
     anchors.fill: parent
     acceptedButtons: Qt.LeftButton | Qt.RightButton
@@ -43,23 +44,23 @@ Rectangle {
         width: parent.width
         text: row.item.name
         elide: Text.ElideRight
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: Style.font.body
       }
       Txt {
         width: parent.width
         text: row.item.server ? row.item.server + ":" + (row.item.port || "") : "—"
         elide: Text.ElideRight
         faint: true
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
     }
     Txt {
       width: (parent.width - Style.space(28)) * 0.16
       text: row.item.type
-      color: Color.accent
+      color: Commons.Color.accent
       anchors.verticalCenter: parent.verticalCenter
       elide: Text.ElideRight
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
     }
     Item {
       id: delayCell
@@ -70,9 +71,9 @@ Rectangle {
       Txt {
         id: nodeDelay
         anchors.verticalCenter: parent.verticalCenter
-        text: row.page.testing[row.item.name] ? "…" : row.item.delay === 0 ? I18n.t("timeout") : Models.delayText(row.item.delay, I18n.t("ms"))
-        color: row.item.delay === 0 ? row.page.svc.red : row.item.delay > 0 ? row.page.svc.green : Color.muted
-        font.pixelSize: Style.font.caption
+        text: row.page.testing[row.item.name] ? "…" : row.item.delay === 0 ? MihomoI18n.t("timeout") : Models.delayText(row.item.delay, MihomoI18n.t("ms"))
+        color: row.item.delay === 0 ? row.page.svc.red : row.item.delay > 0 ? row.page.svc.green : Commons.Color.muted
+        font.pixelSize: Style.font.bodySmall
       }
       Sparkline {
         objectName: "nodeSpark"
@@ -88,7 +89,7 @@ Rectangle {
         failColor: row.page.svc.red
       }
       HoverHandler { id: delayHover }
-      Hint { visible: delayHover.hovered && !!delayCell.history; text: Models.latencyHint(delayCell.history, I18n.t) }
+      Hint { visible: delayHover.hovered && !!delayCell.history; text: Models.latencyHint(delayCell.history, MihomoI18n.t) }
     }
     Txt {
       width: (parent.width - Style.space(28)) * 0.16
@@ -96,15 +97,15 @@ Rectangle {
       dim: true
       anchors.verticalCenter: parent.verticalCenter
       elide: Text.ElideRight
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
     }
     Txt {
       width: (parent.width - Style.space(28)) * 0.17
-      text: I18n.t("proxySource" + row.item.source.charAt(0).toUpperCase() + row.item.source.slice(1))
+      text: MihomoI18n.t("proxySource" + row.item.source.charAt(0).toUpperCase() + row.item.source.slice(1))
       dim: true
       anchors.verticalCenter: parent.verticalCenter
       elide: Text.ElideRight
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
     }
   }
 }

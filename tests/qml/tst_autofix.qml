@@ -79,7 +79,7 @@ Rectangle {
     }
 
     function test_notice_texts() {
-      var t = function(k) { return Plugin.I18n.t(k) }
+      var t = function(k) { return Plugin.MihomoI18n.t(k) }
       var trial = Notices.text({ kind: "autofix", data: fix("trial") }, t, function() { return "18:42" })
       verify(trial.title.indexOf("chatgpt.com") !== -1 && trial.title.indexOf("AI") !== -1, trial.title)
       verify(trial.body.indexOf("212") !== -1 && trial.body.indexOf("18:42") !== -1, trial.body)
@@ -100,7 +100,7 @@ Rectangle {
       wait(20)
       verify(page.implicitHeight > 100)
       verify(findText(page, "212"), "results are listed")
-      var pin = findText(page, Plugin.I18n.t("afPin"))
+      var pin = findText(page, Plugin.MihomoI18n.t("afPin"))
       verify(pin)
       pin.clicked()
       compare(mockService.last("autofix.pin").host, "chatgpt.com")
@@ -120,7 +120,7 @@ Rectangle {
       compare(mockService.last("autofix.apply").target, "PROXY")
       compare(mockService.fixes["chatgpt.com"].state, "trial", "the popup follows the live fix")
       mockService.fixes = { "chatgpt.com": f }
-      var notNow = findText(page, Plugin.I18n.t("afNotNow"))
+      var notNow = findText(page, Plugin.MihomoI18n.t("afNotNow"))
       notNow.clicked()
       compare(mockService.last("autofix.dismiss").host, "chatgpt.com")
       verify(mockPanel.closed)
@@ -136,7 +136,7 @@ Rectangle {
       strip.fix = fix("trial")
       wait(20)
       verify(findText(strip, "37"), "trial shows connections so far")
-      var undo = findText(strip, Plugin.I18n.t("afUndo"))
+      var undo = findText(strip, Plugin.MihomoI18n.t("afUndo"))
       undo.clicked()
       compare(mockService.last("autofix.undo").host, "chatgpt.com")
     }
@@ -144,7 +144,7 @@ Rectangle {
     function test_settings_save_whole_object() {
       var page = createTemporaryObject(settingsComponent, scene)
       wait(20)
-      var suggest = findText(page, Plugin.I18n.t("autoMode_suggest"))
+      var suggest = findText(page, Plugin.MihomoI18n.t("autoMode_suggest"))
       verify(suggest)
       mouseClick(suggest)
       var saved = mockService.last("automation.set")
@@ -182,7 +182,7 @@ Rectangle {
     }
 
     function test_reverted_and_strict_notices() {
-      var t = function(k) { return Plugin.I18n.t(k) }
+      var t = function(k) { return Plugin.MihomoI18n.t(k) }
       var f = fix("reverted")
       var r = Notices.text({ kind: "autofix", data: f }, t, function() { return "" })
       verify(r.title.indexOf("DIRECT") !== -1 && r.body.indexOf("AI") !== -1, r.title + " / " + r.body)
@@ -193,7 +193,7 @@ Rectangle {
       var page = createTemporaryObject(noticeComponent, scene)
       wait(20)
       verify(findText(page, "jira.corp.com · slack-work"), "failing hosts are listed")
-      findText(page, Plugin.I18n.t("nCheckNodes")).clicked()
+      findText(page, Plugin.MihomoI18n.t("nCheckNodes")).clicked()
       compare(mockService.last("group.delay").name, "WORK")
       mockPanel.noticeKey = "autofix:chatgpt.com"
     }

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Dialogs
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyModels.js" as Models
 import "ProxyNodeModels.js" as Nodes
 
@@ -47,7 +48,7 @@ Column {
         return n.definition && n.definition.type === "wireguard";
       });
       if (!rows.length) {
-        confError = I18n.t("proxyNoResults");
+        confError = MihomoI18n.t("proxyNoResults");
         return;
       }
       var imported = rows[0].definition;
@@ -71,7 +72,7 @@ Column {
     Banner {
       visible: Nodes.service(root.draft.type)
       width: parent.width
-      text: I18n.t("nodeDescription_" + root.draft.type)
+      text: MihomoI18n.t("nodeDescription_" + root.draft.type)
     }
     Repeater {
       model: Nodes.basics[root.draft.type] || [["name"], ["server", "port"]]
@@ -107,9 +108,9 @@ Column {
           width: parent.width
           height: Style.space(36)
           radius: Style.cornerRadius
-          color: Util.alpha(Color.popups.text, 0.04)
+          color: Util.alpha(Commons.Color.popups.text, 0.04)
           border.width: 1
-          border.color: Util.alpha(Color.popups.text, 0.15)
+          border.color: Util.alpha(Commons.Color.popups.text, 0.15)
           Row {
             anchors.fill: parent
             anchors.margins: Style.space(6)
@@ -118,22 +119,22 @@ Column {
               width: Math.min(implicitWidth, parent.width * 0.28)
               text: root.editor.sectionLabel(summary.modelData)
               elide: Text.ElideRight
-              font.pixelSize: Style.font.bodySmall
+              font.pixelSize: Style.font.body
               anchors.verticalCenter: parent.verticalCenter
             }
             Txt {
               width: Math.max(0, parent.width - configure.width - parent.children[0].width - Style.space(16))
-              text: Nodes.summary(root.draft, summary.modelData) || I18n.t("nodeParameters").arg(root.fields.filter(function (f) {
+              text: Nodes.summary(root.draft, summary.modelData) || MihomoI18n.t("nodeParameters").arg(root.fields.filter(function (f) {
                 return Nodes.section(f, root.draft.type) === summary.modelData;
               }).length)
               dim: true
-              font.pixelSize: Style.font.caption
+              font.pixelSize: Style.font.bodySmall
               elide: Text.ElideRight
               anchors.verticalCenter: parent.verticalCenter
             }
             Btn {
               id: configure
-              text: I18n.t("nodeConfigure")
+              text: MihomoI18n.t("nodeConfigure")
               ghost: true
               onClicked: root.editor.section = summary.modelData
             }
@@ -146,9 +147,9 @@ Column {
       width: parent.width
       spacing: Style.space(6)
       Txt {
-        text: I18n.t("proxyMemberOf")
+        text: MihomoI18n.t("proxyMemberOf")
         dim: true
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
         height: Style.space(28)
         verticalAlignment: Text.AlignVCenter
       }
@@ -164,7 +165,7 @@ Column {
         }
       }
       Btn {
-        text: I18n.t("nodeAddGroup")
+        text: MihomoI18n.t("nodeAddGroup")
         ghost: true
         onClicked: root.choosingGroup = !root.choosingGroup
       }
@@ -193,7 +194,7 @@ Column {
     spacing: Style.space(12)
     Txt {
       visible: root.has("tls") || root.has("reality-opts")
-      text: I18n.t("nodeEncryption")
+      text: MihomoI18n.t("nodeEncryption")
     }
     Row {
       visible: root.has("tls") || root.has("reality-opts")
@@ -207,23 +208,23 @@ Column {
           width: (parent.width - Style.space(8) * (parent.children.length - 2)) / (parent.children.length - 1)
           height: Style.space(65)
           radius: Style.cornerRadius
-          color: Nodes.tlsMode(root.draft) === modelData ? Style.selectedFillFor(Color.popups.text, Color.accent) : Util.alpha(Color.popups.text, 0.04)
+          color: Nodes.tlsMode(root.draft) === modelData ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent) : Util.alpha(Commons.Color.popups.text, 0.04)
           border.width: 1
-          border.color: Nodes.tlsMode(root.draft) === modelData ? Color.accent : Util.alpha(Color.popups.text, 0.15)
+          border.color: Nodes.tlsMode(root.draft) === modelData ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.15)
           Column {
             anchors.fill: parent
             anchors.margins: Style.space(8)
             spacing: Style.space(5)
             Txt {
-              text: mode.modelData === "none" ? I18n.t("nodeNone") : mode.modelData.toUpperCase()
-              font.pixelSize: Style.font.bodySmall
+              text: mode.modelData === "none" ? MihomoI18n.t("nodeNone") : mode.modelData.toUpperCase()
+              font.pixelSize: Style.font.body
             }
             Txt {
               width: parent.width
-              text: I18n.t(mode.modelData === "none" ? "nodeNoneHint" : mode.modelData === "tls" ? "nodeTlsHint" : "nodeRealityHint")
+              text: MihomoI18n.t(mode.modelData === "none" ? "nodeNoneHint" : mode.modelData === "tls" ? "nodeTlsHint" : "nodeRealityHint")
               wrapMode: Text.Wrap
               dim: true
-              font.pixelSize: Style.font.caption
+              font.pixelSize: Style.font.bodySmall
             }
           }
           MouseArea {
@@ -279,20 +280,20 @@ Column {
       width: parent.width
       spacing: Style.space(6)
       ProxyCheck {
-        text: I18n.t("nodeInsecure")
+        text: MihomoI18n.t("nodeInsecure")
         checked: !!root.draft["skip-cert-verify"]
         onToggled: root.editor.setField("skip-cert-verify", checked)
       }
       Txt {
         width: parent.width
-        text: I18n.t("nodeInsecureHint")
-        color: Color.urgent
+        text: MihomoI18n.t("nodeInsecureHint")
+        color: Commons.Color.urgent
         wrapMode: Text.Wrap
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
     }
     Btn {
-      text: I18n.t("proxySection_advanced")
+      text: MihomoI18n.t("proxySection_advanced")
       ghost: true
       icon: root.securityExpanded ? Icons.expanded : Icons.collapsed
       onClicked: root.securityExpanded = !root.securityExpanded
@@ -315,12 +316,12 @@ Column {
     width: parent.width
     spacing: Style.space(12)
     Txt {
-      text: I18n.t("nodeTransport")
+      text: MihomoI18n.t("nodeTransport")
     }
     Txt {
-      text: I18n.t("nodeTransportHint")
+      text: MihomoI18n.t("nodeTransportHint")
       dim: true
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
     }
     Flow {
       visible: root.has("network")
@@ -346,7 +347,7 @@ Column {
     Banner {
       visible: root.draft.network === "ws"
       width: parent.width
-      text: I18n.t("nodeWsHint")
+      text: MihomoI18n.t("nodeWsHint")
     }
     Column {
       visible: root.draft.network === "ws" && root.has("ws-opts")
@@ -366,7 +367,7 @@ Column {
         expanded: true
       }
       Txt {
-        text: I18n.t("nodeField_max-early-data")
+        text: MihomoI18n.t("nodeField_max-early-data")
       }
       Row {
         width: parent.width
@@ -385,7 +386,7 @@ Column {
         }
       }
       Btn {
-        text: I18n.t("proxySection_advanced")
+        text: MihomoI18n.t("proxySection_advanced")
         ghost: true
         onClicked: root.transportExpanded = !root.transportExpanded
       }
@@ -428,24 +429,24 @@ Column {
     Txt {
       visible: !!root.draft["dialer-proxy"]
       width: parent.width
-      text: I18n.t("nodeYou") + " → " + (root.draft["dialer-proxy"] || "") + " → " + (root.draft.name || "") + " → " + I18n.t("nodeSite")
+      text: MihomoI18n.t("nodeYou") + " → " + (root.draft["dialer-proxy"] || "") + " → " + (root.draft.name || "") + " → " + MihomoI18n.t("nodeSite")
       wrapMode: Text.Wrap
-      color: Color.accent
-      font.pixelSize: Style.font.bodySmall
+      color: Commons.Color.accent
+      font.pixelSize: Style.font.body
     }
     Column {
       visible: root.has("smux")
       width: parent.width
       spacing: Style.space(8)
       ProxyCheck {
-        text: I18n.t("nodeMux")
+        text: MihomoI18n.t("nodeMux")
         checked: !!(root.draft.smux || {}).enabled
         onToggled: root.editor.setField("smux", Models.put(root.draft.smux, "enabled", checked))
       }
       Txt {
-        text: I18n.t("nodeMuxHint")
+        text: MihomoI18n.t("nodeMuxHint")
         dim: true
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
       Seg {
         visible: !!(root.draft.smux || {}).enabled
@@ -485,13 +486,13 @@ Column {
       }
       ProxyCheck {
         visible: !!(root.draft.smux || {}).enabled
-        text: I18n.t("nodeField_padding")
+        text: MihomoI18n.t("nodeField_padding")
         checked: !!(root.draft.smux || {}).padding
         onToggled: root.editor.setField("smux", Models.put(root.draft.smux, "padding", checked))
       }
       Btn {
         visible: !!(root.draft.smux || {}).enabled
-        text: I18n.t("proxySection_advanced")
+        text: MihomoI18n.t("proxySection_advanced")
         ghost: true
         onClicked: root.muxExpanded = !root.muxExpanded
       }
@@ -510,7 +511,7 @@ Column {
       }
     }
     Btn {
-      text: I18n.t("nodeNetwork")
+      text: MihomoI18n.t("nodeNetwork")
       icon: root.networkExpanded ? Icons.expanded : Icons.collapsed
       ghost: true
       onClicked: root.networkExpanded = !root.networkExpanded
@@ -534,10 +535,10 @@ Column {
     spacing: Style.space(12)
     Txt {
       width: parent.width
-      text: I18n.t("nodePeerHint")
+      text: MihomoI18n.t("nodePeerHint")
       wrapMode: Text.Wrap
       dim: true
-      font.pixelSize: Style.font.bodySmall
+      font.pixelSize: Style.font.body
     }
     ProxyPeers {
       width: parent.width
@@ -549,7 +550,7 @@ Column {
     width: parent.width
     spacing: Style.space(12)
     ProxyCheck {
-      text: I18n.t("nodeAwg")
+      text: MihomoI18n.t("nodeAwg")
       checked: root.awgEnabled
       onToggled: {
         root.awgEnabled = checked;
@@ -558,16 +559,16 @@ Column {
     }
     Txt {
       width: parent.width
-      text: I18n.t("nodeAwgHint")
+      text: MihomoI18n.t("nodeAwgHint")
       wrapMode: Text.Wrap
       dim: true
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
     }
     Flow {
       width: parent.width
       spacing: Style.space(6)
       Btn {
-        text: I18n.t("nodeAwgDefault")
+        text: MihomoI18n.t("nodeAwgDefault")
         enabled: root.awgEnabled
         onClicked: root.editor.setField("amnezia-wg-option", {
           jc: 4,
@@ -582,7 +583,7 @@ Column {
         })
       }
       Btn {
-        text: I18n.t("nodeConf")
+        text: MihomoI18n.t("nodeConf")
         busy: root.importing
         onClicked: confDialog.open()
       }
@@ -592,7 +593,7 @@ Column {
       text: root.confError
       width: parent.width
       wrapMode: Text.Wrap
-      color: Color.urgent
+      color: Commons.Color.urgent
     }
     Repeater {
       model: [
@@ -616,7 +617,7 @@ Column {
         width: parent.width
         spacing: Style.space(6)
         Txt {
-          text: I18n.t(awgRow.modelData.label)
+          text: MihomoI18n.t(awgRow.modelData.label)
         }
         Row {
           width: parent.width
@@ -636,7 +637,7 @@ Column {
     }
     Btn {
       visible: root.awgEnabled
-      text: I18n.t("nodeSignatures")
+      text: MihomoI18n.t("nodeSignatures")
       ghost: true
       onClicked: root.signatures = !root.signatures
     }

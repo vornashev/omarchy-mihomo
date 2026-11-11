@@ -3,3 +3,7 @@
 /apps/macos/.build
 /apps/macos/.swiftpm
 .DS_Store
+
+# Design sources stay local (design.figcraft is edited in FigCraft)
+/design.*
+__pycache__/

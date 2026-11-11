@@ -17,7 +17,7 @@ SchemaField {
     key: fieldKey,
     kind: "string"
   }
-  label: I18n.t("nodeField_" + fieldKey) === "nodeField_" + fieldKey ? fieldKey : I18n.t("nodeField_" + fieldKey)
+  label: MihomoI18n.t("nodeField_" + fieldKey) === "nodeField_" + fieldKey ? fieldKey : MihomoI18n.t("nodeField_" + fieldKey)
   compact: true
   value: parentKey ? (editor.draft[parentKey] || {})[fieldKey] : editor.draft[fieldKey]
   context: parentKey ? editor.draft[parentKey] || {} : editor.draft

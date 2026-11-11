@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import qs.Commons
+import qs.Commons as Commons
 
 // Tooltip · yDqLL. Popup.Item keeps hints above clipped list delegates.
 ToolTip {
@@ -34,7 +35,7 @@ ToolTip {
     text: root.text
     textFormat: Text.PlainText
     font.family: Style.font.family
-    font.pixelSize: Style.space(11)
+    font.pixelSize: Style.font.body
   }
   contentItem: Item {
     Text {
@@ -44,7 +45,7 @@ ToolTip {
       text: root.text
       textFormat: Text.PlainText
       font: measure.font
-      color: Color.popups.text
+      color: Commons.Color.popups.text
       wrapMode: Text.Wrap
       lineHeight: lineCount > 1 ? 1.35 : 1
     }
@@ -56,15 +57,15 @@ ToolTip {
       implicitWidth: keyLabel.implicitWidth + Style.space(8)
       implicitHeight: keyLabel.implicitHeight
       radius: Style.space(3)
-      color: Util.alpha(Color.popups.text, 0.08)
+      color: Util.alpha(Commons.Color.popups.text, 0.08)
       Text {
         id: keyLabel
         anchors.centerIn: parent
         text: root.keyHint
         textFormat: Text.PlainText
         font.family: Style.font.family
-        font.pixelSize: Style.space(10)
-        color: Util.alpha(Color.popups.text, 0.8)
+        font.pixelSize: Style.font.bodySmall
+        color: Util.alpha(Commons.Color.popups.text, 0.8)
       }
     }
   }
@@ -80,9 +81,9 @@ ToolTip {
       id: surface
       anchors.fill: parent
       radius: Style.space(4)
-      color: Qt.tint(Color.popups.background, Util.alpha(Color.popups.text, 0.11))
+      color: Qt.tint(Commons.Color.popups.background, Util.alpha(Commons.Color.popups.text, 0.11))
       border.width: 1
-      border.color: Util.alpha(Color.popups.text, 0.15)
+      border.color: Util.alpha(Commons.Color.popups.text, 0.15)
     }
   }
 }

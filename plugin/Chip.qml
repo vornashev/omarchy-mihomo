@@ -1,18 +1,19 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 // Small tag: colored dot + label.
 Rectangle {
   id: root
   property string text: ""
-  property color dot: Color.muted
+  property color dot: Commons.Color.muted
   property bool showDot: true
   implicitWidth: row.implicitWidth + Style.space(12)
   implicitHeight: label.implicitHeight + Style.space(4)
   radius: Style.cornerRadius
-  color: Util.alpha(Color.popups.text, 0.04)
+  color: Util.alpha(Commons.Color.popups.text, 0.04)
   border.width: 1
-  border.color: Util.alpha(Color.popups.text, 0.15)
+  border.color: Util.alpha(Commons.Color.popups.text, 0.15)
 
   Row {
     id: row
@@ -24,6 +25,6 @@ Rectangle {
       anchors.verticalCenter: parent.verticalCenter
       color: root.dot
     }
-    Txt { id: label; text: root.text; dim: true; font.pixelSize: Style.font.caption }
+    Txt { id: label; text: root.text; dim: true; font.pixelSize: Style.font.bodySmall }
   }
 }

@@ -45,7 +45,7 @@ Rectangle {
     when: windowShown
 
     function init() {
-      Plugin.I18n.language = "ru"
+      Plugin.MihomoI18n.language = "ru"
       service.connected = true
       service.status = { core: { running: true, tun: true, tun_stack: "gvisor", mixed_port: 7897 } }
       service.issues = []
@@ -142,9 +142,9 @@ Rectangle {
       compare(footer.rows[2].text, "↓ 0 КБ/с  ↑ 1 КБ/с")
       changeCore({tun: false, mixed_port: 8080})
       compare(footer.rows[1].text, "TUN выкл · прокси :8080")
-      Plugin.I18n.language = "en"
+      Plugin.MihomoI18n.language = "en"
       compare(footer.rows[1].text, "TUN off · proxy :8080")
     }
-    function cleanupTestCase() { Plugin.I18n.language = "ru" }
+    function cleanupTestCase() { Plugin.MihomoI18n.language = "ru" }
   }
 }

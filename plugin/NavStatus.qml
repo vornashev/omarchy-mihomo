@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 // Shared footer for every page. Only confirmed daemon data is shown;
 // loss of the socket takes precedence over the last known core state.
@@ -15,8 +16,8 @@ Item {
   readonly property var tunIssue: core.tun_issue || null
   readonly property var capsIssue: issue("core_no_caps")
   readonly property var otherIssue: issue("other_core")
-  readonly property color dimColor: Util.alpha(Color.popups.text, 0.68)
-  readonly property color faintColor: Util.alpha(Color.popups.text, 0.42)
+  readonly property color dimColor: Util.alpha(Commons.Color.popups.text, 0.68)
+  readonly property color faintColor: Util.alpha(Commons.Color.popups.text, 0.42)
   readonly property string stateKey: {
     if (!service || !service.connected) return "disconnected"
     if ((operation && operation.kind === "downloading") || issue("core_installing")) return "downloading"
@@ -44,50 +45,50 @@ Item {
   }
 
   readonly property var rows: {
-    var red = service ? service.red : Color.urgent
-    var yellow = service ? service.yellow : Color.accent
-    var green = service ? service.green : Color.accent
+    var red = service ? service.red : Commons.Color.urgent
+    var yellow = service ? service.yellow : Commons.Color.accent
+    var green = service ? service.green : Commons.Color.accent
     var traffic = service ? service.traffic : null
     var rates = traffic ? "↓ " + service.formatRate(traffic.down) + "  ↑ " + service.formatRate(traffic.up) : "—"
-    var running = row(Icons.statusCheck, I18n.t("coreRunning"), dimColor, "", green)
+    var running = row(Icons.statusCheck, MihomoI18n.t("coreRunning"), dimColor, "", green)
     var speed = row(Icons.connections, rates)
     switch (stateKey) {
     case "disconnected":
-      return [row(Icons.unplug, I18n.t("navDaemonDown"), red), row(Icons.statusUnknown, I18n.t("navStateUnknown"), faintColor),
-        row(Icons.terminal, I18n.t("startDaemon"), Color.accent, "daemon")]
+      return [row(Icons.unplug, MihomoI18n.t("navDaemonDown"), red), row(Icons.statusUnknown, MihomoI18n.t("navStateUnknown"), faintColor),
+        row(Icons.terminal, MihomoI18n.t("startDaemon"), Commons.Color.accent, "daemon")]
     case "downloading":
       var detail = operation ? operation.detail : ""
       if (operation && operation.downloaded > 0) {
         detail += (detail ? " · " : "") + (operation.total > 0
-          ? I18n.t("navDownloadBytes").arg(Math.floor(operation.downloaded / 1048576)).arg(Math.ceil(operation.total / 1048576))
+          ? MihomoI18n.t("navDownloadBytes").arg(Math.floor(operation.downloaded / 1048576)).arg(Math.ceil(operation.total / 1048576))
           : service.formatBytes(operation.downloaded))
       }
-      return [row(Icons.down, I18n.t("issue_core_installing"), dimColor, "", Color.accent), row("", ""), row(Icons.disk, detail || I18n.t("navConnecting"), dimColor, "", faintColor)]
+      return [row(Icons.down, MihomoI18n.t("issue_core_installing"), dimColor, "", Commons.Color.accent), row("", ""), row(Icons.disk, detail || MihomoI18n.t("navConnecting"), dimColor, "", faintColor)]
     case "starting":
-      return [row(Icons.refresh, I18n.t("navCoreStarting"), yellow),
-        row(Icons.file, operation && operation.kind === "applying" ? I18n.t("navCheckingConfig").arg(operation.detail || "config.yaml") : I18n.t("navWaitingCore")),
+      return [row(Icons.refresh, MihomoI18n.t("navCoreStarting"), yellow),
+        row(Icons.file, operation && operation.kind === "applying" ? MihomoI18n.t("navCheckingConfig").arg(operation.detail || "config.yaml") : MihomoI18n.t("navWaitingCore")),
         row(Icons.connections, "—", faintColor)]
     case "restarting":
       var elapsed = core.crashed_at ? Math.max(0, Math.floor((now - core.crashed_at) / 1000)) : 0
-      return [row(Icons.refresh, core.restart_count > 0 ? I18n.t("navRestartAttempt").arg(core.restart_count) : I18n.t("navRestarting"), service ? service.peach : yellow),
-        row(Icons.shield, tunText), row(Icons.history, core.crashed_at ? I18n.t("navCrashedAgo").arg(elapsed) : "—", faintColor)]
+      return [row(Icons.refresh, core.restart_count > 0 ? MihomoI18n.t("navRestartAttempt").arg(core.restart_count) : MihomoI18n.t("navRestarting"), service ? service.peach : yellow),
+        row(Icons.shield, tunText), row(Icons.history, core.crashed_at ? MihomoI18n.t("navCrashedAgo").arg(elapsed) : "—", faintColor)]
     case "stopped":
       var failure = issue("core_install_failed") || issue("core_missing") || issue("no_profile")
-      return [row(Icons.statusOff, I18n.t("coreStopped"), red),
-        row(Icons.shieldOff, failure ? I18n.t("issue_" + failure.id).arg(failure.detail || "") : I18n.t(service && service.systemProxyWanted ? "navProxyUnavailable" : "navTrafficDirect"), faintColor),
-        row(Icons.play, failure ? I18n.t("navOverview") : I18n.t("fix_start_core"), Color.accent, failure ? "overview" : "start")]
+      return [row(Icons.statusOff, MihomoI18n.t("coreStopped"), red),
+        row(Icons.shieldOff, failure ? MihomoI18n.t("issue_" + failure.id).arg(failure.detail || "") : MihomoI18n.t(service && service.systemProxyWanted ? "navProxyUnavailable" : "navTrafficDirect"), faintColor),
+        row(Icons.play, failure ? MihomoI18n.t("navOverview") : MihomoI18n.t("fix_start_core"), Commons.Color.accent, failure ? "overview" : "start")]
     case "offline":
-      return [row(Icons.unplug, I18n.t("navOffline"), red), row(Icons.history, I18n.t("navCountingPaused"), faintColor), speed]
+      return [row(Icons.unplug, MihomoI18n.t("navOffline"), red), row(Icons.history, MihomoI18n.t("navCountingPaused"), faintColor), speed]
     case "settling":
-      return [row(Icons.refresh, I18n.t("navNetworkChanged"), yellow), row(Icons.history, I18n.t("navCountingPaused"), faintColor), speed]
+      return [row(Icons.refresh, MihomoI18n.t("navNetworkChanged"), yellow), row(Icons.history, MihomoI18n.t("navCountingPaused"), faintColor), speed]
     case "no_caps":
-      return [running, row(Icons.shieldAlert, I18n.t("navTunNoCaps"), yellow), row(Icons.terminal, I18n.t("navSetcapFix"), Color.accent, "setcap")]
+      return [running, row(Icons.shieldAlert, MihomoI18n.t("navTunNoCaps"), yellow), row(Icons.terminal, MihomoI18n.t("navSetcapFix"), Commons.Color.accent, "setcap")]
     case "tun_failed":
-      return [running, row(Icons.shieldAlert, I18n.t("tunFailedShort"), red), row(Icons.connections, I18n.t("navProxyOnly").arg(portText))]
+      return [running, row(Icons.shieldAlert, MihomoI18n.t("tunFailedShort"), red), row(Icons.connections, MihomoI18n.t("navProxyOnly").arg(portText))]
     case "other_core":
-      return [running, row(Icons.problems, I18n.t("navOtherCore").arg(otherIssue ? otherIssue.detail : tunIssue.other_core), yellow), speed]
+      return [running, row(Icons.problems, MihomoI18n.t("navOtherCore").arg(otherIssue ? otherIssue.detail : tunIssue.other_core), yellow), speed]
     case "tun_off":
-      return [running, row(Icons.shieldOff, I18n.t("navTunOffProxy").arg(portText), dimColor, "", faintColor), speed]
+      return [running, row(Icons.shieldOff, MihomoI18n.t("navTunOffProxy").arg(portText), dimColor, "", faintColor), speed]
     default:
       return [running, row(Icons.shield, tunText), speed]
     }
@@ -117,8 +118,8 @@ Item {
   TextMetrics {
     id: trafficMetrics
     font.family: Style.font.family
-    font.pixelSize: Style.font.caption
-    text: "↓ 999.9 " + I18n.t("unitKB") + I18n.t("perSec") + "  ↑ 999.9 " + I18n.t("unitKB") + I18n.t("perSec")
+    font.pixelSize: Style.font.bodySmall
+    text: "↓ 999.9 " + MihomoI18n.t("unitKB") + MihomoI18n.t("perSec") + "  ↑ 999.9 " + MihomoI18n.t("unitKB") + MihomoI18n.t("perSec")
   }
   Timer { interval: 1000; running: root.visible && root.stateKey === "restarting"; repeat: true; onTriggered: root.now = Date.now() }
   Timer { id: daemonRetry; interval: 3000; onTriggered: root.actionBusy = false }
@@ -128,7 +129,7 @@ Item {
     function onConnectedChanged() { root.actionBusy = false }
   }
 
-  Rectangle { width: parent.width; height: 1; color: Util.alpha(Color.popups.text, 0.15) }
+  Rectangle { width: parent.width; height: 1; color: Util.alpha(Commons.Color.popups.text, 0.15) }
   Column {
     id: body
     anchors.top: parent.top
@@ -155,7 +156,7 @@ Item {
         Accessible.name: modelData.text
         Hint {
           visible: mouse.containsMouse && !mouse.pressed && modelData.action !== ""
-          text: modelData.action === "setcap" ? I18n.t("fix_setcap") + " · " + I18n.t("privilegedHint") : modelData.text
+          text: modelData.action === "setcap" ? MihomoI18n.t("fix_setcap") + " · " + MihomoI18n.t("privilegedHint") : modelData.text
         }
         Accessible.onPressAction: root.activate(modelData.action)
         Keys.onReturnPressed: root.activate(modelData.action)
@@ -165,7 +166,7 @@ Item {
           anchors.fill: parent
           anchors.margins: -Style.space(2)
           radius: Style.space(2)
-          color: Style.hoverFillFor(Color.popups.text, Color.accent)
+          color: Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent)
           visible: line.activeFocus || mouse.containsMouse
         }
         Txt {
@@ -193,7 +194,7 @@ Item {
           wrapMode: line.isTraffic ? Text.NoWrap : Text.Wrap
           elide: Text.ElideNone
           color: line.modelData.color
-          font.pixelSize: Style.font.caption
+          font.pixelSize: Style.font.bodySmall
           opacity: root.actionBusy && line.modelData.action ? 0.5 : 1
         }
         Rectangle {
@@ -206,13 +207,13 @@ Item {
           anchors.verticalCenter: parent.verticalCenter
           height: Style.space(4)
           radius: height / 2
-          color: Util.alpha(Color.popups.text, 0.2)
+          color: Util.alpha(Commons.Color.popups.text, 0.2)
           clip: true
           Rectangle {
             id: progressFill
             width: track.width * (root.progress < 0 ? 0.3 : root.progress)
             height: track.height; radius: track.radius
-            color: Color.accent
+            color: Commons.Color.accent
             SequentialAnimation on x {
               running: root.visible && track.visible && root.progress < 0
               loops: Animation.Infinite

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
@@ -19,17 +20,17 @@ Item {
     spacing: Style.space(12)
     Btn {
       ghost: true
-      text: I18n.t("navProxies") + " › " + I18n.t("proxyNodes")
+      text: MihomoI18n.t("navProxies") + " › " + MihomoI18n.t("proxyNodes")
       onClicked: root.cancelled()
     }
     Txt {
-      text: I18n.t("nodeNew")
+      text: MihomoI18n.t("nodeNew")
       bold: true
       font.pixelSize: Style.font.heading
     }
     Txt {
       width: parent.width
-      text: I18n.t("nodeChoose")
+      text: MihomoI18n.t("nodeChoose")
       dim: true
       wrapMode: Text.Wrap
     }
@@ -38,21 +39,21 @@ Item {
       spacing: Style.space(8)
       Txt {
         width: parent.width - importButton.width - Style.space(8)
-        text: I18n.t("nodeImportHint")
+        text: MihomoI18n.t("nodeImportHint")
         wrapMode: Text.Wrap
         dim: true
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
         anchors.verticalCenter: parent.verticalCenter
       }
       Btn {
         id: importButton
-        text: I18n.t("proxyImport")
+        text: MihomoI18n.t("proxyImport")
         onClicked: root.importRequested()
       }
     }
     Field {
       width: parent.width
-      placeholder: I18n.t("nodeFind")
+      placeholder: MihomoI18n.t("nodeFind")
       input.onTextEdited: root.search = text
     }
   }
@@ -92,23 +93,23 @@ Item {
           id: category
           required property var modelData
           readonly property var protocols: (root.catalog.nodes || []).filter(function (n) {
-            return (category.modelData.types.length ? category.modelData.types.indexOf(n.type) >= 0 : ["vless", "hysteria2", "trojan", "ss", "wireguard", "vmess", "openvpn", "tailscale", "masque", "direct", "reject", "socks5", "http"].indexOf(n.type) < 0) && (!root.search || (n.type + " " + I18n.t("nodeDescription_" + n.type)).toLowerCase().indexOf(root.search.toLowerCase()) >= 0);
+            return (category.modelData.types.length ? category.modelData.types.indexOf(n.type) >= 0 : ["vless", "hysteria2", "trojan", "ss", "wireguard", "vmess", "openvpn", "tailscale", "masque", "direct", "reject", "socks5", "http"].indexOf(n.type) < 0) && (!root.search || (n.type + " " + MihomoI18n.t("nodeDescription_" + n.type)).toLowerCase().indexOf(root.search.toLowerCase()) >= 0);
           })
           visible: protocols.length > 0
           width: parent.width
           spacing: Style.space(8)
           Btn {
             visible: category.modelData.label === "nodeAll"
-            text: I18n.t("nodeAll")
+            text: MihomoI18n.t("nodeAll")
             ghost: true
             icon: root.all ? Icons.expanded : Icons.collapsed
             onClicked: root.all = !root.all
           }
           Txt {
             visible: category.modelData.label !== "nodeAll"
-            text: I18n.t(category.modelData.label)
+            text: MihomoI18n.t(category.modelData.label)
             faint: true
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Style.font.bodySmall
           }
           Grid {
             visible: category.modelData.label !== "nodeAll" || root.all || root.search !== ""
@@ -122,9 +123,9 @@ Item {
                 width: (parent.width - Style.space(16)) / 3
                 height: Style.space(64)
                 radius: Style.cornerRadius
-                color: Util.alpha(Color.popups.text, 0.04)
+                color: Util.alpha(Commons.Color.popups.text, 0.04)
                 border.width: 1
-                border.color: Util.alpha(Color.popups.text, 0.15)
+                border.color: Util.alpha(Commons.Color.popups.text, 0.15)
                 Column {
                   anchors.fill: parent
                   anchors.margins: Style.space(8)
@@ -144,12 +145,12 @@ Item {
                   }
                   Txt {
                     width: parent.width
-                    text: I18n.t("nodeDescription_" + parent.parent.modelData.type)
+                    text: MihomoI18n.t("nodeDescription_" + parent.parent.modelData.type)
                     wrapMode: Text.Wrap
                     maximumLineCount: 2
                     elide: Text.ElideRight
                     dim: true
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: Style.font.bodySmall
                   }
                 }
                 MouseArea {
@@ -168,8 +169,8 @@ Item {
     id: foot
     anchors.bottom: parent.bottom
     width: parent.width
-    text: I18n.t("nodeCatalogHint")
+    text: MihomoI18n.t("nodeCatalogHint")
     dim: true
-    font.pixelSize: Style.font.caption
+    font.pixelSize: Style.font.bodySmall
   }
 }

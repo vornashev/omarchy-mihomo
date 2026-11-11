@@ -19,7 +19,7 @@ Row {
     anchors.verticalCenter: parent.verticalCenter
     spacing: Style.space(2)
     Txt { text: root.label }
-    Txt { width: parent.width; text: root.hint; faint: true; font.pixelSize: Style.font.caption; wrapMode: Text.Wrap }
+    Txt { width: parent.width; text: root.hint; faint: true; font.pixelSize: Style.font.bodySmall; wrapMode: Text.Wrap }
   }
   Field {
     id: field

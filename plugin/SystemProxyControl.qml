@@ -1,6 +1,7 @@
 import QtQuick
-import "." as Mihomo
 import qs.Commons
+import "." as Mihomo
+import qs.Commons as Commons
 
 Row {
   id: root
@@ -8,12 +9,12 @@ Row {
   Column {
     width: parent.width - systemProxySwitch.width
     spacing: Style.space(2)
-    Txt { text: I18n.t("systemProxy") }
+    Txt { text: MihomoI18n.t("systemProxy") }
     Txt {
       width: parent.width - Style.space(12)
-      text: root.svc.systemProxyError || (root.svc.systemProxyBusy ? I18n.t("systemProxyChanging") : root.svc.systemProxyWanted && !root.svc.systemProxy ? I18n.t("systemProxyWaiting") : I18n.t("systemProxyHint"))
-      color: root.svc.systemProxyError ? root.svc.red : Color.muted
-      font.pixelSize: Style.font.caption
+      text: root.svc.systemProxyError || (root.svc.systemProxyBusy ? MihomoI18n.t("systemProxyChanging") : root.svc.systemProxyWanted && !root.svc.systemProxy ? MihomoI18n.t("systemProxyWaiting") : MihomoI18n.t("systemProxyHint"))
+      color: root.svc.systemProxyError ? root.svc.red : Commons.Color.muted
+      font.pixelSize: Style.font.bodySmall
       wrapMode: Text.Wrap
     }
   }

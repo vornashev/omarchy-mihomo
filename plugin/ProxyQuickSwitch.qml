@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyModels.js" as Models
 
 Popup {
@@ -55,9 +56,9 @@ Popup {
         anchors.right: testButton.left
         anchors.rightMargin: Style.space(6)
         anchors.verticalCenter: parent.verticalCenter
-        text: I18n.t("proxyQuickCount").arg(root.groupName).arg(root.members.length)
+        text: MihomoI18n.t("proxyQuickCount").arg(root.groupName).arg(root.members.length)
         textFormat: Text.PlainText
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
         faint: true
       }
       ToolButton {
@@ -72,13 +73,13 @@ Popup {
         enabled: !root.testing
         contentItem: Txt {
           id: testLabel
-          text: (root.testing ? Icons.refresh : Icons.test) + " " + I18n.t("proxyQuickCheck")
-          font.pixelSize: Style.font.caption
-          color: Color.accent
+          text: (root.testing ? Icons.refresh : Icons.test) + " " + MihomoI18n.t("proxyQuickCheck")
+          font.pixelSize: Style.font.bodySmall
+          color: Commons.Color.accent
         }
         background: Rectangle {
           radius: Style.space(4)
-          color: testButton.hovered || testButton.activeFocus ? Util.alpha(Color.popups.text, 0.18) : "transparent"
+          color: testButton.hovered || testButton.activeFocus ? Util.alpha(Commons.Color.popups.text, 0.18) : "transparent"
         }
         onClicked: root.testRequested()
       }
@@ -104,10 +105,10 @@ Popup {
         marked: modelData.name === root.current
         enabled: root.selectable
         highlighted: options.currentIndex === index
-        detail: modelData.delay === 0 ? I18n.t("proxyNoResponse") : Models.delayText(modelData.delay, I18n.t("ms"))
-        detailColor: modelData.delay === 0 ? (root.svc ? root.svc.red : Color.urgent)
-          : modelData.delay == null ? Util.alpha(Color.popups.text, 0.42)
-          : modelData.delay < 150 ? (root.svc ? root.svc.green : Color.accent) : (root.svc ? root.svc.yellow : Color.accent)
+        detail: modelData.delay === 0 ? MihomoI18n.t("proxyNoResponse") : Models.delayText(modelData.delay, MihomoI18n.t("ms"))
+        detailColor: modelData.delay === 0 ? (root.svc ? root.svc.red : Commons.Color.urgent)
+          : modelData.delay == null ? Util.alpha(Commons.Color.popups.text, 0.42)
+          : modelData.delay < 150 ? (root.svc ? root.svc.green : Commons.Color.accent) : (root.svc ? root.svc.yellow : Commons.Color.accent)
         onTriggered: { options.currentIndex = index; root.choose(); }
       }
     }
@@ -121,7 +122,7 @@ Popup {
         visible: root.editable
         width: parent.width
         glyph: Icons.edit
-        text: I18n.t("proxyChangeMembers")
+        text: MihomoI18n.t("proxyChangeMembers")
         onTriggered: { root.close(); root.editRequested(); }
       }
       Row {
@@ -130,7 +131,7 @@ Popup {
         leftPadding: Style.space(8)
         spacing: Style.space(10)
         Repeater {
-          model: [{ key: "↑↓", label: I18n.t("proxyQuickChoose") }, { key: "Enter", label: I18n.t("proxyQuickSwitch") }]
+          model: [{ key: "↑↓", label: MihomoI18n.t("proxyQuickChoose") }, { key: "Enter", label: MihomoI18n.t("proxyQuickSwitch") }]
           Row {
             id: keyRow
             required property var modelData
@@ -140,10 +141,10 @@ Popup {
               width: keyLabel.implicitWidth + Style.space(8)
               height: keyLabel.implicitHeight
               radius: Style.space(3)
-              color: Util.alpha(Color.popups.text, 0.08)
-              Txt { id: keyLabel; anchors.centerIn: parent; text: keyRow.modelData.key; font.pixelSize: Style.space(9); dim: true }
+              color: Util.alpha(Commons.Color.popups.text, 0.08)
+              Txt { id: keyLabel; anchors.centerIn: parent; text: keyRow.modelData.key; font.pixelSize: Style.font.caption; dim: true }
             }
-            Txt { text: keyRow.modelData.label; font.pixelSize: Style.space(9); faint: true }
+            Txt { text: keyRow.modelData.label; font.pixelSize: Style.font.caption; faint: true }
           }
         }
       }

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell
 import qs.Commons
+import qs.Commons as Commons
 
 // Subscriptions and local configs; overrides are plain files opened in the editor.
 Item {
@@ -37,13 +38,13 @@ Item {
       if (err) panel.notify(err.message)
       else {
         var failed = (r || []).filter(function(x) { return x.error })
-        panel.notify(failed.length ? failed[0].name + ": " + failed[0].error : I18n.t("profileUpdated"))
+        panel.notify(failed.length ? failed[0].name + ": " + failed[0].error : MihomoI18n.t("profileUpdated"))
       }
       reload()
     })
   }
   function use(p) {
-    svc.request("profiles.select", { id: p.id }, function(r, err) { panel.notify(err ? err.message : I18n.t("profileSelected").arg(p.name)); reload() })
+    svc.request("profiles.select", { id: p.id }, function(r, err) { panel.notify(err ? err.message : MihomoI18n.t("profileSelected").arg(p.name)); reload() })
   }
   function del(p) {
     svc.request("profiles.remove", { id: p.id }, function(r, err) { if (err) panel.notify(err.message); reload() })
@@ -57,7 +58,7 @@ Item {
       adding = false
       if (err) { panel.notify(err.message); return }
       urlField.text = ""
-      panel.notify(I18n.t("profileAdded"))
+      panel.notify(MihomoI18n.t("profileAdded"))
       reload()
     })
   }
@@ -67,19 +68,19 @@ Item {
   function editOverrides(p) {
     var dir = dataRoot + "/overrides/" + (p ? p.id : "global")
     Quickshell.execDetached(["bash", "-c", "mkdir -p \"$1\" && cd \"$1\" && touch merge.yaml rules.yaml proxies.yaml groups.yaml && omarchy-launch-editor \"$1\" || xdg-open \"$1\"", "omm", dir])
-    panel.notify(I18n.t("overridesHint"))
+    panel.notify(MihomoI18n.t("overridesHint"))
   }
   // An empty local profile opened in the editor; the daemon notices each
   // save, so pasting a config and pressing Ctrl+S is all it takes.
   function newFile() {
     var typed = urlField.text.trim()
     var looksLikeSource = typed.indexOf("://") > 0 || typed.indexOf("/") === 0 || typed.indexOf("~") === 0
-    var name = typed !== "" && !looksLikeSource ? typed : I18n.t("newFileName")
+    var name = typed !== "" && !looksLikeSource ? typed : MihomoI18n.t("newFileName")
     svc.request("profiles.create", { name: name }, function(r, err) {
       if (err) { panel.notify(err.message); return }
       if (!looksLikeSource) urlField.text = ""
       openInEditor(r.path)
-      panel.notify(I18n.t("newFileHint"))
+      panel.notify(MihomoI18n.t("newFileHint"))
       reload()
     })
   }
@@ -112,12 +113,12 @@ Item {
       Column {
         width: parent.width - updAll.width - globalBtn.width - Style.space(8)
         spacing: Style.space(3)
-        Txt { text: I18n.t("profilesTitle"); bold: true; font.pixelSize: Style.font.heading }
-        Txt { text: I18n.t("profilesSubtitle"); dim: true; font.pixelSize: Style.font.bodySmall }
+        Txt { text: MihomoI18n.t("profilesTitle"); bold: true; font.pixelSize: Style.font.heading }
+        Txt { text: MihomoI18n.t("profilesSubtitle"); dim: true; font.pixelSize: Style.font.body }
       }
-      Btn { id: globalBtn; icon: Icons.edit; text: I18n.t("globalOverrides"); tooltip: I18n.t("hintGlobalOverrides"); onClicked: root.editOverrides(null) }
+      Btn { id: globalBtn; icon: Icons.edit; text: MihomoI18n.t("globalOverrides"); tooltip: MihomoI18n.t("hintGlobalOverrides"); onClicked: root.editOverrides(null) }
       Item { width: Style.space(8); height: 1 }
-      Btn { id: updAll; icon: Icons.refresh; text: I18n.t("updateAll"); busy: !!root.busy["*"]; onClicked: root.update(null) }
+      Btn { id: updAll; icon: Icons.refresh; text: MihomoI18n.t("updateAll"); busy: !!root.busy["*"]; onClicked: root.update(null) }
     }
     Row {
       width: parent.width
@@ -126,12 +127,12 @@ Item {
         id: urlField
         width: parent.width - addBtn.width - newBtn.width - Style.space(16)
         icon: Icons.add
-        placeholder: I18n.t("addPlaceholder")
+        placeholder: MihomoI18n.t("addPlaceholder")
         onAccepted: root.add()
         onEscaped: { text = ""; input.focus = false; root.panel.forceKeys() }
       }
-      Btn { id: addBtn; primary: true; text: I18n.t("add"); busy: root.adding; onClicked: root.add() }
-      Btn { id: newBtn; icon: Icons.file; text: I18n.t("newFile"); tooltip: I18n.t("newFileHint"); onClicked: root.newFile() }
+      Btn { id: addBtn; primary: true; text: MihomoI18n.t("add"); busy: root.adding; onClicked: root.add() }
+      Btn { id: newBtn; icon: Icons.file; text: MihomoI18n.t("newFile"); tooltip: MihomoI18n.t("newFileHint"); onClicked: root.newFile() }
     }
   }
 
@@ -154,9 +155,9 @@ Item {
       width: list.width - Style.space(6)
       height: col.implicitHeight + Style.space(20)
       radius: Style.cornerRadius
-      color: isCurrent ? Style.selectedFillFor(Color.popups.text, Color.accent) : (index === root.cursor ? Style.hoverFillFor(Color.popups.text, Color.accent) : Util.alpha(Color.popups.text, 0.03))
+      color: isCurrent ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent) : (index === root.cursor ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent) : Util.alpha(Commons.Color.popups.text, 0.03))
       border.width: 1
-      border.color: isCurrent ? Color.accent : Util.alpha(Color.popups.text, 0.12)
+      border.color: isCurrent ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.12)
       MouseArea { anchors.fill: parent; onClicked: root.cursor = index; onDoubleClicked: if (!modelData.draft) root.use(modelData) }
       Column {
         id: col
@@ -167,29 +168,29 @@ Item {
         Row {
           spacing: Style.space(8)
           Txt { text: modelData.name; bold: true }
-          Chip { showDot: false; text: modelData.source.type === "remote" ? I18n.t("remote") : I18n.t("local") }
-          Chip { visible: isCurrent; dot: root.svc.green; text: I18n.t("active") }
-          Chip { visible: !!modelData.draft; dot: root.svc.yellow; text: I18n.t("draft") }
+          Chip { showDot: false; text: modelData.source.type === "remote" ? MihomoI18n.t("remote") : MihomoI18n.t("local") }
+          Chip { visible: isCurrent; dot: root.svc.green; text: MihomoI18n.t("active") }
+          Chip { visible: !!modelData.draft; dot: root.svc.yellow; text: MihomoI18n.t("draft") }
         }
         Txt {
           width: parent.width
-          text: modelData.draft ? I18n.t("newFileHint") : I18n.t("updatedAgo").arg(root.svc.ago(modelData.updated * 1000)) + (u && u.total > 0 ? " · " + I18n.t("usage").arg(root.svc.formatBytes(u.upload + u.download)).arg(root.svc.formatBytes(u.total)) : "") + (u && u.expire ? " · " + I18n.t("until").arg(new Date(u.expire * 1000).toLocaleDateString()) : "")
-          dim: true; font.pixelSize: Style.font.caption
+          text: modelData.draft ? MihomoI18n.t("newFileHint") : MihomoI18n.t("updatedAgo").arg(root.svc.ago(modelData.updated * 1000)) + (u && u.total > 0 ? " · " + MihomoI18n.t("usage").arg(root.svc.formatBytes(u.upload + u.download)).arg(root.svc.formatBytes(u.total)) : "") + (u && u.expire ? " · " + MihomoI18n.t("until").arg(new Date(u.expire * 1000).toLocaleDateString()) : "")
+          dim: true; font.pixelSize: Style.font.bodySmall
         }
-        Txt { visible: !!modelData.last_error; width: parent.width; text: modelData.last_error || ""; color: root.svc.red; font.pixelSize: Style.font.caption; wrapMode: Text.Wrap; maximumLineCount: 2 }
+        Txt { visible: !!modelData.last_error; width: parent.width; text: modelData.last_error || ""; color: root.svc.red; font.pixelSize: Style.font.bodySmall; wrapMode: Text.Wrap; maximumLineCount: 2 }
       }
       Row {
         id: actions
         anchors.right: parent.right; anchors.rightMargin: Style.space(8)
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.space(4)
-        Btn { visible: !isCurrent && !modelData.draft; text: I18n.t("use"); onClicked: root.use(modelData) }
-        Btn { visible: modelData.source.type === "local"; ghost: true; icon: Icons.file; tooltip: I18n.t("hintProfileFile"); onClicked: root.editFile(modelData) }
-        Btn { visible: modelData.source.type === "remote"; ghost: true; icon: Icons.refresh; tooltip: I18n.t("hintProfileUpdate"); busy: !!root.busy[modelData.id]; onClicked: root.update(modelData) }
-        Btn { ghost: true; icon: Icons.edit; tooltip: I18n.t("hintProfileOverrides"); onClicked: root.editOverrides(modelData) }
-        Btn { enabled: !isCurrent; disabledTooltip: I18n.t("hintActiveProfileDelete"); ghost: true; icon: Icons.remove; tooltip: I18n.t("hintProfileDelete"); onClicked: root.del(modelData) }
+        Btn { visible: !isCurrent && !modelData.draft; text: MihomoI18n.t("use"); onClicked: root.use(modelData) }
+        Btn { visible: modelData.source.type === "local"; ghost: true; icon: Icons.file; tooltip: MihomoI18n.t("hintProfileFile"); onClicked: root.editFile(modelData) }
+        Btn { visible: modelData.source.type === "remote"; ghost: true; icon: Icons.refresh; tooltip: MihomoI18n.t("hintProfileUpdate"); busy: !!root.busy[modelData.id]; onClicked: root.update(modelData) }
+        Btn { ghost: true; icon: Icons.edit; tooltip: MihomoI18n.t("hintProfileOverrides"); onClicked: root.editOverrides(modelData) }
+        Btn { enabled: !isCurrent; disabledTooltip: MihomoI18n.t("hintActiveProfileDelete"); ghost: true; icon: Icons.remove; tooltip: MihomoI18n.t("hintProfileDelete"); onClicked: root.del(modelData) }
       }
     }
-    Txt { visible: root.items.length === 0; anchors.centerIn: parent; text: I18n.t("noProfiles"); dim: true }
+    Txt { visible: root.items.length === 0; anchors.centerIn: parent; text: MihomoI18n.t("noProfiles"); dim: true }
   }
 }

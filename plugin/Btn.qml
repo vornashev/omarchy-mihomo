@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 // Button: `primary` filled with the accent, `ghost` without a border.
 Rectangle {
@@ -27,16 +28,16 @@ Rectangle {
   Keys.onReturnPressed: if (enabled && !busy) clicked()
   Keys.onSpacePressed: if (enabled && !busy) clicked()
 
-  readonly property color fg: primary ? Color.background : Color.popups.text
+  readonly property color fg: primary ? Commons.Color.background : Commons.Color.popups.text
   readonly property bool hot: (ma.containsMouse || hasCursor || activeFocus) && enabled
 
   implicitWidth: row.implicitWidth + Style.space(text === "" ? 12 : 22)
   implicitHeight: Style.space(28)
   radius: Style.cornerRadius
   opacity: enabled ? 1 : 0.45
-  color: primary ? (hot ? Qt.lighter(Color.accent, 1.1) : Color.accent) : (hot ? Style.hoverFillFor(Color.popups.text, Color.accent) : (ghost ? "transparent" : Util.alpha(Color.popups.text, 0.04)))
+  color: primary ? (hot ? Qt.lighter(Commons.Color.accent, 1.1) : Commons.Color.accent) : (hot ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent) : (ghost ? "transparent" : Util.alpha(Commons.Color.popups.text, 0.04)))
   border.width: primary || ghost ? 0 : 1
-  border.color: hot ? Util.alpha(Color.popups.text, 0.5) : Util.alpha(Color.popups.text, 0.3)
+  border.color: hot ? Util.alpha(Commons.Color.popups.text, 0.5) : Util.alpha(Commons.Color.popups.text, 0.3)
 
   Row {
     id: row

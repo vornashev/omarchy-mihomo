@@ -1,74 +1,106 @@
-# Omarchy Mihomo
+# Mihomo for Omarchy
 
-Mihomo profiles, subscriptions, proxy/group editors, routing rules, connection diagnostics and logs, backed by a shared Rust daemon.
+A [mihomo](https://github.com/MetaCubeX/mihomo) control panel in the Omarchy bar: profiles and subscriptions, proxy groups, your own routing rules, the sites that fail and a way to route them, traffic by app and country, DNS and core updates. It works in English and Russian.
 
-- **Linux / Omarchy:** the existing QML panel in `plugin/` and systemd installer in `packaging/install.sh`.
-- **macOS / Apple Silicon:** a native SwiftUI application, user daemon and privileged network helper. See [macOS build, install and verification](docs/macos.md).
+![Mihomo in the Omarchy bar](preview.png)
 
-## Install (Omarchy)
+## What it does
 
-From source, for the current user: `packaging/install.sh` builds the daemon and `omm` into `~/.local/bin`, installs the user services, fetches the pinned mihomo core (SHA-256 checked), offers `sudo setcap` for TUN and adds the widget to the bar. `--uninstall` undoes it, keeping your data unless `--purge`.
+- **Shows what fails.** Connections that time out, get reset or hit a DNS sinkhole are grouped by site and by the rule that sent them. One key opens a route editor for the site.
+- **Fixes what nobody routed.** Autofix tries a failing site through your other proxy groups and puts the working route on trial as a temporary rule, kept only while it keeps working. Sites your rules or the subscription already send somewhere, and strict groups such as a work VPN, are left alone. Settings → Automation switches it to only showing or suggesting, or off.
+- **Your rules on top of the subscription.** Rules by domain, app, path or IP, rule sets from the MetaCubeX catalog, a history with undo. Subscription updates keep them.
+- **Proxies and profiles.** Group cards with health and latency history, node editors for every protocol mihomo supports, import from links or YAML, several subscriptions.
+- **Traffic.** How much each app, site, country and node moved over 30 days, with alerts for unusual spikes.
+- **The rest.** DNS over the profile's own, live connections and logs, core updates with rollback, a backup of the whole setup in one file.
 
-As an Arch package: `cd packaging/arch && makepkg -si` builds the latest commit as `omarchy-mihomo-git` (binaries in `/usr/bin`, user services in `/usr/lib/systemd/user`, the plugin in `/usr/share/omarchy-mihomo`). Then every user runs `omarchy-mihomo-setup` once: it links the plugin into `~/.config/omarchy/plugins`, starts the services, fetches the core and asks for TUN capabilities. A source install found in `~/.local` is replaced. The core stays per user in `~/.local/lib/omarchy-mihomo`, since it carries the capabilities.
+| Problems and routes | Rules | Traffic |
+|---|---|---|
+| ![Problems](docs/images/problems.png) | ![Rules](docs/images/rules.png) | ![Traffic](docs/images/traffic.png) |
 
-## Autofix and notifications (Omarchy)
+## How it fits together
 
-When a host keeps failing (3 failures in 5 minutes by default, none successful), the daemon checks it through the profile's groups. A working route goes on trial as a temporary rule: it is kept if the host keeps working and removed if it does not. Only traffic nobody directed is fixed — the final `Match`, or DIRECT by default: anything an explicit rule sent to a group (yours, by domain, process, path or IP, or the subscription's) is left alone, as are local addresses, DNS failures and the hosts and processes (`process:name`) you list. Strict groups (a work VPN) never lose traffic to another group and never receive it; when one goes down you only get a notification. Before a trial rule is kept, the original route is tried again and the rule is dropped if it works. Settings → Automation chooses between showing, suggesting and trying; Settings → Notifications chooses which events notify.
+![Widget, daemon and core](docs/images/how-it-works.png)
 
-Omarchy notifications have no buttons; clicking one opens a small panel for that event with the actions.
+The plugin is only the interface. The work is done by `omarchy-mihomod`, a small Rust daemon that runs as your user, and by the mihomo core it starts. **Adding the plugin alone is not enough: install the daemon too** (step 2 below). Without it the widget shows “daemon is not running”.
 
-A rule for the focused window's program, bound to a key in `~/.config/hypr/bindings.conf`:
+## Install
+
+Requirements: Omarchy with the Quattro shell, and either the Rust toolchain (`rustup` or `cargo`; the first build takes a few minutes) or the Arch package below.
+
+1. Add the plugin from the marketplace, or with:
+
+   ```sh
+   omarchy plugin add https://github.com/vornashev/omarchy-mihomo --enable
+   ```
+
+2. Install the daemon and the core from that folder:
+
+   ```sh
+   ~/.config/omarchy/plugins/vornashev.omarchy-mihomo/packaging/install.sh
+   ```
+
+   It builds `omm` and `omarchy-mihomod` into `~/.local/bin` (the build goes to `~/.cache/omarchy-mihomo`), installs two user services, downloads the pinned mihomo release and checks its SHA-256. TUN mode needs network capabilities on the core, so it asks whether to run `sudo setcap` once; answer no and everything except TUN still works.
+
+3. Click the shield in the bar, open Profiles and add a subscription link or a YAML file.
+
+Coming from Clash Verge Rev: `omm migrate cvr` imports its profiles, closes it, takes it out of autostart, switches off its system service (with `sudo`) and starts this core instead; `omm migrate cvr --undo` brings it back.
+
+### Other ways to install
+
+- **Arch package:** `cd packaging/arch && makepkg -si`, then run `omarchy-mihomo-setup` once as your user. Binaries go to `/usr/bin`, services to `/usr/lib/systemd/user`. A plugin added from the marketplace is kept; otherwise the package's copy is linked in.
+- **From a clone:** `packaging/install.sh` in the repository does steps 1 and 2 at once.
+
+## Update
+
+```sh
+omarchy plugin update vornashev.omarchy-mihomo
+~/.config/omarchy/plugins/vornashev.omarchy-mihomo/packaging/install.sh
+```
+
+The first command updates the widget, the second rebuilds the daemon to match. Core updates are offered in Settings → Core and are never installed on their own.
+
+## Remove
+
+```sh
+~/.config/omarchy/plugins/vornashev.omarchy-mihomo/packaging/install.sh --uninstall
+```
+
+This stops and removes the services, the binaries, the core and the plugin. Your profiles, rules and statistics stay in `~/.local/share/omarchy-mihomo`; add `--purge` to delete them as well. To remove only the widget: `omarchy plugin remove vornashev.omarchy-mihomo`.
+
+## Configure
+
+The widget's own settings (Omarchy bar settings, or Settings → Main in the panel):
+
+| Setting | Values | Default |
+|---|---|---|
+| Language | `auto` (system), `en`, `ru` | `auto` |
+| Left click opens | `compact`, `normal`, `large` | `normal` |
+| Right click opens | `compact`, `normal`, `large` | `large` |
+| New-problems badge | `on`, `off` | `on` |
+| Daemon socket | path, empty for the default | empty |
+
+Everything else (automation, notifications, DNS, core) lives in the panel's Settings and is stored by the daemon. A rule for the focused window's program can be bound to a key in `~/.config/hypr/bindings.conf`:
 
 ```
 bindd = SUPER ALT, P, Mihomo rule for window, exec, omm rule-for-window
 ```
 
-## Sleep and network changes
+## What it touches
 
-Every 3 seconds the daemon looks at the default routes outside tunnels and at the suspend clock. While the machine is offline, and for 30 seconds after it wakes up or joins another network, failed connections are not recorded as problems, autofix neither counts them nor decides trials, and dead-group notices wait. Five seconds after the change it closes the core's connections (only for its own core) and re-tests the url-test, fallback and load-balance groups. A trial rule measures time awake: a sleep moves its end by as long as the machine slept. The panel footer shows "offline" or "network changed" meanwhile.
+The plugin runs inside the Omarchy shell without a sandbox, like every Omarchy plugin. In detail:
 
-## Backup
+- **Files:** `~/.local/bin/{omm,omarchy-mihomod}`, `~/.config/systemd/user/omarchy-mihomo{d,-core}.service`, the core in `~/.local/lib/omarchy-mihomo`, data in `~/.local/share/omarchy-mihomo`, the build cache in `~/.cache/omarchy-mihomo`. The installer adds the widget to the bar with `omarchy plugin enable`; it changes no other configuration.
+- **Privileges:** none by default. For TUN, `sudo setcap cap_net_admin,cap_net_bind_service,cap_net_raw=ep` on the core binary, only when you agree. Fixes that need root (the same `setcap` after a core update, `omm migrate cvr`) open a terminal where `sudo` asks.
+- **Services:** two `systemd --user` units, the daemon and the core. Nothing runs as root.
+- **Network:** besides your own proxies, GitHub (core releases, once a day a check for a newer one), your subscription URLs, rule sets you add and the MetaCubeX `country.mmdb` once. No telemetry.
+- **System proxy:** only when you turn it on in the panel; it is put back when you turn it off or the daemon stops.
 
-`omm backup export [path]` (or Settings → General → Backup) saves the settings (DNS and rule sets included), automation, your permanent rules and the profiles with their overrides into one private file, `~/omarchy-mihomo-<date>.json` by default; `--no-profiles` leaves out the profiles and their subscription links. `omm backup import <path>` merges one in without deleting anything: rules go through the rules journal (undoable in the history), profiles whose id exists stay as they are, a backup from another platform leaves this machine's TUN settings alone, and the state before is saved in `backup/` first. If the result does not apply, the import is undone.
+## More
 
-## Rule sets
+- [How each part works](docs/features.md): autofix, rule sets, DNS, traffic statistics, sleep handling, backups.
+- [macOS app](docs/macos.md): the same daemon behind a native SwiftUI app.
+- [Development](docs/development.md): tests, lint and the QML dev loop.
 
-Rules → Sets lists the profile's rule providers and your own, which apply to every profile. Add one by URL (mrs, yaml or text; domain, ipcidr or classical) or from the MetaCubeX meta-rules-dat catalog: `geosite:openai` or `geoip:ru` becomes a compact `.mrs` list of that category alone, without the whole GeoSite database. The rule editor offers the catalog for RULE-SET rules and adds the set when picked. A URL that does not answer is refused before the core sees it, a profile provider of the same name always wins, and a set your rules still use cannot be removed.
+## License
 
-## Node latency history
-
-The core keeps only a node's last few delay tests. Every minute the daemon folds the new ones into 5-minute buckets kept for a week in `latency.db` (tests, failures, mean, min and max), skipping the time around sleep and network changes. Nodes the core never tests itself, such as members of selector groups only, are tested every 15 minutes (Settings → Automation → Test nodes in the background). The Proxies page draws the last day next to each node, with the mean and the share of failed tests on hover. Autofix uses it too: among working routes, one whose node lost fewer tests over the last 6 hours wins before a faster one.
-
-## Core and database updates (Omarchy)
-
-Once a day the daemon asks GitHub for the newest stable mihomo (directly, then through the core) and, when it is newer than the running core, shows it in Settings → Core, among the setup issues and once per release as a notification. It never replaces the core on its own. With TUN capabilities on the binary the update runs `omm fix update_core` in a terminal: the download is verified against the release's SHA-256, smoke-tested, installed, given its capabilities back with sudo and restarted. The replaced binary stays as `mihomo.prev`, a hard link that keeps its capabilities; Settings → Core or `omm core rollback` puts it back.
-
-The core refreshes GeoIP, GeoSite and the MMDBs itself (`geo-auto-update`, every 24 hours by default, Settings → Core); "Update now" asks it to fetch them at once. Traffic statistics re-read the databases when they change.
-
-## DNS (Omarchy)
-
-Settings → DNS layers your values over the profile's DNS, which subscriptions often tune with care: the mode (fake-ip or redir-host), the servers, fallback and bootstrap servers and the sniffer each either follow the profile (an empty field shows its value in grey) or take yours; extra `fake-ip-filter` domains and per-site servers (`nameserver-policy`, yours first) extend the profile's lists. A server ending in `#Group` resolves through that proxy group. The page also looks a name up through the core.
-
-When a problem is a DNS sinkhole or an unanswered lookup, its route editor offers a server of its own for the site instead of a route, the first encrypted server of the config by default.
-
-## Traffic statistics (Omarchy)
-
-The daemon polls the core's open connections every 2 seconds and records how much each one downloaded and uploaded, by app, host, domain, address, provider (ASN), country, group, node and rule. Minutes are kept for two days and hours for 30 days in `traffic.db` in the data directory. Countries come from the core's `Country.mmdb` or, failing that, a copy of MetaCubeX `country.mmdb` the daemon downloads once; providers come from the core's `ASN.mmdb`. The Traffic page charts it over time with filters: click a row to narrow down to it (app → domains → hosts → addresses), `x` excludes it, `r` makes a rule, dragging over the chart zooms in. Settings → Main turns recording off or clears it.
-
-Connections the core cannot name (other users' programs: pacman's `alpm`, root services) are attributed through `/proc/net` to the program, or to the user when its processes are private. The Rules page and the group cards show how much went through each over the last week. Every 5 minutes the daemon looks for an app that moved at least 512 MiB in an hour and five times its usual, or that went direct and now sends 100 MiB an hour through a proxy, and notifies once per app in 6 hours (Settings → Notifications → Unusual traffic).
-
-## Development
-
-```sh
-cargo clippy --locked --workspace --all-targets -- -D warnings
-omm core install --dest /tmp/mihomo && OMM_TEST_MIHOMO=/tmp/mihomo cargo test --locked --workspace
-scripts/qml-check.sh
-```
-
-The real-core tests skip without `OMM_TEST_MIHOMO`, except on CI, where they fail. `scripts/qml-check.sh` runs the QML tests offscreen, fails on QML warnings from the plugin's own files (a `ReferenceError` does not fail a QML test by itself) and runs `qmllint` with the categories the `qs.*` stubs can check.
-
-UI strings live in `plugin/i18n/ru.js` and `en.js`; `tst_i18n.qml` fails when a key is missing from either, defined twice, has different placeholders, or is used in the plugin without a translation.
-
-Shared business logic lives in the existing Rust crates. `omm-platform` owns OS paths, Darwin process enumeration and the private helper transport. `omm-helper` provides the macOS network service. GUI clients use the existing version-1 NDJSON protocol over a private Unix socket.
-
-The macOS application and helper are built on a Mac with Xcode and Rust. CI builds Linux and macOS, tests Rust and the Swift transport, and uploads a local ad-hoc-signed application. Live TUN, network restoration and sleep/wake acceptance require a real Mac; compilation alone does not certify those scenarios.
+[MIT](LICENSE) © vornashev

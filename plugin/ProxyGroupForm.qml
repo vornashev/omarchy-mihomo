@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyModels.js" as Models
 
 Column {
@@ -49,7 +50,7 @@ Column {
   }
   function label(name) {
     var d = delay(name);
-    return d === 0 ? I18n.t("proxyNoResponse") : d === null || d === undefined ? "—" : d + " " + I18n.t("ms");
+    return d === 0 ? MihomoI18n.t("proxyNoResponse") : d === null || d === undefined ? "—" : d + " " + MihomoI18n.t("ms");
   }
   function reorder(from, to) {
     editor.setField("proxies", Models.moveMember(members, from, to));
@@ -121,14 +122,14 @@ Column {
       width: parent.width
       Txt {
         width: parent.width / 2
-        text: I18n.t("proxyName")
+        text: MihomoI18n.t("proxyName")
       }
       Txt {
         width: parent.width / 2
-        text: I18n.t("proxyNameHint")
+        text: MihomoI18n.t("proxyNameHint")
         dim: true
         horizontalAlignment: Text.AlignRight
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
     }
     Field {
@@ -138,7 +139,7 @@ Column {
       input.onTextEdited: root.editor.setField("name", text)
     }
     Txt {
-      text: I18n.t("proxyHowSelect")
+      text: MihomoI18n.t("proxyHowSelect")
     }
     Row {
       width: parent.width
@@ -152,23 +153,23 @@ Column {
           width: (parent.width - Style.space(24)) / 4
           height: Style.space(68)
           radius: Style.cornerRadius
-          color: root.draft.type === modelData ? Style.selectedFillFor(Color.popups.text, Color.accent) : Util.alpha(Color.popups.text, 0.04)
+          color: root.draft.type === modelData ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent) : Util.alpha(Commons.Color.popups.text, 0.04)
           border.width: 1
-          border.color: root.draft.type === modelData ? Color.accent : Util.alpha(Color.popups.text, 0.15)
+          border.color: root.draft.type === modelData ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.15)
           Column {
             anchors.fill: parent
             anchors.margins: Style.space(8)
             spacing: Style.space(5)
             Txt {
               width: parent.width
-              text: I18n.t("proxyType_" + typeCard.modelData)
-              font.pixelSize: Style.font.bodySmall
+              text: MihomoI18n.t("proxyType_" + typeCard.modelData)
+              font.pixelSize: Style.font.body
               elide: Text.ElideRight
             }
             Txt {
               width: parent.width
-              text: I18n.t("proxyTypeHint_" + typeCard.modelData)
-              font.pixelSize: Style.font.caption
+              text: MihomoI18n.t("proxyTypeHint_" + typeCard.modelData)
+              font.pixelSize: Style.font.bodySmall
               dim: true
               wrapMode: Text.Wrap
             }
@@ -189,12 +190,12 @@ Column {
       width: parent.width
       spacing: Style.space(5)
       Txt {
-        text: I18n.t("proxyDefault")
+        text: MihomoI18n.t("proxyDefault")
       }
       Txt {
-        text: I18n.t("proxyDefaultHint")
+        text: MihomoI18n.t("proxyDefaultHint")
         dim: true
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
       Repeater {
         model: root.resultNames
@@ -203,7 +204,7 @@ Column {
           width: parent.width
           height: Style.space(30)
           radius: Style.cornerRadius
-          color: (root.draft["default-selected"] || root.members[0]) === modelData ? Style.selectedFillFor(Color.popups.text, Color.accent) : Util.alpha(Color.popups.text, 0.04)
+          color: (root.draft["default-selected"] || root.members[0]) === modelData ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent) : Util.alpha(Commons.Color.popups.text, 0.04)
           Txt {
             anchors.left: parent.left
             anchors.leftMargin: Style.space(10)
@@ -218,7 +219,7 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
             text: root.label(modelData)
             dim: true
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Style.font.bodySmall
           }
           MouseArea {
             anchors.fill: parent
@@ -235,7 +236,7 @@ Column {
       Row {
         spacing: Style.space(10)
         Txt {
-          text: I18n.t("proxyTolerance")
+          text: MihomoI18n.t("proxyTolerance")
           anchors.verticalCenter: parent.verticalCenter
         }
         Field {
@@ -246,26 +247,26 @@ Column {
             top: 60000
           }
           input.onTextEdited: {
-            root.editor.issues = Models.put(root.editor.issues, "tolerance", input.acceptableInput ? "" : I18n.t("proxyFixFields"));
+            root.editor.issues = Models.put(root.editor.issues, "tolerance", input.acceptableInput ? "" : MihomoI18n.t("proxyFixFields"));
             if (input.acceptableInput)
               root.editor.setField("tolerance", Number(text));
           }
         }
         Txt {
-          text: I18n.t("ms")
+          text: MihomoI18n.t("ms")
           anchors.verticalCenter: parent.verticalCenter
           dim: true
         }
       }
       Txt {
         width: parent.width
-        text: I18n.t("proxyToleranceHint").arg(root.draft.tolerance === undefined ? 50 : root.draft.tolerance)
+        text: MihomoI18n.t("proxyToleranceHint").arg(root.draft.tolerance === undefined ? 50 : root.draft.tolerance)
         wrapMode: Text.Wrap
         dim: true
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: Style.font.body
       }
       Btn {
-        text: I18n.t("proxyCheckNow")
+        text: MihomoI18n.t("proxyCheckNow")
         icon: Icons.test
         busy: root.testing
         onClicked: root.check()
@@ -295,12 +296,12 @@ Column {
       width: parent.width
       spacing: Style.space(8)
       Txt {
-        text: I18n.t("proxyOrder")
+        text: MihomoI18n.t("proxyOrder")
       }
       Txt {
-        text: I18n.t("proxyOrderHint")
+        text: MihomoI18n.t("proxyOrderHint")
         dim: true
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
       Repeater {
         model: root.members
@@ -310,10 +311,10 @@ Column {
       }
       Txt {
         width: parent.width
-        text: I18n.t("proxyFallbackHint")
+        text: MihomoI18n.t("proxyFallbackHint")
         wrapMode: Text.Wrap
         dim: true
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: Style.font.body
       }
     }
     Column {
@@ -321,7 +322,7 @@ Column {
       width: parent.width
       spacing: Style.space(8)
       Txt {
-        text: I18n.t("proxyStrategy")
+        text: MihomoI18n.t("proxyStrategy")
       }
       Repeater {
         model: ["consistent-hashing", "round-robin", "sticky-sessions"]
@@ -332,9 +333,9 @@ Column {
           width: parent.width
           height: strategyBody.implicitHeight + Style.space(20)
           radius: Style.cornerRadius
-          color: selected ? Style.selectedFillFor(Color.popups.text, Color.accent) : Util.alpha(Color.popups.text, 0.04)
+          color: selected ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent) : Util.alpha(Commons.Color.popups.text, 0.04)
           border.width: 1
-          border.color: selected ? Color.accent : Util.alpha(Color.popups.text, 0.15)
+          border.color: selected ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.15)
           Column {
             id: strategyBody
             x: Style.space(10)
@@ -342,19 +343,19 @@ Column {
             width: parent.width - Style.space(20)
             spacing: Style.space(5)
             Txt {
-              text: (strategyCard.selected ? "◉  " : "○  ") + I18n.t("proxyStrategy_" + strategyCard.modelData)
+              text: (strategyCard.selected ? "◉  " : "○  ") + MihomoI18n.t("proxyStrategy_" + strategyCard.modelData)
             }
             Txt {
               width: parent.width
-              text: I18n.t("proxyStrategyHint_" + strategyCard.modelData)
+              text: MihomoI18n.t("proxyStrategyHint_" + strategyCard.modelData)
               wrapMode: Text.Wrap
               dim: true
-              font.pixelSize: Style.font.caption
+              font.pixelSize: Style.font.bodySmall
             }
             Txt {
               text: strategyCard.modelData
               faint: true
-              font.pixelSize: Style.font.caption
+              font.pixelSize: Style.font.bodySmall
             }
           }
           MouseArea {
@@ -369,19 +370,19 @@ Column {
       width: parent.width
       height: Style.space(42)
       radius: Style.cornerRadius
-      color: Util.alpha(Color.popups.text, 0.04)
+      color: Util.alpha(Commons.Color.popups.text, 0.04)
       Txt {
         anchors.left: parent.left
         anchors.leftMargin: Style.space(12)
         anchors.verticalCenter: parent.verticalCenter
-        text: I18n.t("proxyMembers").arg(root.resultNames.length)
+        text: MihomoI18n.t("proxyMembers").arg(root.resultNames.length)
       }
       Btn {
         anchors.right: parent.right
         anchors.rightMargin: Style.space(6)
         anchors.verticalCenter: parent.verticalCenter
         ghost: true
-        text: I18n.t("proxyEditMembers")
+        text: MihomoI18n.t("proxyEditMembers")
         onClicked: root.editor.section = "members"
       }
     }

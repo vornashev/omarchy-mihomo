@@ -45,7 +45,7 @@ Rectangle {
       waitForRendering(core)
     }
     function init() {
-      Plugin.I18n.language = "ru"
+      Plugin.MihomoI18n.language = "ru"
       service.methods = []; service.fixes = []
       panel.notification = ""
     }

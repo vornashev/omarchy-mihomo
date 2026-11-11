@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
@@ -26,7 +27,7 @@ Item {
     Row {
       width: parent.width
       spacing: Style.space(8)
-      Txt { id: routeIcon; text: Icons.route; color: Color.accent }
+      Txt { id: routeIcon; text: Icons.route; color: Commons.Color.accent }
       Txt {
         width: Math.min(implicitWidth, parent.width - routeIcon.width - parent.spacing)
         text: (root.group.route.rule ? root.group.route.rule + " → " : "") + (root.group.route.target || "—")
@@ -35,7 +36,7 @@ Item {
       Txt {
         width: Math.max(0, parent.width - x)
         text: root.group.route.payload || ""
-        faint: true; font.pixelSize: Style.font.bodySmall
+        faint: true; font.pixelSize: Style.font.body
       }
     }
     Row {
@@ -50,14 +51,14 @@ Item {
             required property string modelData
             spacing: Style.space(4)
             Rectangle { anchors.verticalCenter: parent.verticalCenter; width: Style.space(6); height: width; radius: width / 2; color: root.svc.kindColor(modelData) }
-            Txt { text: I18n.kind(modelData); dim: true; font.pixelSize: Style.font.caption }
+            Txt { text: MihomoI18n.kind(modelData); dim: true; font.pixelSize: Style.font.bodySmall }
           }
         }
       }
       Txt {
         width: Math.max(0, parent.width - kinds.width - parent.spacing)
-        text: "· " + I18n.t("problemAddresses").arg(root.group.items.length) + " · " + (Object.keys(root.group.apps).join(", ") || I18n.t("unknownApp"))
-        faint: true; font.pixelSize: Style.font.caption
+        text: "· " + MihomoI18n.t("problemAddresses").arg(root.group.items.length) + " · " + (Object.keys(root.group.apps).join(", ") || MihomoI18n.t("unknownApp"))
+        faint: true; font.pixelSize: Style.font.bodySmall
       }
     }
   }
@@ -67,14 +68,14 @@ Item {
     anchors.verticalCenter: parent.verticalCenter
     text: "×" + root.group.count
     bold: true
-    color: root.group.unresolved ? root.svc.red : Color.popups.text
+    color: root.group.unresolved ? root.svc.red : Commons.Color.popups.text
   }
   Btn {
     id: routeButton
     anchors.right: parent.right; anchors.rightMargin: Style.space(10)
     anchors.verticalCenter: parent.verticalCenter
-    icon: Icons.route; text: I18n.t("route")
+    icon: Icons.route; text: MihomoI18n.t("route")
     onClicked: root.routeClicked()
   }
-  Rectangle { visible: !root.collapsed; anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Util.alpha(Color.popups.text, 0.15) }
+  Rectangle { visible: !root.collapsed; anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Util.alpha(Commons.Color.popups.text, 0.15) }
 }

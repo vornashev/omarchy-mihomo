@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyModels.js" as Models
 
 Item {
@@ -71,7 +72,7 @@ Item {
     spacing: Style.space(14)
     Btn {
       ghost: true
-      text: I18n.t("navProxies") + " › " + I18n.t("proxyNodes")
+      text: MihomoI18n.t("navProxies") + " › " + MihomoI18n.t("proxyNodes")
       onClicked: root.cancelled()
     }
     Row {
@@ -88,12 +89,12 @@ Item {
         Txt {
           text: (root.entry.type || "") + " · " + (root.entry.provider || "provider")
           dim: true
-          font.pixelSize: Style.font.caption
+          font.pixelSize: Style.font.bodySmall
         }
       }
       Btn {
         id: testButton
-        text: I18n.t("check")
+        text: MihomoI18n.t("check")
         busy: root.testing
         onClicked: {
           root.testing = true;
@@ -101,18 +102,18 @@ Item {
             name: root.entry.name
           }, function (r, e) {
             root.testing = false;
-            root.result = e ? e.message : r.delay + " " + I18n.t("ms");
+            root.result = e ? e.message : r.delay + " " + MihomoI18n.t("ms");
           });
         }
       }
     }
     Banner {
       width: parent.width
-      text: I18n.t("nodeProviderHint").arg(root.entry.provider || "provider")
+      text: MihomoI18n.t("nodeProviderHint").arg(root.entry.provider || "provider")
     }
     Txt {
-      text: I18n.t("nodeProviderReadOnly")
-      color: Color.accent
+      text: MihomoI18n.t("nodeProviderReadOnly")
+      color: Commons.Color.accent
     }
     Repeater {
       model: [
@@ -130,7 +131,7 @@ Item {
         },
         {
           label: "proxyDelay",
-          value: root.result || (root.entry.delay ? root.entry.delay + " " + I18n.t("ms") : "—")
+          value: root.result || (root.entry.delay ? root.entry.delay + " " + MihomoI18n.t("ms") : "—")
         }
       ]
       Row {
@@ -138,7 +139,7 @@ Item {
         width: parent.width
         Txt {
           width: parent.width * 0.3
-          text: I18n.t(parent.modelData.label)
+          text: MihomoI18n.t(parent.modelData.label)
           dim: true
         }
         Txt {
@@ -150,14 +151,14 @@ Item {
     }
     Txt {
       visible: !!(root.entry.definition || {}).password
-      text: I18n.t("nodeField_password") + "    ••••••••••••"
+      text: MihomoI18n.t("nodeField_password") + "    ••••••••••••"
       dim: true
     }
     Flow {
       width: parent.width
       spacing: Style.space(6)
       Txt {
-        text: I18n.t("proxyMemberOf")
+        text: MihomoI18n.t("proxyMemberOf")
         dim: true
       }
       Repeater {
@@ -170,13 +171,13 @@ Item {
     }
     Btn {
       visible: !!root.entry.provider
-      text: I18n.t("nodeOpenSubscription").arg(root.entry.provider || "")
+      text: MihomoI18n.t("nodeOpenSubscription").arg(root.entry.provider || "")
       onClicked: root.openSubscription()
     }
     Txt {
       visible: root.entry.definition_available === false
       width: parent.width
-      text: I18n.t("nodeProviderUnavailable")
+      text: MihomoI18n.t("nodeProviderUnavailable")
       wrapMode: Text.Wrap
       dim: true
     }
@@ -186,18 +187,18 @@ Item {
     anchors.right: parent.right
     spacing: Style.space(8)
     Btn {
-      text: I18n.t("cancel")
+      text: MihomoI18n.t("cancel")
       onClicked: root.cancelled()
     }
     Btn {
-      text: root.entry.definition_available === false ? I18n.t("proxyImport") : I18n.t("proxyLocalCopy")
+      text: root.entry.definition_available === false ? MihomoI18n.t("proxyImport") : MihomoI18n.t("proxyLocalCopy")
       primary: true
       onClicked: root.entry.definition_available === false ? root.importRequested() : root.copyRequested()
     }
   }
   ProxyDialog {
     visible: !!root.subscription
-    title: I18n.t("nodeSubscription") + " · " + (root.entry.provider || "")
+    title: MihomoI18n.t("nodeSubscription") + " · " + (root.entry.provider || "")
     onClosed: root.subscription = null
     Repeater {
       model: [
@@ -236,17 +237,17 @@ Item {
       width: parent.width
       text: root.providerError
       wrapMode: Text.Wrap
-      color: Color.urgent
+      color: Commons.Color.urgent
     }
     Row {
       spacing: Style.space(8)
       Btn {
-        text: I18n.t("cancel")
+        text: MihomoI18n.t("cancel")
         enabled: !root.saving
         onClicked: root.subscription = null
       }
       Btn {
-        text: I18n.t("saveApply")
+        text: MihomoI18n.t("saveApply")
         busy: root.saving
         enabled: !root.saving
         primary: true

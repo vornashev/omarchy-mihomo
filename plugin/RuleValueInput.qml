@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 import "RuleModels.js" as RuleModels
 
 // Value field of a rule with suggestions from live connections, logs,
@@ -35,9 +36,9 @@ Rectangle {
 
   implicitHeight: Style.space(32)
   radius: Style.cornerRadius
-  color: Qt.darker(Color.popups.background, 1.15)
+  color: Qt.darker(Commons.Color.popups.background, 1.15)
   border.width: 1
-  border.color: input.activeFocus ? Color.accent : Util.alpha(Color.popups.text, 0.15)
+  border.color: input.activeFocus ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.15)
 
   function refresh() {
     if (!svc) return
@@ -72,7 +73,7 @@ Rectangle {
     addError = ""
     svc.request("rule_sets.add", { catalog: item.detail }, function(r, err) {
       root.adding = false
-      if (err) { root.addError = I18n.t("catalogFailed").arg(err.message); root.items = []; root.suggestOpen = true; return }
+      if (err) { root.addError = MihomoI18n.t("catalogFailed").arg(err.message); root.items = []; root.suggestOpen = true; return }
       input.text = r.name
       root.picked({ value: r.name, source: "provider" })
     }, true)
@@ -87,13 +88,13 @@ Rectangle {
   }
   function metaText(it) {
     var parts = []
-    if (it.source === "conn" && it.count) parts.push(I18n.t("suggestConns").arg(it.count))
+    if (it.source === "conn" && it.count) parts.push(MihomoI18n.t("suggestConns").arg(it.count))
     if (it.source === "log" && it.last && svc) parts.push(svc.ago(it.last))
     if (it.source === "problem") parts.push("×" + it.count)
-    if (it.source === "db") parts.push(I18n.t("suggestDomains").arg(it.count))
-    if (it.source === "provider") parts.push(I18n.t("suggestRules").arg(it.count))
-    if (it.source === "catalog") parts.push(it.detail + " · " + I18n.t("catalogAdds"))
-    if (it.source === "user" && it.count) parts.push(I18n.t("suggestConns").arg(it.count))
+    if (it.source === "db") parts.push(MihomoI18n.t("suggestDomains").arg(it.count))
+    if (it.source === "provider") parts.push(MihomoI18n.t("suggestRules").arg(it.count))
+    if (it.source === "catalog") parts.push(it.detail + " · " + MihomoI18n.t("catalogAdds"))
+    if (it.source === "user" && it.count) parts.push(MihomoI18n.t("suggestConns").arg(it.count))
     if (it.route) parts.push(it.route)
     return parts.join(" · ")
   }
@@ -118,8 +119,8 @@ Rectangle {
     anchors.leftMargin: prefix.visible ? 0 : Style.space(10)
     anchors.right: tabKey.left; anchors.rightMargin: Style.space(8)
     anchors.verticalCenter: parent.verticalCenter
-    color: Color.popups.text
-    selectionColor: Style.selectionFillFor(Color.popups.text, Color.accent)
+    color: Commons.Color.popups.text
+    selectionColor: Style.selectionFillFor(Commons.Color.popups.text, Commons.Color.accent)
     font.family: Style.font.family
     font.pixelSize: Style.font.body
     clip: true
@@ -159,8 +160,8 @@ Rectangle {
     radius: 3
     color: "transparent"
     border.width: 1
-    border.color: Util.alpha(Color.popups.text, 0.15)
-    Txt { id: tabLabel; anchors.centerIn: parent; text: "Tab"; faint: true; font.pixelSize: Style.font.caption - 1 }
+    border.color: Util.alpha(Commons.Color.popups.text, 0.15)
+    Txt { id: tabLabel; anchors.centerIn: parent; text: "Tab"; faint: true; font.pixelSize: Style.font.caption }
   }
   MouseArea { anchors.fill: parent; cursorShape: Qt.IBeamCursor; onClicked: input.forceActiveFocus(); propagateComposedEvents: true }
 
@@ -181,8 +182,8 @@ Rectangle {
         visible: root.rows.length === 0 && (root.note !== "" || root.addError !== "" || root.adding)
         width: parent.width
         leftPadding: Style.space(8); topPadding: Style.space(6); bottomPadding: Style.space(6)
-        text: root.adding ? I18n.t("catalogAdding") : root.addError || (root.note ? I18n.t("note_" + root.note) : "")
-        dim: true; wrapMode: Text.Wrap; font.pixelSize: Style.font.bodySmall
+        text: root.adding ? MihomoI18n.t("catalogAdding") : root.addError || (root.note ? MihomoI18n.t("note_" + root.note) : "")
+        dim: true; wrapMode: Text.Wrap; font.pixelSize: Style.font.body
       }
       ListView {
         id: list
@@ -203,20 +204,20 @@ Rectangle {
             anchors.left: parent.left; anchors.leftMargin: Style.space(8)
             anchors.right: parent.right; anchors.rightMargin: Style.space(8)
             anchors.bottom: parent.bottom; anchors.bottomMargin: Style.space(3)
-            Txt { width: parent.width - cnt.width; text: modelData.header ? I18n.t("src_" + modelData.source) : ""; faint: true; bold: true; font.pixelSize: Style.font.caption; font.letterSpacing: 1 }
-            Txt { id: cnt; text: modelData.header ? String(modelData.count) : ""; faint: true; font.pixelSize: Style.font.caption }
+            Txt { width: parent.width - cnt.width; text: modelData.header ? MihomoI18n.t("src_" + modelData.source) : ""; faint: true; bold: true; font.pixelSize: Style.font.bodySmall; font.letterSpacing: 1 }
+            Txt { id: cnt; text: modelData.header ? String(modelData.count) : ""; faint: true; font.pixelSize: Style.font.bodySmall }
           }
           Rectangle {
             visible: !modelData.header
             anchors.fill: parent
             radius: Style.space(4)
-            color: index === root.highlighted ? Util.alpha(Color.popups.text, 0.18) : (rowMouse.containsMouse ? Util.alpha(Color.popups.text, 0.08) : "transparent")
+            color: index === root.highlighted ? Util.alpha(Commons.Color.popups.text, 0.18) : (rowMouse.containsMouse ? Util.alpha(Commons.Color.popups.text, 0.08) : "transparent")
             Txt {
               id: icon
               anchors.left: parent.left; anchors.leftMargin: Style.space(8)
               anchors.verticalCenter: parent.verticalCenter
               text: modelData.header ? "" : root.sourceIcon(modelData.source)
-              color: modelData.failed ? root.svc.red : (modelData.source === "common" ? root.svc.yellow : (modelData.source === "conn" ? root.svc.green : Util.alpha(Color.popups.text, 0.6)))
+              color: modelData.failed ? root.svc.red : (modelData.source === "common" ? root.svc.yellow : (modelData.source === "conn" ? root.svc.green : Util.alpha(Commons.Color.popups.text, 0.6)))
               font.pixelSize: Style.font.icon
             }
             Column {
@@ -232,11 +233,11 @@ Rectangle {
                   anchors.verticalCenter: parent.verticalCenter
                   width: usedLabel.implicitWidth + Style.space(10); height: usedLabel.implicitHeight + Style.space(2)
                   radius: 3
-                  color: Util.alpha(root.svc ? root.svc.yellow : Color.accent, 0.15)
-                  Txt { id: usedLabel; anchors.centerIn: parent; text: modelData.used_by ? I18n.t("usedBy").arg(modelData.used_by) : ""; color: root.svc ? root.svc.yellow : Color.accent; font.pixelSize: Style.font.caption - 1 }
+                  color: Util.alpha(root.svc ? root.svc.yellow : Commons.Color.accent, 0.15)
+                  Txt { id: usedLabel; anchors.centerIn: parent; text: modelData.used_by ? MihomoI18n.t("usedBy").arg(modelData.used_by) : ""; color: root.svc ? root.svc.yellow : Commons.Color.accent; font.pixelSize: Style.font.caption }
                 }
               }
-              Txt { visible: !!modelData.detail; width: parent.width; text: modelData.detail || ""; faint: true; font.pixelSize: Style.font.caption }
+              Txt { visible: !!modelData.detail; width: parent.width; text: modelData.detail || ""; faint: true; font.pixelSize: Style.font.bodySmall }
             }
             Txt {
               id: meta
@@ -245,8 +246,8 @@ Rectangle {
               width: Math.min(implicitWidth, parent.width * 0.42)
               horizontalAlignment: Text.AlignRight
               text: modelData.header ? "" : root.metaText(modelData)
-              color: modelData.failed ? root.svc.red : Util.alpha(Color.popups.text, 0.42)
-              font.pixelSize: Style.font.caption
+              color: modelData.failed ? root.svc.red : Util.alpha(Commons.Color.popups.text, 0.42)
+              font.pixelSize: Style.font.bodySmall
             }
             MouseArea { id: rowMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.pick(modelData) }
           }
@@ -257,17 +258,17 @@ Rectangle {
         topPadding: Style.space(5); leftPadding: Style.space(8); bottomPadding: Style.space(3)
         spacing: Style.space(10)
         Repeater {
-          model: [["↑↓", I18n.t("keyChoose")], ["Tab", I18n.t("keyComplete")], ["Enter", I18n.t("keyPick")]]
+          model: [["↑↓", MihomoI18n.t("keyChoose")], ["Tab", MihomoI18n.t("keyComplete")], ["Enter", MihomoI18n.t("keyPick")]]
           Row {
             required property var modelData
             spacing: Style.space(4)
             Rectangle {
               anchors.verticalCenter: parent.verticalCenter
               width: k.implicitWidth + Style.space(8); height: k.implicitHeight + Style.space(2); radius: 3
-              color: Util.alpha(Color.popups.text, 0.08)
-              Txt { id: k; anchors.centerIn: parent; text: modelData[0]; dim: true; font.pixelSize: Style.font.caption - 1 }
+              color: Util.alpha(Commons.Color.popups.text, 0.08)
+              Txt { id: k; anchors.centerIn: parent; text: modelData[0]; dim: true; font.pixelSize: Style.font.caption }
             }
-            Txt { text: modelData[1]; faint: true; font.pixelSize: Style.font.caption }
+            Txt { text: modelData[1]; faint: true; font.pixelSize: Style.font.bodySmall }
           }
         }
       }

@@ -3,7 +3,7 @@
 #   binaries      ~/.local/bin/{omm,omarchy-mihomod}
 #   core          ~/.local/lib/omarchy-mihomo/mihomo (pinned release, sha256-checked)
 #   services      ~/.config/systemd/user/omarchy-mihomo{d,-core}.service
-#   shell plugin  ~/.config/omarchy/plugins/tema.omarchy-mihomo
+#   shell plugin  ~/.config/omarchy/plugins/vornashev.omarchy-mihomo
 #
 # The core is enabled but not started while Clash Verge Rev runs: two cores
 # with TUN would fight over routes. `omm migrate cvr` does the switch.
@@ -12,6 +12,14 @@
 # per-user part: the binaries are in /usr/bin, the services in
 # /usr/lib/systemd/user and the plugin in /usr/share/omarchy-mihomo, linked
 # into ~/.config/omarchy/plugins. A source install found there is replaced.
+#
+# A plugin added from the marketplace (`omarchy plugin add`, a git checkout in
+# ~/.config/omarchy/plugins) is left as it is: it updates with
+# `omarchy plugin update`. This script can run from that checkout; it then
+# builds into ~/.cache/omarchy-mihomo instead of the plugin folder.
+#
+# The widget used to be tema.omarchy-mihomo; its folder is removed and its bar
+# entry renamed, keeping the settings.
 #
 # Options:
 #   --yes          do not ask; skip steps that need sudo (setcap)
@@ -30,8 +38,14 @@ bin_dir="$HOME/.local/bin"
 # The package puts omm next to this script, in /usr/bin.
 [[ $packaged == 1 ]] && bin_dir=$(cd "$(dirname "$0")" && pwd)
 unit_dir="$HOME/.config/systemd/user"
-plugin_id="tema.omarchy-mihomo"
+plugin_id="vornashev.omarchy-mihomo"
 plugin_dir="$HOME/.config/omarchy/plugins/$plugin_id"
+legacy_id="tema.omarchy-mihomo"
+legacy_dir="$HOME/.config/omarchy/plugins/$legacy_id"
+shell_json="$HOME/.config/omarchy/shell.json"
+# A git checkout belongs to `omarchy plugin add` / `update`.
+git_plugin=0
+[[ -d $plugin_dir/.git && ! -L $plugin_dir ]] && git_plugin=1
 core_bin="$HOME/.local/lib/omarchy-mihomo/mihomo"
 data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/omarchy-mihomo"
 
@@ -72,6 +86,10 @@ if [[ $uninstall == 1 ]]; then
     rm -rf "$plugin_dir"
     omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
   fi
+  if [[ -e $legacy_dir || -L $legacy_dir ]]; then
+    omarchy plugin disable "$legacy_id" >/dev/null 2>&1 || true
+    rm -rf "$legacy_dir"
+  fi
   if [[ $purge == 1 ]]; then
     say "removing data in $data_dir"
     rm -rf "$data_dir"
@@ -96,12 +114,17 @@ else
   [[ -x $HOME/.cargo/bin/cargo ]] && cargo="$HOME/.cargo/bin/cargo"
   [[ -n $cargo ]] || { echo "cargo not found (install rustup)" >&2; exit 1; }
 
+  # Building inside ~/.config/omarchy/plugins would leave gigabytes there.
+  target_dir="$repo/target"
+  [[ $repo == "$HOME/.config/omarchy/plugins/"* ]] && target_dir="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-mihomo/target"
+  target_dir="${CARGO_TARGET_DIR:-$target_dir}"
+
   say "building (release)"
-  "$cargo" build --release --locked --manifest-path "$repo/Cargo.toml" -p omm-daemon -p omm-cli
+  CARGO_TARGET_DIR="$target_dir" "$cargo" build --release --locked --manifest-path "$repo/Cargo.toml" -p omm-daemon -p omm-cli
 
   say "installing binaries to $bin_dir"
-  install -Dm755 "$repo/target/release/omm" "$bin_dir/omm"
-  install -Dm755 "$repo/target/release/omarchy-mihomod" "$bin_dir/omarchy-mihomod"
+  install -Dm755 "$target_dir/release/omm" "$bin_dir/omm"
+  install -Dm755 "$target_dir/release/omarchy-mihomod" "$bin_dir/omarchy-mihomod"
 
   say "installing services"
   install -Dm644 "$repo/packaging/systemd/omarchy-mihomod.service" "$unit_dir/omarchy-mihomod.service"
@@ -147,7 +170,9 @@ fi
 
 if [[ $plugin == 1 ]] && command -v omarchy >/dev/null; then
   say "installing the shell plugin"
-  if [[ $packaged == 1 ]]; then
+  if [[ $git_plugin == 1 ]]; then
+    echo "    $plugin_dir comes from the marketplace; it updates with: omarchy plugin update $plugin_id"
+  elif [[ $packaged == 1 ]]; then
     # A link follows package upgrades; a copied plugin would go stale.
     [[ -L $plugin_dir ]] || rm -rf "$plugin_dir"
     mkdir -p "$(dirname "$plugin_dir")"
@@ -159,9 +184,20 @@ if [[ $plugin == 1 ]] && command -v omarchy >/dev/null; then
     rsync -a --delete "$repo/plugin/" "$plugin_dir/plugin/"
   fi
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
-  if ! grep -q "\"$plugin_id\"" "$HOME/.config/omarchy/shell.json" 2>/dev/null; then
+  if [[ -e $legacy_dir || -L $legacy_dir ]]; then
+    say "moving the widget from $legacy_id to $plugin_id"
+    if grep -q "\"$legacy_id\"" "$shell_json" 2>/dev/null && ! grep -q "\"$plugin_id\"" "$shell_json"; then
+      # Same place in the bar, same settings: only the id changes.
+      sed -i --follow-symlinks "s/\"${legacy_id//./\\.}\"/\"$plugin_id\"/g" "$shell_json"
+    else
+      omarchy plugin disable "$legacy_id" >/dev/null 2>&1 || true
+    fi
+    rm -rf "$legacy_dir"
+    omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
+  fi
+  if ! grep -q "\"$plugin_id\"" "$shell_json" 2>/dev/null; then
     omarchy plugin enable "$plugin_id" --section right >/dev/null 2>&1 || warn "enable the widget with: omarchy plugin enable $plugin_id"
-  elif grep -q '"socketPath"' "$HOME/.config/omarchy/shell.json" 2>/dev/null; then
+  elif grep -q '"socketPath"' "$shell_json" 2>/dev/null; then
     # A development socket override would point the widget at the wrong daemon.
     omarchy bar set "$plugin_id" socketPath "" >/dev/null 2>&1 || true
   fi

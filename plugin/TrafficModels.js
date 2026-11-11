@@ -137,3 +137,25 @@ function change(now, before) {
   var p = Math.round((now - before) * 100 / before)
   return (p > 0 ? "▲ " : (p < 0 ? "▼ " : "")) + Math.abs(p) + "%"
 }
+
+// Shortest and longest window the wheel can reach.
+var MIN_SPAN = 10 * MINUTE
+var MAX_SPAN = 30 * DAY
+
+// A window scaled by `factor` around `at` (both ms), then shifted by
+// `shift` ms, kept between MIN_SPAN and MAX_SPAN and inside the stored
+// history: never later than `now`, never earlier than 30 days back.
+function zoomWindow(from, to, at, factor, shift, now) {
+  var span = Math.min(MAX_SPAN, Math.max(MIN_SPAN, (to - from) * factor))
+  var a = at - (at - from) * span / (to - from) + shift
+  var b = a + span
+  if (b > now) { a -= b - now; b = now }
+  if (a < now - MAX_SPAN) { b += now - MAX_SPAN - a; a = now - MAX_SPAN }
+  return { from: Math.round(a), to: Math.round(b) }
+}
+
+// Back to the live range once the window covers it up to now.
+function coversRange(win, rangeSpan, now, step) {
+  return win.to >= now - Math.max(step, MINUTE) && win.to - win.from >= rangeSpan * 0.98
+}
+

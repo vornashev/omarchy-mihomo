@@ -33,7 +33,7 @@ Rectangle {
     when: windowShown
 
     function init() {
-      Plugin.I18n.language = "ru"
+      Plugin.MihomoI18n.language = "ru"
       service.calls = []
       service.info = {
         settings: { "enhanced-mode": null, nameserver: null, fallback: null, "default-nameserver": null, "fake-ip-filter": [], policy: [{ domain: "+.x.org", server: "https://dns.quad9.net/dns-query" }], sniffer: null },

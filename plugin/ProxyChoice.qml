@@ -2,12 +2,13 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyModels.js" as Models
 
 ComboBox {
   id: control
   property bool searchable: count > 8
-  property string searchPlaceholder: I18n.t("proxyFindNode")
+  property string searchPlaceholder: MihomoI18n.t("proxyFindNode")
   // Optional runtime metadata, keyed by the original model text.
   property var optionDetails: ({})
   property var groupNames: []
@@ -20,7 +21,7 @@ ComboBox {
       if (needle && label.toLowerCase().indexOf(needle) < 0) continue;
       result.push({ index: i, label: label, delay: info.delay == null ? undefined : info.delay,
         disabled: info.disabled === true || info.delay === 0,
-        group: groupNames.length ? (groupNames.indexOf(label) >= 0 ? I18n.t("proxyGroups") : I18n.t("proxyNodes")) : "" });
+        group: groupNames.length ? (groupNames.indexOf(label) >= 0 ? MihomoI18n.t("proxyGroups") : MihomoI18n.t("proxyNodes")) : "" });
     }
     if (groupNames.length) result.sort(function(a, b) {
       return Number(groupNames.indexOf(a.label) >= 0) - Number(groupNames.indexOf(b.label) >= 0) || a.index - b.index;
@@ -29,7 +30,7 @@ ComboBox {
   }
   readonly property var currentDetails: optionDetails[currentText] || ({})
   function delayColor(delay) {
-    return delay === 0 ? Color.urgent : delay == null ? Util.alpha(Color.popups.text, 0.42)
+    return delay === 0 ? Commons.Color.urgent : delay == null ? Util.alpha(Commons.Color.popups.text, 0.42)
       : delay < 150 ? "#a6e3a1" : "#f9e2af";
   }
   function moveOption(step) {
@@ -65,12 +66,12 @@ ComboBox {
   contentItem: TextInput {
     text: control.editable ? control.editText : control.displayText
     font: control.font
-    color: Color.popups.text
+    color: Commons.Color.popups.text
     verticalAlignment: TextInput.AlignVCenter
     readOnly: !control.editable
     selectByMouse: control.editable
     clip: true
-    selectionColor: Style.selectionFillFor(Color.popups.text, Color.accent)
+    selectionColor: Style.selectionFillFor(Commons.Color.popups.text, Commons.Color.accent)
     onTextEdited: control.editText = text
     onAccepted: control.accepted()
   }
@@ -87,9 +88,9 @@ ComboBox {
     anchors.right: parent.right
     anchors.rightMargin: Style.space(30)
     anchors.verticalCenter: parent.verticalCenter
-    text: control.currentDetails.delay === 0 ? I18n.t("proxyNoResponse") : Models.delayText(control.currentDetails.delay, I18n.t("ms"))
+    text: control.currentDetails.delay === 0 ? MihomoI18n.t("proxyNoResponse") : Models.delayText(control.currentDetails.delay, MihomoI18n.t("ms"))
     color: control.delayColor(control.currentDetails.delay)
-    font.pixelSize: Style.font.caption
+    font.pixelSize: Style.font.bodySmall
   }
   indicator: Txt {
     x: control.width - width - Style.space(10)
@@ -100,10 +101,10 @@ ComboBox {
     faint: true
   }
   background: Rectangle {
-    color: Util.alpha(Color.popups.text, control.popup.visible ? 0.08 : 0.04)
+    color: Util.alpha(Commons.Color.popups.text, control.popup.visible ? 0.08 : 0.04)
     radius: Style.space(6)
     border.width: 1
-    border.color: control.activeFocus || control.popup.visible ? Color.accent : Util.alpha(Color.popups.text, 0.15)
+    border.color: control.activeFocus || control.popup.visible ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.15)
   }
   popup: Popup {
     id: dropdown
@@ -157,10 +158,10 @@ ComboBox {
           text: control.query
           onTextEdited: control.query = text
           placeholderText: control.searchPlaceholder
-          placeholderTextColor: Util.alpha(Color.popups.text, 0.42)
-          color: Color.popups.text
+          placeholderTextColor: Util.alpha(Commons.Color.popups.text, 0.42)
+          color: Commons.Color.popups.text
           font.family: Style.font.family
-          font.pixelSize: Style.font.bodySmall
+          font.pixelSize: Style.font.body
           background: null
           selectByMouse: true
           Keys.onDownPressed: control.moveOption(1)
@@ -171,7 +172,7 @@ ComboBox {
         Rectangle {
           anchors.bottom: parent.bottom
           width: parent.width; height: 1
-          color: Util.alpha(Color.popups.text, 0.15)
+          color: Util.alpha(Commons.Color.popups.text, 0.15)
         }
       }
       Txt {
@@ -180,9 +181,9 @@ ComboBox {
         width: parent.width
         height: visible ? Style.space(28) : 0
         visible: control.options.length === 0
-        text: I18n.t("proxyNoResults")
+        text: MihomoI18n.t("proxyNoResults")
         horizontalAlignment: Text.AlignHCenter
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: Style.font.body
         faint: true
       }
       ListView {
@@ -210,7 +211,7 @@ ComboBox {
               x: Style.space(29)
               anchors.verticalCenter: parent.verticalCenter
               text: optionRow.modelData.group.toUpperCase()
-              font.pixelSize: Style.space(9)
+              font.pixelSize: Style.font.caption
               font.letterSpacing: Style.space(1)
               bold: true
               faint: true
@@ -222,7 +223,7 @@ ComboBox {
             enabled: !optionRow.modelData.disabled
             marked: control.currentIndex === optionRow.modelData.index
             highlighted: choices.currentIndex === optionRow.index
-            detail: optionRow.modelData.delay == null ? "" : optionRow.modelData.delay === 0 ? I18n.t("proxyNoResponse") : Models.delayText(optionRow.modelData.delay, I18n.t("ms"))
+            detail: optionRow.modelData.delay == null ? "" : optionRow.modelData.delay === 0 ? MihomoI18n.t("proxyNoResponse") : Models.delayText(optionRow.modelData.delay, MihomoI18n.t("ms"))
             detailColor: control.delayColor(optionRow.modelData.delay)
             onTriggered: control.choose(optionRow.index)
           }

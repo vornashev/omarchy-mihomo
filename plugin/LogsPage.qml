@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 
 // Recent core logs, followed by live events while this page is open.
 Item {
@@ -12,9 +13,9 @@ Item {
   property bool follow: true
   property string search: ""
   readonly property bool typing: filter.input.activeFocus
-  readonly property string emptyText: !svc.connected ? I18n.t("daemonDown")
-    : !svc.coreRunning ? I18n.t("logsCoreStopped")
-    : svc.logLines.length > 0 ? I18n.t("logsNoMatches") : I18n.t("logsWaiting")
+  readonly property string emptyText: !svc.connected ? MihomoI18n.t("daemonDown")
+    : !svc.coreRunning ? MihomoI18n.t("logsCoreStopped")
+    : svc.logLines.length > 0 ? MihomoI18n.t("logsNoMatches") : MihomoI18n.t("logsWaiting")
 
   function timestamp(ms) {
     return ms ? Qt.formatDateTime(new Date(ms), "hh:mm:ss") + " " : ""
@@ -45,14 +46,14 @@ Item {
     Column {
       width: parent.width - seg.width - filter.width - clearBtn.width - Style.space(30)
       spacing: Style.space(3)
-      Txt { text: I18n.t("logsTitle"); bold: true; font.pixelSize: Style.font.heading }
-      Txt { text: I18n.t("logsSubtitle"); dim: true; font.pixelSize: Style.font.bodySmall }
+      Txt { text: MihomoI18n.t("logsTitle"); bold: true; font.pixelSize: Style.font.heading }
+      Txt { text: MihomoI18n.t("logsSubtitle"); dim: true; font.pixelSize: Style.font.body }
     }
     Seg {
       id: seg
       anchors.verticalCenter: parent.verticalCenter
       current: root.level
-      model: [{ key: "all", label: I18n.t("lvlAll") }, { key: "warning", label: I18n.t("lvlWarnShort") }, { key: "error", label: I18n.t("lvlError") }]
+      model: [{ key: "all", label: MihomoI18n.t("lvlAll") }, { key: "warning", label: MihomoI18n.t("lvlWarnShort") }, { key: "error", label: MihomoI18n.t("lvlError") }]
       onPicked: function(k) { root.level = k }
     }
     Field {
@@ -60,12 +61,12 @@ Item {
       width: Style.space(130)
       anchors.verticalCenter: parent.verticalCenter
       icon: Icons.search
-      placeholder: I18n.t("filter")
+      placeholder: MihomoI18n.t("filter")
       onTextChanged: root.search = text
       onEscaped: { text = ""; input.focus = false; root.panel.forceKeys() }
       Component.onCompleted: if (root.panel && root.panel.logFilter) { text = root.panel.logFilter; root.panel.logFilter = "" }
     }
-    Btn { id: clearBtn; objectName: "clearLogs"; anchors.verticalCenter: parent.verticalCenter; ghost: true; icon: Icons.remove; tooltip: I18n.t("logsClear"); keyHint: "c"; onClicked: root.svc.logLines = [] }
+    Btn { id: clearBtn; objectName: "clearLogs"; anchors.verticalCenter: parent.verticalCenter; ghost: true; icon: Icons.remove; tooltip: MihomoI18n.t("logsClear"); keyHint: "c"; onClicked: root.svc.logLines = [] }
   }
 
   Rectangle {
@@ -76,7 +77,7 @@ Item {
     anchors.bottom: footer.top
     anchors.bottomMargin: Style.space(12)
     radius: Style.cornerRadius
-    color: Util.alpha(Color.popups.text, 0.03)
+    color: Util.alpha(Commons.Color.popups.text, 0.03)
     ListView {
       id: list
       objectName: "logList"
@@ -99,8 +100,8 @@ Item {
         wrapMode: Text.WrapAnywhere
         elide: Text.ElideNone
         lineHeight: 1.45
-        font.pixelSize: Style.font.caption
-        color: modelData.type === "error" ? root.svc.red : (modelData.type === "warning" ? root.svc.yellow : Util.alpha(Color.popups.text, 0.68))
+        font.pixelSize: Style.font.bodySmall
+        color: modelData.type === "error" ? root.svc.red : (modelData.type === "warning" ? root.svc.yellow : Util.alpha(Commons.Color.popups.text, 0.68))
       }
     }
     Txt { visible: root.shown.length === 0; anchors.centerIn: parent; width: parent.width - Style.space(24); horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap; text: root.emptyText; faint: true }
@@ -117,16 +118,16 @@ Item {
       objectName: "followLogs"
       ghost: true
       icon: root.follow ? Icons.check : Icons.down
-      text: I18n.t(root.follow ? "logsFollowing" : "logsFollow")
+      text: MihomoI18n.t(root.follow ? "logsFollowing" : "logsFollow")
       onClicked: root.follow = !root.follow
     }
     Item { width: Math.max(0, footer.width - followBtn.width - shortcuts.width); height: 1 }
     Txt {
       id: shortcuts
       anchors.verticalCenter: parent.verticalCenter
-      text: I18n.t("logsShortcuts")
+      text: MihomoI18n.t("logsShortcuts")
       faint: true
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
     }
   }
 }

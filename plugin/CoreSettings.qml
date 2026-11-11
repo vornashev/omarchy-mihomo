@@ -1,6 +1,7 @@
 import QtQuick
-import "." as Mihomo
 import qs.Commons
+import "." as Mihomo
+import qs.Commons as Commons
 
 // The core binary and its databases: versions, updates, rollback.
 Column {
@@ -42,33 +43,33 @@ Column {
   Column {
     width: parent.width
     spacing: Style.space(8)
-    Txt { text: I18n.t("coreTitle"); bold: true }
+    Txt { text: MihomoI18n.t("coreTitle"); bold: true }
     Txt {
       objectName: "coreVersionLine"
       width: parent.width
       wrapMode: Text.Wrap
       dim: true
-      font.pixelSize: Style.font.bodySmall
+      font.pixelSize: Style.font.body
       text: {
         var i = root.info
         if (!i) return "…"
-        var parts = [i.current ? I18n.t("coreVersion").arg(i.current) : I18n.t("coreNotRunning")]
-        if (i.available) parts.push(I18n.t("coreAvailable").arg(i.available))
-        else if (i.latest && i.current) parts.push(I18n.t("coreUpToDate"))
-        if (i.checked_at) parts.push(I18n.t("coreChecked").arg(root.day(i.checked_at)))
+        var parts = [i.current ? MihomoI18n.t("coreVersion").arg(i.current) : MihomoI18n.t("coreNotRunning")]
+        if (i.available) parts.push(MihomoI18n.t("coreAvailable").arg(i.available))
+        else if (i.latest && i.current) parts.push(MihomoI18n.t("coreUpToDate"))
+        if (i.checked_at) parts.push(MihomoI18n.t("coreChecked").arg(root.day(i.checked_at)))
         return parts.join(" · ")
       }
     }
     Txt {
       visible: !!root.info && !root.info.supported
       width: parent.width; wrapMode: Text.Wrap
-      text: I18n.t("coreNotOurs"); faint: true; font.pixelSize: Style.font.caption
+      text: MihomoI18n.t("coreNotOurs"); faint: true; font.pixelSize: Style.font.bodySmall
     }
     Txt {
       visible: !!root.info && !!root.info.error
       width: parent.width; wrapMode: Text.Wrap
-      text: root.info && root.info.error ? I18n.t("coreCheckFailed").arg(root.info.error) : ""
-      color: root.svc.yellow; font.pixelSize: Style.font.caption
+      text: root.info && root.info.error ? MihomoI18n.t("coreCheckFailed").arg(root.info.error) : ""
+      color: root.svc.yellow; font.pixelSize: Style.font.bodySmall
     }
     Row {
       visible: !!root.info && root.info.supported
@@ -79,8 +80,8 @@ Column {
         primary: true
         icon: Icons.down
         busy: root.updating
-        text: root.info && root.info.available ? I18n.t("coreUpdateTo").arg(root.info.available) : ""
-        tooltip: root.info && root.info.fix && root.info.fix.privileged ? I18n.t("coreUpdatePrivileged") : text
+        text: root.info && root.info.available ? MihomoI18n.t("coreUpdateTo").arg(root.info.available) : ""
+        tooltip: root.info && root.info.fix && root.info.fix.privileged ? MihomoI18n.t("coreUpdatePrivileged") : text
         onClicked: root.svc.runFix(root.info.fix)
       }
       Btn {
@@ -89,8 +90,8 @@ Column {
         icon: Icons.refresh
         busy: root.busy === "check"
         enabled: root.busy === ""
-        text: I18n.t("coreCheck")
-        onClicked: root.call("core.check_updates", "check", I18n.t("coreChecked").arg(root.day(Date.now())))
+        text: MihomoI18n.t("coreCheck")
+        onClicked: root.call("core.check_updates", "check", MihomoI18n.t("coreChecked").arg(root.day(Date.now())))
       }
       Btn {
         objectName: "coreRollbackBtn"
@@ -99,23 +100,23 @@ Column {
         icon: Icons.undo
         busy: root.busy === "rollback"
         enabled: root.busy === "" && !root.updating
-        text: root.info && root.info.previous ? I18n.t("coreRollback").arg(root.info.previous) : ""
-        onClicked: root.call("core.rollback", "rollback", I18n.t("coreRolledBack"))
+        text: root.info && root.info.previous ? MihomoI18n.t("coreRollback").arg(root.info.previous) : ""
+        onClicked: root.call("core.rollback", "rollback", MihomoI18n.t("coreRolledBack"))
       }
     }
   }
 
-  Rectangle { width: parent.width; height: 1; color: Util.alpha(Color.popups.text, 0.12) }
+  Rectangle { width: parent.width; height: 1; color: Util.alpha(Commons.Color.popups.text, 0.12) }
 
   // -------------------------------------------------------- databases
   Column {
     width: parent.width
     spacing: Style.space(8)
-    Txt { text: I18n.t("geoTitle"); bold: true }
+    Txt { text: MihomoI18n.t("geoTitle"); bold: true }
     Txt {
       visible: !!root.info && root.info.geo.length === 0
       width: parent.width; wrapMode: Text.Wrap
-      text: I18n.t("geoEmpty"); faint: true; font.pixelSize: Style.font.caption
+      text: MihomoI18n.t("geoEmpty"); faint: true; font.pixelSize: Style.font.bodySmall
     }
     Repeater {
       model: root.info ? root.info.geo : []
@@ -124,8 +125,8 @@ Column {
         width: parent.width
         spacing: Style.space(12)
         Txt { width: Style.space(140); text: modelData.name }
-        Txt { width: Style.space(90); text: root.svc.formatBytes(modelData.size); dim: true; font.pixelSize: Style.font.bodySmall }
-        Txt { text: root.day(modelData.modified); dim: true; font.pixelSize: Style.font.bodySmall }
+        Txt { width: Style.space(90); text: root.svc.formatBytes(modelData.size); dim: true; font.pixelSize: Style.font.body }
+        Txt { text: root.day(modelData.modified); dim: true; font.pixelSize: Style.font.body }
       }
     }
   }
@@ -135,8 +136,8 @@ Column {
     Column {
       width: parent.width - geoSwitch.width
       spacing: Style.space(2)
-      Txt { text: I18n.t("geoAuto") }
-      Txt { text: I18n.t("geoAutoHint"); dim: true; font.pixelSize: Style.font.caption }
+      Txt { text: MihomoI18n.t("geoAuto") }
+      Txt { text: MihomoI18n.t("geoAutoHint"); dim: true; font.pixelSize: Style.font.bodySmall }
     }
     Mihomo.Switch {
       id: geoSwitch
@@ -149,13 +150,13 @@ Column {
 
   Row {
     spacing: Style.space(16)
-    Txt { text: I18n.t("geoInterval"); width: Style.space(200); anchors.verticalCenter: parent.verticalCenter }
+    Txt { text: MihomoI18n.t("geoInterval"); width: Style.space(200); anchors.verticalCenter: parent.verticalCenter }
     Field {
       id: geoInterval
       width: Style.space(100)
       onAccepted: { var n = parseInt(text); if (n > 0) root.save({ "geo-update-interval": n }); input.focus = false; root.panel.forceKeys() }
     }
-    Txt { text: I18n.t("enterToSave"); faint: true; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+    Txt { text: MihomoI18n.t("enterToSave"); faint: true; font.pixelSize: Style.font.bodySmall; anchors.verticalCenter: parent.verticalCenter }
   }
 
   Btn {
@@ -164,7 +165,7 @@ Column {
     icon: Icons.refresh
     busy: root.busy === "geo" || (!!root.info && !!root.info.geo_updating)
     enabled: root.busy === ""
-    text: I18n.t("geoNow")
-    onClicked: root.call("core.update_geo", "geo", I18n.t("geoUpdated"))
+    text: MihomoI18n.t("geoNow")
+    onClicked: root.call("core.update_geo", "geo", MihomoI18n.t("geoUpdated"))
   }
 }

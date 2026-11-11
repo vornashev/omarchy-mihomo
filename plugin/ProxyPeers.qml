@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyModels.js" as Models
 import "ProxyNodeModels.js" as Nodes
 
@@ -24,9 +25,9 @@ Column {
       width: parent.width
       height: body.implicitHeight + Style.space(20)
       radius: Style.cornerRadius
-      color: Util.alpha(Color.popups.text, 0.04)
+      color: Util.alpha(Commons.Color.popups.text, 0.04)
       border.width: 1
-      border.color: Util.alpha(Color.popups.text, 0.15)
+      border.color: Util.alpha(Commons.Color.popups.text, 0.15)
       Column {
         id: body
         x: Style.space(10)
@@ -38,7 +39,7 @@ Column {
           spacing: Style.space(6)
           Btn {
             width: parent.width - removeButton.width - Style.space(6)
-            text: I18n.t("nodePeer").arg(peer.index + 1)
+            text: MihomoI18n.t("nodePeer").arg(peer.index + 1)
             icon: peer.expanded ? Icons.expanded : Icons.collapsed
             ghost: true
             onClicked: peer.expanded = !peer.expanded
@@ -47,7 +48,7 @@ Column {
             id: removeButton
             icon: Icons.remove
             ghost: true
-            tooltip: I18n.t("delete")
+            tooltip: MihomoI18n.t("delete")
             onClicked: {
               var a = Models.clone(root.peers);
               a.splice(peer.index, 1);
@@ -61,7 +62,7 @@ Column {
           text: (root.peers[peer.index].server || "") + ":" + (root.peers[peer.index].port || "") + " · " + (root.peers[peer.index]["allowed-ips"] || []).join(", ")
           elide: Text.ElideRight
           dim: true
-          font.pixelSize: Style.font.caption
+          font.pixelSize: Style.font.bodySmall
         }
         Repeater {
           model: [["server", "port"], ["public-key"], ["pre-shared-key"], ["allowed-ips"], ["reserved"]]
@@ -87,7 +88,7 @@ Column {
                   kind: "string"
                 }
                 value: (root.peers[peer.index] || {})[modelData]
-                label: I18n.t("nodeField_" + modelData)
+                label: MihomoI18n.t("nodeField_" + modelData)
                 expanded: field.kind === "list"
                 onEdited: function (v) {
                   root.setPeer(peer.index, modelData, v);
@@ -103,7 +104,7 @@ Column {
     }
   }
   Btn {
-    text: I18n.t("nodeAddPeer")
+    text: MihomoI18n.t("nodeAddPeer")
     icon: Icons.add
     onClicked: root.editor.setField("peers", root.peers.concat([
       {}

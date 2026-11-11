@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 
 Popup {
   id: root
@@ -23,10 +24,10 @@ Popup {
   height: Math.min(body.implicitHeight + 2 * padding, parent ? parent.height - Style.space(24) : body.implicitHeight + 2 * padding)
   padding: Style.space(18)
   background: Rectangle {
-    color: Color.popups.background
+    color: Commons.Color.popups.background
     radius: Style.cornerRadius
     border.width: 1
-    border.color: Util.alpha(Color.popups.text, 0.2)
+    border.color: Util.alpha(Commons.Color.popups.text, 0.2)
   }
   Overlay.modal: Rectangle {
     color: "#99000000"

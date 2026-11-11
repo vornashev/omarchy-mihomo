@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import qs.Commons
+import qs.Commons as Commons
 
 // Shared surface for AJFj6 menus and select popups.
 Item {
@@ -15,8 +16,8 @@ Item {
     id: surface
     anchors.fill: parent
     radius: Style.space(6)
-    color: Qt.tint(Color.popups.background, Util.alpha(Color.popups.text, 0.11))
+    color: Qt.tint(Commons.Color.popups.background, Util.alpha(Commons.Color.popups.text, 0.11))
     border.width: 1
-    border.color: Util.alpha(Color.popups.text, 0.15)
+    border.color: Util.alpha(Commons.Color.popups.text, 0.15)
   }
 }

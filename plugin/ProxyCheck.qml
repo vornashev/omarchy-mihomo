@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 
 CheckBox {
   id: control
@@ -13,14 +14,14 @@ CheckBox {
     width: Style.space(15)
     height: width
     radius: 3
-    color: control.checked ? Color.accent : Util.alpha(Color.popups.text, 0.04)
+    color: control.checked ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.04)
     border.width: 1
-    border.color: control.checked ? Color.accent : Util.alpha(Color.popups.text, 0.3)
+    border.color: control.checked ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.3)
     Txt {
       anchors.centerIn: parent
       text: control.checked ? "✓" : ""
-      color: Color.background
-      font.pixelSize: Style.font.caption
+      color: Commons.Color.background
+      font.pixelSize: Style.font.bodySmall
     }
   }
   contentItem: Txt {

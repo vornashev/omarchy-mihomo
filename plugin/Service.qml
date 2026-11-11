@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import "Notices.js" as Notices
 
 // Connection to omarchy-mihomod: one unix socket, newline-delimited JSON.
@@ -76,7 +77,7 @@ Item {
     setFixing(fix.id, true)
     request("health.fix", { id: fix.id }, function(r, err) {
       setFixing(fix.id, false)
-      Quickshell.execDetached(["notify-send", "-a", "Mihomo", "-u", err ? "critical" : "normal", I18n.t("fix_" + fix.id), err ? err.message : I18n.t("fixDone")])
+      Quickshell.execDetached(["notify-send", "-a", "Mihomo", "-u", err ? "critical" : "normal", MihomoI18n.t("fix_" + fix.id), err ? err.message : MihomoI18n.t("fixDone")])
     }, true)
   }
   readonly property string profileName: status && status.config && status.config.profile ? status.config.profile.name : ""
@@ -106,10 +107,12 @@ Item {
   property var automation: null
   // Latest notices by key; the popup opened from a notification reads them.
   property var notices: ({})
-  // Desktop notification id per notice key, so an update replaces the toast.
-  property var toastIds: ({})
   // The panel shows this notice right now; no toast for it.
   property string noticeOnScreen: ""
+  readonly property string watching: panelVisible ? noticeOnScreen : ""
+  property string watched: ""
+  onWatchingChanged: { Toasts.watch(watched, watching); watched = watching }
+  Component.onDestruction: Toasts.watch(watched, "")
   signal noticeArrived(var notice)
 
   function loadAutofix() {
@@ -139,15 +142,15 @@ Item {
     next[n.key] = n
     notices = next
     noticeArrived(n)
-    if (n.key === noticeOnScreen && panelVisible) return
-    var text = Notices.text(n, I18n.t, root.clock)
+    if (!Toasts.claim("notice:" + n.key + "@" + n.at) || Toasts.onScreen(n.key)) return
+    var text = Notices.text(n, MihomoI18n.t, root.clock)
     if (!text) return
-    var replace = toastIds[n.key] || 0
+    var replace = Toasts.ids[n.key] || 0
     toastProc.createObject(root, {
       key: n.key,
       command: ["omarchy-notification-send", "--app-name", "Mihomo", "-u", n.urgency, "-r", String(replace), "-p",
         text.title, text.body + (text.click ? "\n" + text.click : ""),
-        "--exec", "omarchy-shell", "-q", "tema.omarchy-mihomo", "openNotice", n.key]
+        "--exec", "omarchy-shell", "-q", "vornashev.omarchy-mihomo", "openNotice", n.key]
     })
   }
 
@@ -160,7 +163,7 @@ Item {
       stdout: StdioCollector {
         onStreamFinished: {
           var m = String(text).match(/(\d+)/)
-          if (m) { var ids = Object.assign({}, root.toastIds); ids[proc.key] = parseInt(m[1]); root.toastIds = ids }
+          if (m) { var ids = Object.assign({}, Toasts.ids); ids[proc.key] = parseInt(m[1]); Toasts.ids = ids }
         }
       }
       onExited: proc.destroy()
@@ -180,15 +183,15 @@ Item {
     var v = themeColors[name]
     return v ? v : fallback
   }
-  readonly property color red: themeColor("red", Color.urgent)
-  readonly property color yellow: themeColor("yellow", Color.accent)
-  readonly property color green: themeColor("green", Color.accent)
+  readonly property color red: themeColor("red", Commons.Color.urgent)
+  readonly property color yellow: themeColor("yellow", Commons.Color.accent)
+  readonly property color green: themeColor("green", Commons.Color.accent)
   readonly property color peach: themeColor("bright_red", red)
-  readonly property color mauve: themeColor("magenta", Color.accent)
+  readonly property color mauve: themeColor("magenta", Commons.Color.accent)
 
   FileView {
     id: colorsFile
-    path: Color.currentThemePath + "/colors.toml"
+    path: Commons.Color.currentThemePath + "/colors.toml"
     printErrors: false
     onLoaded: {
       var out = {}
@@ -219,7 +222,7 @@ Item {
   // `keep`: deliver the reply even if the panel changed pages meanwhile.
   function request(method, params, callback, keep) {
     if (!sock.connected) {
-      if (callback) callback(null, { code: "core_unavailable", message: I18n.t("daemonDown") })
+      if (callback) callback(null, { code: "core_unavailable", message: MihomoI18n.t("daemonDown") })
       return
     }
     var id = nextId++
@@ -257,8 +260,8 @@ Item {
       } else if (msg.event === "profiles") {
         // The panel is usually closed while the editor is in front.
         var p = msg.data
-        Quickshell.execDetached(["notify-send", "-a", "Mihomo", "-u", p.error ? "critical" : "normal",
-          p.error ? I18n.t("profileSaveFailed").arg(p.name) : I18n.t("profileSaved").arg(p.name), p.error || ""])
+        if (Toasts.claim("profile:" + JSON.stringify(p))) Quickshell.execDetached(["notify-send", "-a", "Mihomo", "-u", p.error ? "critical" : "normal",
+          p.error ? MihomoI18n.t("profileSaveFailed").arg(p.name) : MihomoI18n.t("profileSaved").arg(p.name), p.error || ""])
         root.profileSaved(p)
       }
       else if (msg.event === "autofix") root.setFix(msg.data)
@@ -299,7 +302,7 @@ Item {
         // Fail outstanding calls instead of leaving the UI waiting.
         var calls = root.pending
         root.pending = {}
-        for (var id in calls) if (calls[id].gen === -1 || calls[id].gen === root.pageGeneration) calls[id].cb(null, { code: "core_unavailable", message: I18n.t("daemonDown") })
+        for (var id in calls) if (calls[id].gen === -1 || calls[id].gen === root.pageGeneration) calls[id].cb(null, { code: "core_unavailable", message: MihomoI18n.t("daemonDown") })
         root.status = null
         retry.start()
       }
@@ -339,20 +342,20 @@ Item {
     var units = ["B", "KB", "MB", "GB", "TB"]
     var i = 0
     while (n >= 1024 && i < units.length - 1) { n /= 1024; i++ }
-    return (i === 0 ? n.toFixed(0) : n.toFixed(1)) + " " + I18n.t("unit" + units[i])
+    return (i === 0 ? n.toFixed(0) : n.toFixed(1)) + " " + MihomoI18n.t("unit" + units[i])
   }
 
   function formatRate(n) {
-    return formatBytes(n) + I18n.t("perSec")
+    return formatBytes(n) + MihomoI18n.t("perSec")
   }
 
   function ago(ms) {
-    if (!ms) return I18n.t("never")
+    if (!ms) return MihomoI18n.t("never")
     var s = Math.max(0, Math.floor((Date.now() - ms) / 1000))
-    if (s < 45) return I18n.t("justNow")
-    if (s < 3600) return I18n.t("minAgo").arg(Math.round(s / 60))
-    if (s < 86400) return I18n.t("hAgo").arg(Math.round(s / 3600))
-    return I18n.t("dAgo").arg(Math.round(s / 86400))
+    if (s < 45) return MihomoI18n.t("justNow")
+    if (s < 3600) return MihomoI18n.t("minAgo").arg(Math.round(s / 60))
+    if (s < 86400) return MihomoI18n.t("hAgo").arg(Math.round(s / 3600))
+    return MihomoI18n.t("dAgo").arg(Math.round(s / 86400))
   }
 
   function clock(ms) {
@@ -369,6 +372,6 @@ Item {
     if (kind === "reset" || kind === "refused" || kind === "no_route") return peach
     if (kind === "dns_fail" || kind === "dns_stub") return yellow
     if (kind === "tls" || kind === "proxy") return mauve
-    return Color.muted
+    return Commons.Color.muted
   }
 }

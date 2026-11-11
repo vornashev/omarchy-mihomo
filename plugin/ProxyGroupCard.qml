@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyModels.js" as Models
 
 Rectangle {
@@ -32,9 +33,9 @@ Rectangle {
   width: parent.width
   implicitHeight: body.implicitHeight + Style.space(20)
   radius: Style.cornerRadius
-  color: Util.alpha(Color.popups.text, 0.04)
+  color: Util.alpha(Commons.Color.popups.text, 0.04)
   border.width: 1
-  border.color: Util.alpha(Color.popups.text, 0.15)
+  border.color: Util.alpha(Commons.Color.popups.text, 0.15)
   Column {
     id: body
     x: Style.space(10)
@@ -42,13 +43,17 @@ Rectangle {
     width: parent.width - Style.space(20)
     spacing: Style.space(8)
     Row {
+      id: header
       width: parent.width
       spacing: Style.space(6)
       Txt {
+        id: dragHandle
         visible: root.draggable
         text: "⠿"
         faint: true
-        anchors.verticalCenter: parent.verticalCenter
+        width: Style.space(12)
+        height: groupTitle.height
+        horizontalAlignment: Text.AlignHCenter
         MouseArea {
           objectName: "proxyGroupDragHandle"
           anchors.fill: parent
@@ -63,35 +68,41 @@ Rectangle {
         }
       }
       Txt {
+        id: typeIcon
         text: root.entry.type === "select" ? Icons.proxies : root.entry.type === "fallback" ? Icons.shield : root.entry.type === "url-test" ? Icons.test : Icons.connections
-        color: Color.accent
-        anchors.verticalCenter: parent.verticalCenter
+        color: Commons.Color.accent
+        width: Style.space(16)
+        height: groupTitle.height
+        horizontalAlignment: Text.AlignHCenter
       }
       Column {
-        width: parent.width - actions.width - Style.space(root.draggable ? 46 : 32)
+        width: header.width - typeIcon.width - actions.width - header.spacing * 2
+          - (dragHandle.visible ? dragHandle.width + header.spacing : 0)
         spacing: Style.space(4)
         Txt {
+          id: groupTitle
           width: parent.width
-          text: root.entry.name + (root.entry.source === "modified" ? " · " + I18n.t("proxySourceModified") : "")
+          text: root.entry.name + (root.entry.source === "modified" ? " · " + MihomoI18n.t("proxySourceModified") : "")
           bold: true
           elide: Text.ElideRight
         }
         Txt {
           width: parent.width
-          text: (root.entry.name === "GLOBAL" ? I18n.t("proxyBuiltin") : I18n.t("proxyType_" + root.entry.type) + " · " + I18n.t("proxyTypeHint_" + root.entry.type))
-            + (root.traffic && root.svc && root.svc.formatBytes ? " · " + I18n.t("trafficWeek").arg(root.svc.formatBytes(root.traffic.up + root.traffic.down)) : "")
+          text: (root.entry.name === "GLOBAL" ? MihomoI18n.t("proxyBuiltin") : MihomoI18n.t("proxyType_" + root.entry.type) + " · " + MihomoI18n.t("proxyTypeHint_" + root.entry.type))
+            + (root.traffic && root.svc && root.svc.formatBytes ? " · " + MihomoI18n.t("trafficWeek").arg(root.svc.formatBytes(root.traffic.up + root.traffic.down)) : "")
           dim: true
-          font.pixelSize: Style.font.caption
+          font.pixelSize: Style.font.bodySmall
           elide: Text.ElideRight
         }
       }
       Row {
         id: actions
+        y: (groupTitle.height - height) / 2
         spacing: Style.space(2)
         Btn {
           ghost: true
           icon: Icons.test
-          tooltip: I18n.t("hintTestGroup")
+          tooltip: MihomoI18n.t("hintTestGroup")
           busy: root.testing
           onClicked: root.testRequested()
         }
@@ -99,7 +110,7 @@ Rectangle {
           ghost: true
           icon: Icons.edit
           enabled: root.entry.name !== "GLOBAL"
-          tooltip: I18n.t("proxyEdit")
+          tooltip: MihomoI18n.t("proxyEdit")
           onClicked: root.editRequested()
         }
         Btn {
@@ -108,16 +119,16 @@ Rectangle {
           ghost: true
           text: "⋮"
           enabled: root.entry.name !== "GLOBAL"
-          tooltip: I18n.t("proxySection_advanced")
+          tooltip: MihomoI18n.t("proxySection_advanced")
           onClicked: root.menuRequested(menuButton)
         }
       }
     }
     Txt {
       visible: root.current !== ""
-      text: I18n.t("proxyNow") + "  " + root.current
-      color: Color.accent
-      font.pixelSize: Style.font.caption
+      text: MihomoI18n.t("proxyNow") + "  " + root.current
+      color: Commons.Color.accent
+      font.pixelSize: Style.font.bodySmall
       width: parent.width
       elide: Text.ElideRight
     }
@@ -134,9 +145,9 @@ Rectangle {
           width: Math.min(memberLabel.implicitWidth + latency.implicitWidth + (spark.visible ? spark.width + Style.space(6) : 0) + Style.space(22), parent.width)
           height: Style.space(25)
           radius: Style.cornerRadius
-          color: modelData.name === root.current ? Util.alpha(Color.accent, 0.12) : Util.alpha(Color.popups.text, 0.04)
+          color: modelData.name === root.current ? Util.alpha(Commons.Color.accent, 0.12) : Util.alpha(Commons.Color.popups.text, 0.04)
           border.width: 1
-          border.color: modelData.name === root.current ? Color.accent : Util.alpha(Color.popups.text, 0.15)
+          border.color: modelData.name === root.current ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.15)
           Row {
             anchors.centerIn: parent
             width: parent.width - Style.space(16)
@@ -145,17 +156,17 @@ Rectangle {
               id: memberLabel
               width: Math.min(implicitWidth, parent.width - latency.width - (spark.visible ? spark.width + parent.spacing : 0) - parent.spacing)
               text: (root.entry.type === "fallback" ? (member.index + 1) + "  " : "") + member.modelData.name
-              font.pixelSize: Style.font.bodySmall
+              font.pixelSize: Style.font.body
               bold: member.modelData.name === root.current
               dim: !bold
             }
             Txt {
               id: latency
-              text: member.modelData.delay === 0 ? I18n.t("proxyNoResponse") : Models.delayText(member.modelData.delay, I18n.t("ms"))
-              font.pixelSize: Style.font.caption
-              color: member.modelData.delay == null ? Util.alpha(Color.popups.text, 0.42)
-                : member.modelData.delay === 0 ? (root.svc ? root.svc.red : Color.urgent)
-                : member.modelData.delay < 150 ? (root.svc ? root.svc.green : Color.accent) : (root.svc ? root.svc.yellow : Color.accent)
+              text: member.modelData.delay === 0 ? MihomoI18n.t("proxyNoResponse") : Models.delayText(member.modelData.delay, MihomoI18n.t("ms"))
+              font.pixelSize: Style.font.bodySmall
+              color: member.modelData.delay == null ? Util.alpha(Commons.Color.popups.text, 0.42)
+                : member.modelData.delay === 0 ? (root.svc ? root.svc.red : Commons.Color.urgent)
+                : member.modelData.delay < 150 ? (root.svc ? root.svc.green : Commons.Color.accent) : (root.svc ? root.svc.yellow : Commons.Color.accent)
             }
             Sparkline {
               id: spark
@@ -165,12 +176,12 @@ Rectangle {
               height: Style.space(11)
               anchors.verticalCenter: parent.verticalCenter
               points: member.history ? member.history.points : []
-              color: Models.latencyLoss(member.history) >= 10 ? (root.svc ? root.svc.yellow : Color.accent) : (root.svc ? root.svc.green : Color.accent)
-              failColor: root.svc ? root.svc.red : Color.urgent
+              color: Models.latencyLoss(member.history) >= 10 ? (root.svc ? root.svc.yellow : Commons.Color.accent) : (root.svc ? root.svc.green : Commons.Color.accent)
+              failColor: root.svc ? root.svc.red : Commons.Color.urgent
             }
           }
           HoverHandler { id: memberHover }
-          Hint { visible: memberHover.hovered && !!member.history; text: Models.latencyHint(member.history, I18n.t) }
+          Hint { visible: memberHover.hovered && !!member.history; text: Models.latencyHint(member.history, MihomoI18n.t) }
           MouseArea {
             anchors.fill: parent
             cursorShape: root.selectable ? Qt.PointingHandCursor : Qt.ArrowCursor

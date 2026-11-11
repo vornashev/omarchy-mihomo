@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 
 MenuSeparator {
   padding: 0
@@ -12,7 +13,7 @@ MenuSeparator {
       anchors.verticalCenter: parent.verticalCenter
       width: parent.width
       height: 1
-      color: Util.alpha(Color.popups.text, 0.15)
+      color: Util.alpha(Commons.Color.popups.text, 0.15)
     }
   }
 }

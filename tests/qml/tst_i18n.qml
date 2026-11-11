@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import Qt.labs.folderlistmodel
+import qs.Commons as Commons
 import "../../plugin" as Plugin
 import "../../plugin/i18n/ru.js" as Ru
 import "../../plugin/i18n/en.js" as En
@@ -58,7 +59,7 @@ Item {
     function test_every_used_key_exists() {
       tryVerify(function() { return sources.status === FolderListModel.Ready && sources.count > 0 }, 5000)
       var missing = []
-      var used = /I18n\.t\("([^"]+)"\)/g
+      var used = /MihomoI18n\.t\("([^"]+)"\)/g
       for (var i = 0; i < sources.count; i++) {
         var name = sources.get(i, "fileName")
         var src = read(sources.get(i, "fileUrl"))
@@ -72,11 +73,24 @@ Item {
     }
 
     function test_fallback_and_lookup() {
-      Plugin.I18n.language = "en"
-      compare(Plugin.I18n.t("never"), "never")
-      Plugin.I18n.language = "ru"
-      compare(Plugin.I18n.t("dnsMode"), "Режим")
-      compare(Plugin.I18n.t("no.such.key"), "no.such.key")
+      Plugin.MihomoI18n.language = "en"
+      compare(Plugin.MihomoI18n.t("never"), "never")
+      Plugin.MihomoI18n.language = "ru"
+      compare(Plugin.MihomoI18n.t("dnsMode"), "Режим")
+      compare(Plugin.MihomoI18n.t("no.such.key"), "no.such.key")
+    }
+
+    function test_shell_and_plugin_catalogs_are_independent() {
+      compare(Commons.I18n.language, "en")
+      compare(Commons.I18n.t("navOverview"), "navOverview")
+      Plugin.MihomoI18n.language = "ru"
+      compare(Plugin.MihomoI18n.t("navOverview"), Ru.strings.navOverview)
+      compare(Plugin.MihomoI18n.mode("rule"), Ru.strings.mode_rule)
+      Plugin.MihomoI18n.language = "en"
+      compare(Plugin.MihomoI18n.t("navOverview"), En.strings.navOverview)
+      compare(Commons.I18n.language, "en")
+      compare(Commons.I18n.t("navOverview"), "navOverview")
+      Plugin.MihomoI18n.language = "ru"
     }
   }
 }

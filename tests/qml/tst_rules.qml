@@ -14,6 +14,7 @@ Rectangle {
     property string page: "rules"
     property string toast: ""
     property string logFilter: ""
+    property string connectionsFilter: ""
     property var opened: null
     function openRule(spec) { opened = spec; editing = spec; page = "rule" }
     function openEditor(value) { editing = value }
@@ -251,6 +252,17 @@ Rectangle {
       compare(mockPanel.opened.full, false)
       page.textKey("R")
       compare(mockPanel.opened.full, true)
+    }
+
+    function test_connections_take_the_title_search() {
+      mockPanel.connectionsFilter = "anthropic"
+      var page = createTemporaryObject(connectionsComponent, scene)
+      compare(page.search, "anthropic")
+      compare(mockPanel.connectionsFilter, "", "taken once")
+      tryCompare(page.shown, "length", 1)
+      mockPanel.connectionsFilter = "nothing.example"
+      compare(page.search, "nothing.example", "also while the page is open")
+      compare(page.shown.length, 0)
     }
 
     function test_rules_page_add_and_duplicate() {

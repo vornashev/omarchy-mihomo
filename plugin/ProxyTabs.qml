@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 Item {
   id: root
@@ -11,7 +12,7 @@ Item {
     anchors.bottom: parent.bottom
     width: parent.width
     height: 1
-    color: Util.alpha(Color.popups.text, 0.15)
+    color: Util.alpha(Commons.Color.popups.text, 0.15)
   }
   Row {
     spacing: Style.space(16)
@@ -29,15 +30,15 @@ Item {
         Txt {
           id: label
           text: modelData.label
-          color: modelData.key === root.current ? Color.accent : Color.popups.text
-          font.pixelSize: Style.font.bodySmall
+          color: modelData.key === root.current ? Commons.Color.accent : Commons.Color.popups.text
+          font.pixelSize: Style.font.body
         }
         Rectangle {
           anchors.bottom: parent.bottom
           width: parent.width
           height: 2
           visible: modelData.key === root.current
-          color: Color.accent
+          color: Commons.Color.accent
         }
         MouseArea {
           anchors.fill: parent

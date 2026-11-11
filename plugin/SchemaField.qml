@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyModels.js" as Models
 
 // Recursive schema-driven input; unset is different from false, zero or empty.
@@ -12,7 +13,7 @@ Column {
       key: "",
       kind: "string"
     })
-  property string label: I18n.t("nodeField_" + field.key) === "nodeField_" + field.key ? field.key : I18n.t("nodeField_" + field.key)
+  property string label: MihomoI18n.t("nodeField_" + field.key) === "nodeField_" + field.key ? field.key : MihomoI18n.t("nodeField_" + field.key)
   property bool compact: false
   property var value
   property var context: ({})
@@ -96,7 +97,7 @@ Column {
       height: root.compact ? Style.space(18) : implicitHeight
       visible: root.complex
       text: root.expanded ? "−" : "+"
-      tooltip: I18n.t(root.expanded ? "hintCollapse" : "hintExpand")
+      tooltip: MihomoI18n.t(root.expanded ? "hintCollapse" : "hintExpand")
       ghost: true
       onClicked: root.expanded = !root.expanded
     }
@@ -105,13 +106,13 @@ Column {
       width: parent.width - Style.space(root.complex ? 120 : 90)
       anchors.verticalCenter: parent.verticalCenter
       dim: true
-      font.pixelSize: Style.font.bodySmall
+      font.pixelSize: Style.font.body
     }
     Btn {
       height: root.compact ? Style.space(18) : implicitHeight
       visible: !!root.field.secret
       text: root.reveal ? "◉" : "◎"
-      tooltip: I18n.t(root.reveal ? "hintHideSecret" : "hintShowSecret")
+      tooltip: MihomoI18n.t(root.reveal ? "hintHideSecret" : "hintShowSecret")
       ghost: true
       onClicked: root.reveal = !root.reveal
     }
@@ -119,7 +120,7 @@ Column {
       height: root.compact ? Style.space(18) : implicitHeight
       visible: root.present && !root.field.required
       text: "×"
-      tooltip: I18n.t("hintRemoveField")
+      tooltip: MihomoI18n.t("hintRemoveField")
       ghost: true
       onClicked: {
         root.expanded = false;
@@ -139,8 +140,8 @@ Column {
     text: root.errorText
     width: parent.width
     wrapMode: Text.Wrap
-    color: Color.urgent
-    font.pixelSize: Style.font.bodySmall
+    color: Commons.Color.urgent
+    font.pixelSize: Style.font.body
   }
 
   Component {
@@ -148,7 +149,7 @@ Column {
     Field {
       width: parent.width
       text: root.present ? Array.prototype.join.call(root.value, ", ") : ""
-      placeholder: I18n.t("nodeDefault")
+      placeholder: MihomoI18n.t("nodeDefault")
       input.objectName: "proxy-input-" + root.field.key
       input.onTextEdited: {
         var values = text.split(",").map(function (v) {
@@ -160,7 +161,7 @@ Column {
           if (values.some(function (v) {
             return !/^-?[0-9]+$/.test(v) || !Number.isSafeInteger(Number(v));
           })) {
-            root.setError(I18n.t("proxyInteger"));
+            root.setError(MihomoI18n.t("proxyInteger"));
             return;
           }
           values = values.map(Number);
@@ -174,7 +175,7 @@ Column {
     Field {
       width: parent.width
       text: root.present ? String(root.value) : ""
-      placeholder: I18n.t("nodeDefault")
+      placeholder: MihomoI18n.t("nodeDefault")
       input.echoMode: root.field.secret && !root.reveal ? TextInput.Password : TextInput.Normal
       input.selectByMouse: true
       input.objectName: "proxy-input-" + root.field.key
@@ -185,7 +186,7 @@ Column {
         }
         if (root.field.kind === "number") {
           if (!/^-?[0-9]+$/.test(text) || !Number.isSafeInteger(Number(text))) {
-            root.setError(I18n.t("proxyInteger"));
+            root.setError(MihomoI18n.t("proxyInteger"));
             return;
           }
           root.update(Number(text));
@@ -198,7 +199,7 @@ Column {
     id: boolInput
     ProxyChoice {
       width: parent.width
-      model: [I18n.t("nodeDefault"), I18n.t("on"), I18n.t("off")]
+      model: [MihomoI18n.t("nodeDefault"), MihomoI18n.t("on"), MihomoI18n.t("off")]
       currentIndex: !root.present ? 0 : root.value ? 1 : 2
       onActivated: root.update(currentIndex === 0 ? undefined : currentIndex === 1)
     }
@@ -235,14 +236,14 @@ Column {
         height: Style.space(100)
         wrapMode: TextEdit.WrapAnywhere
         selectByMouse: true
-        color: Color.popups.text
+        color: Commons.Color.popups.text
         font.family: Style.font.family
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: Style.font.body
         background: Rectangle {
-          color: Util.alpha(Color.popups.text, 0.04)
+          color: Util.alpha(Commons.Color.popups.text, 0.04)
           radius: Style.cornerRadius
           border.width: 1
-          border.color: Util.alpha(Color.popups.text, 0.16)
+          border.color: Util.alpha(Commons.Color.popups.text, 0.16)
         }
         text: root.field.secret && !root.reveal && root.present ? "••••••••" : !root.present ? "" : root.field.kind === "json" ? JSON.stringify(root.value, null, 2) : String(root.value)
         readOnly: !!root.field.secret && !root.reveal
@@ -251,7 +252,7 @@ Column {
             try {
               root.update(text.trim() ? JSON.parse(text) : undefined);
             } catch (e) {
-              root.setError(I18n.t("proxyInvalidJson"));
+              root.setError(MihomoI18n.t("proxyInvalidJson"));
             }
           } else
             root.update(text || undefined);
@@ -322,21 +323,21 @@ Column {
             }
             Btn {
               text: "↑"
-              tooltip: I18n.t("hintMoveUp")
+              tooltip: MihomoI18n.t("hintMoveUp")
               ghost: true
               enabled: listRow.index > 0
               onClicked: root.moveItem(listRow.index, -1)
             }
             Btn {
               text: "↓"
-              tooltip: I18n.t("hintMoveDown")
+              tooltip: MihomoI18n.t("hintMoveDown")
               ghost: true
               enabled: listRow.index < (root.value || []).length - 1
               onClicked: root.moveItem(listRow.index, 1)
             }
             Btn {
               text: "×"
-              tooltip: I18n.t("hintRemoveItem")
+              tooltip: MihomoI18n.t("hintRemoveItem")
               ghost: true
               onClicked: root.removeItem(listRow.index)
             }
@@ -349,7 +350,7 @@ Column {
             onLoaded: {
               issueId = root.nextChildId++;
               var f = Object.assign({
-                key: root.field.key === "proxies" ? I18n.t("proxyMember") : I18n.t("proxyValue")
+                key: root.field.key === "proxies" ? MihomoI18n.t("proxyMember") : MihomoI18n.t("proxyValue")
               }, root.field.item || {
                 kind: "string"
               });
@@ -378,7 +379,7 @@ Column {
         }
       }
       Btn {
-        text: I18n.t("proxyAddItem")
+        text: MihomoI18n.t("proxyAddItem")
         onClicked: {
           var a = Models.clone(root.value) || [];
           a.push(Models.fresh(root.field.item || {
@@ -431,12 +432,12 @@ Column {
         Field {
           id: mapKey
           width: parent.width - addKey.width - Style.space(7)
-          placeholder: I18n.t("proxyKey")
+          placeholder: MihomoI18n.t("proxyKey")
         }
         Btn {
           id: addKey
           text: "+"
-          tooltip: I18n.t("hintAddField")
+          tooltip: MihomoI18n.t("hintAddField")
           enabled: mapKey.text.trim() !== ""
           onClicked: {
             root.modify(mapKey.text.trim(), Models.fresh(root.field.item || {

@@ -36,6 +36,8 @@ pub struct State {
     pub autofix: Mutex<crate::autofix::Engine>,
     pub network: Mutex<crate::network::Net>,
     pub updates: Mutex<crate::updates::Updates>,
+    /// The sites of the «Check» page and their last results.
+    pub sites: Mutex<crate::sites::Sites>,
     /// Latest notices, newest last, one per key.
     notices: Mutex<VecDeque<Notice>>,
 }
@@ -58,6 +60,7 @@ impl State {
     pub fn new(core: mihomo_api::Client, config: crate::config::Manager, problems: omm_problems::Collector, system_proxy: crate::system_proxy::Manager) -> Self {
         let autofix = crate::autofix::Engine::load(&config.paths().root);
         let updates = crate::updates::Updates::load(&config.paths().root);
+        let sites = crate::sites::Sites::load(&config.paths().root);
         let latency = crate::latency::Store::open(&config.paths().root.join("latency.db")).unwrap_or_else(|e| {
             tracing::warn!("latency history unavailable: {e}");
             crate::latency::Store::in_memory()
@@ -100,6 +103,7 @@ impl State {
             autofix: Mutex::new(autofix),
             network: Mutex::default(),
             updates: Mutex::new(updates),
+            sites: Mutex::new(sites),
             notices: Mutex::default(),
         }
     }

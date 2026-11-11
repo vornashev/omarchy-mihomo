@@ -21,6 +21,7 @@ mod suggest;
 #[cfg_attr(target_os = "macos", path = "system_proxy_macos.rs")]
 mod system_proxy;
 mod session;
+mod sites;
 mod mmdb;
 mod traffic;
 mod updates;

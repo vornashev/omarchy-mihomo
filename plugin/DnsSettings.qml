@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 
 // Settings → DNS: the user's values on top of the profile's, per-site
 // servers and a lookup through the core.
@@ -22,7 +23,7 @@ Item {
     next[key] = value
     svc.request("dns.set", next, function(r, err) {
       if (r) root.info = r
-      root.panel.notify(err ? err.message : I18n.t("settingsSaved"))
+      root.panel.notify(err ? err.message : MihomoI18n.t("settingsSaved"))
     }, true)
   }
   // "a, b c" → ["a", "b", "c"]; empty → null, back to the profile.
@@ -45,7 +46,7 @@ Item {
     if (a.error) return a.error
     var list = (a.Answer || []).map(function(x) { return x.data })
     if (list.length) return list.join("\n")
-    return a.Status === 3 ? I18n.t("dnsNxDomain") : I18n.t("dnsNoAnswer").arg(a.Status !== undefined ? a.Status : "?")
+    return a.Status === 3 ? MihomoI18n.t("dnsNxDomain") : MihomoI18n.t("dnsNoAnswer").arg(a.Status !== undefined ? a.Status : "?")
   }
 
   Component.onCompleted: reload()
@@ -70,48 +71,48 @@ Item {
       spacing: Style.space(14)
       visible: root.s !== null
 
-      Txt { width: parent.width; text: I18n.t("dnsIntro"); dim: true; font.pixelSize: Style.font.caption; wrapMode: Text.Wrap }
+      Txt { width: parent.width; text: MihomoI18n.t("dnsIntro"); dim: true; font.pixelSize: Style.font.bodySmall; wrapMode: Text.Wrap }
 
       Row {
         spacing: Style.space(16)
-        Txt { text: I18n.t("dnsMode"); width: Style.space(170); anchors.verticalCenter: parent.verticalCenter }
+        Txt { text: MihomoI18n.t("dnsMode"); width: Style.space(170); anchors.verticalCenter: parent.verticalCenter }
         Seg {
           objectName: "dnsModeSeg"
           current: root.s && root.s["enhanced-mode"] ? root.s["enhanced-mode"] : ""
-          model: [{ key: "", label: I18n.t("dnsFromProfile") }, { key: "fake-ip", label: "fake-ip" }, { key: "redir-host", label: "redir-host" }]
+          model: [{ key: "", label: MihomoI18n.t("dnsFromProfile") }, { key: "fake-ip", label: "fake-ip" }, { key: "redir-host", label: "redir-host" }]
           onPicked: function(k) { root.save("enhanced-mode", k || null) }
         }
-        Txt { text: I18n.t("dnsNow").arg(root.dns["enhanced-mode"] || "—"); faint: true; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+        Txt { text: MihomoI18n.t("dnsNow").arg(root.dns["enhanced-mode"] || "—"); faint: true; font.pixelSize: Style.font.bodySmall; anchors.verticalCenter: parent.verticalCenter }
       }
 
       Row {
         spacing: Style.space(16)
-        Txt { text: I18n.t("dnsSniffer"); width: Style.space(170); anchors.verticalCenter: parent.verticalCenter }
+        Txt { text: MihomoI18n.t("dnsSniffer"); width: Style.space(170); anchors.verticalCenter: parent.verticalCenter }
         Seg {
           current: !root.s || root.s.sniffer === null || root.s.sniffer === undefined ? "" : (root.s.sniffer ? "on" : "off")
-          model: [{ key: "", label: I18n.t("dnsFromProfile") }, { key: "on", label: I18n.t("on") }, { key: "off", label: I18n.t("off") }]
+          model: [{ key: "", label: MihomoI18n.t("dnsFromProfile") }, { key: "on", label: MihomoI18n.t("on") }, { key: "off", label: MihomoI18n.t("off") }]
           onPicked: function(k) { root.save("sniffer", k === "" ? null : k === "on") }
         }
-        Txt { text: I18n.t("dnsNow").arg(root.info && root.info.effective.sniffer ? I18n.t("on") : I18n.t("off")); faint: true; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+        Txt { text: MihomoI18n.t("dnsNow").arg(root.info && root.info.effective.sniffer ? MihomoI18n.t("on") : MihomoI18n.t("off")); faint: true; font.pixelSize: Style.font.bodySmall; anchors.verticalCenter: parent.verticalCenter }
       }
 
       // One row per list setting: empty means "as in the profile".
       Column {
         width: parent.width
         spacing: Style.space(10)
-        DnsListRow { id: serversField; objectName: "dnsServers"; width: parent.width; label: I18n.t("dnsServers"); hint: I18n.t("dnsListHint"); profile: root.joined(root.dns.nameserver); onSubmit: function(v) { root.save("nameserver", root.listOf(v)) } }
-        DnsListRow { id: fallbackField; width: parent.width; label: I18n.t("dnsFallback"); hint: I18n.t("dnsListHint"); profile: root.joined(root.dns.fallback); onSubmit: function(v) { root.save("fallback", root.listOf(v)) } }
-        DnsListRow { id: bootstrapField; width: parent.width; label: I18n.t("dnsBootstrap"); hint: I18n.t("dnsBootstrapHint"); profile: root.joined(root.dns["default-nameserver"]); onSubmit: function(v) { root.save("default-nameserver", root.listOf(v)) } }
-        DnsListRow { id: filterField; width: parent.width; label: I18n.t("dnsFakeIpFilter"); hint: I18n.t("dnsFilterHint").arg((root.dns["fake-ip-filter"] || []).length); profile: ""; onSubmit: function(v) { root.save("fake-ip-filter", root.listOf(v) || []) } }
+        DnsListRow { id: serversField; objectName: "dnsServers"; width: parent.width; label: MihomoI18n.t("dnsServers"); hint: MihomoI18n.t("dnsListHint"); profile: root.joined(root.dns.nameserver); onSubmit: function(v) { root.save("nameserver", root.listOf(v)) } }
+        DnsListRow { id: fallbackField; width: parent.width; label: MihomoI18n.t("dnsFallback"); hint: MihomoI18n.t("dnsListHint"); profile: root.joined(root.dns.fallback); onSubmit: function(v) { root.save("fallback", root.listOf(v)) } }
+        DnsListRow { id: bootstrapField; width: parent.width; label: MihomoI18n.t("dnsBootstrap"); hint: MihomoI18n.t("dnsBootstrapHint"); profile: root.joined(root.dns["default-nameserver"]); onSubmit: function(v) { root.save("default-nameserver", root.listOf(v)) } }
+        DnsListRow { id: filterField; width: parent.width; label: MihomoI18n.t("dnsFakeIpFilter"); hint: MihomoI18n.t("dnsFilterHint").arg((root.dns["fake-ip-filter"] || []).length); profile: ""; onSubmit: function(v) { root.save("fake-ip-filter", root.listOf(v) || []) } }
       }
 
-      Rectangle { width: parent.width; height: 1; color: Util.alpha(Color.popups.text, 0.12) }
+      Rectangle { width: parent.width; height: 1; color: Util.alpha(Commons.Color.popups.text, 0.12) }
 
       Column {
         width: parent.width
         spacing: Style.space(8)
-        Txt { text: I18n.t("dnsPolicy"); bold: true }
-        Txt { width: parent.width; text: I18n.t("dnsPolicyHint"); dim: true; font.pixelSize: Style.font.caption; wrapMode: Text.Wrap }
+        Txt { text: MihomoI18n.t("dnsPolicy"); bold: true }
+        Txt { width: parent.width; text: MihomoI18n.t("dnsPolicyHint"); dim: true; font.pixelSize: Style.font.bodySmall; wrapMode: Text.Wrap }
         Repeater {
           model: root.s ? root.s.policy : []
           Row {
@@ -124,7 +125,7 @@ Item {
             Btn {
               anchors.verticalCenter: parent.verticalCenter
               objectName: "dnsPolicyRemove" + index
-              ghost: true; icon: Icons.close; tooltip: I18n.t("dnsRemove")
+              ghost: true; icon: Icons.close; tooltip: MihomoI18n.t("dnsRemove")
               onClicked: { var list = root.s.policy.slice(); list.splice(index, 1); root.save("policy", list) }
             }
           }
@@ -136,35 +137,35 @@ Item {
           Btn {
             objectName: "dnsPolicyAdd"
             icon: Icons.add
-            text: I18n.t("add")
+            text: MihomoI18n.t("add")
             enabled: policyDomain.text.trim() !== ""
             onClicked: root.svc.request("dns.policy_add", { domain: policyDomain.text, server: policyServer.text }, function(r, err) {
               if (r) { root.info = r; policyDomain.text = ""; policyServer.text = "" }
-              root.panel.notify(err ? err.message : I18n.t("settingsSaved"))
+              root.panel.notify(err ? err.message : MihomoI18n.t("settingsSaved"))
             }, true)
           }
         }
       }
 
-      Rectangle { width: parent.width; height: 1; color: Util.alpha(Color.popups.text, 0.12) }
+      Rectangle { width: parent.width; height: 1; color: Util.alpha(Commons.Color.popups.text, 0.12) }
 
       Column {
         width: parent.width
         spacing: Style.space(8)
-        Txt { text: I18n.t("dnsLookup"); bold: true }
+        Txt { text: MihomoI18n.t("dnsLookup"); bold: true }
         Row {
           spacing: Style.space(8)
           Field { id: queryField; objectName: "dnsQueryField"; width: Style.space(260); placeholder: "chatgpt.com"; onAccepted: root.query() }
           Seg { id: queryType; current: "A"; model: [{ key: "A", label: "A" }, { key: "AAAA", label: "AAAA" }]; onPicked: function(k) { current = k } }
-          Btn { objectName: "dnsQueryBtn"; text: I18n.t("dnsLookupRun"); icon: Icons.search; busy: root.querying; enabled: queryField.text.trim() !== ""; onClicked: root.query() }
+          Btn { objectName: "dnsQueryBtn"; text: MihomoI18n.t("dnsLookupRun"); icon: Icons.search; busy: root.querying; enabled: queryField.text.trim() !== ""; onClicked: root.query() }
         }
         Txt {
           objectName: "dnsAnswer"
           visible: root.answer !== null
           width: parent.width
           text: root.answerText(root.answer)
-          color: root.answer && root.answer.error ? root.svc.red : Color.popups.text
-          font.pixelSize: Style.font.bodySmall
+          color: root.answer && root.answer.error ? root.svc.red : Commons.Color.popups.text
+          font.pixelSize: Style.font.body
           wrapMode: Text.Wrap
         }
       }

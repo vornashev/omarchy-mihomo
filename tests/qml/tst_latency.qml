@@ -29,16 +29,16 @@ Rectangle {
     when: windowShown
 
     function test_hint_wording() {
-      Plugin.I18n.language = "ru"
-      compare(Models.latencyHint({ tests: 288, failures: 3, avg: 45 }, Plugin.I18n.t), "24 ч: в среднем 45 мс · потери 1% · 288 проверок")
-      compare(Models.latencyHint({ tests: 40, failures: 40, avg: null }, Plugin.I18n.t), "24 ч: все проверки неудачны · 40 проверок")
-      compare(Models.latencyHint(null, Plugin.I18n.t), "")
+      Plugin.MihomoI18n.language = "ru"
+      compare(Models.latencyHint({ tests: 288, failures: 3, avg: 45 }, Plugin.MihomoI18n.t), "24 ч: в среднем 45 мс · потери 1% · 288 проверок")
+      compare(Models.latencyHint({ tests: 40, failures: 40, avg: null }, Plugin.MihomoI18n.t), "24 ч: все проверки неудачны · 40 проверок")
+      compare(Models.latencyHint(null, Plugin.MihomoI18n.t), "")
       compare(Models.latencyLoss({ tests: 4, failures: 4 }), -1, "too few tests to judge")
       compare(Models.latencyLoss({ tests: 20, failures: 5 }), 25)
     }
 
     function test_card_shows_history_per_member() {
-      Plugin.I18n.language = "ru"
+      Plugin.MihomoI18n.language = "ru"
       waitForRendering(card)
       var sparks = []
       function walk(item) {

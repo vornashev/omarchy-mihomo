@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyModels.js" as Models
 
 // Group form → Members: by hand (ordered list and available nodes) or
@@ -14,18 +15,18 @@ Column {
   Row {
     spacing: Style.space(14)
     Txt {
-      text: I18n.t("proxyCollect")
+      text: MihomoI18n.t("proxyCollect")
       anchors.verticalCenter: parent.verticalCenter
     }
     Seg {
       model: [
         {
           key: "manual",
-          label: I18n.t("proxyManual")
+          label: MihomoI18n.t("proxyManual")
         },
         {
           key: "auto",
-          label: I18n.t("proxyAutomatic")
+          label: MihomoI18n.t("proxyAutomatic")
         }
       ]
       current: section.form.automatic ? "auto" : "manual"
@@ -42,13 +43,13 @@ Column {
       width: (parent.width - Style.space(12)) / 2
       spacing: Style.space(8)
       Txt {
-        text: I18n.t("proxyAvailable")
+        text: MihomoI18n.t("proxyAvailable")
         faint: true
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
       Field {
         width: parent.width
-        placeholder: I18n.t("searchHint")
+        placeholder: MihomoI18n.t("searchHint")
         input.onTextEdited: section.form.search = text
       }
       ProxyTabs {
@@ -57,15 +58,15 @@ Column {
         model: [
           {
             key: "nodes",
-            label: I18n.t("proxyNodes")
+            label: MihomoI18n.t("proxyNodes")
           },
           {
             key: "groups",
-            label: I18n.t("proxyGroups")
+            label: MihomoI18n.t("proxyGroups")
           },
           {
             key: "special",
-            label: I18n.t("proxySpecial")
+            label: MihomoI18n.t("proxySpecial")
           }
         ]
         onPicked: function (k) {
@@ -90,14 +91,14 @@ Column {
         width: parent.width
         Txt {
           width: parent.width - clearButton.width
-          text: I18n.t("proxyInGroup")
-          font.pixelSize: Style.font.caption
+          text: MihomoI18n.t("proxyInGroup")
+          font.pixelSize: Style.font.bodySmall
           elide: Text.ElideRight
           anchors.verticalCenter: parent.verticalCenter
         }
         Btn {
           id: clearButton
-          text: I18n.t("proxyClear")
+          text: MihomoI18n.t("proxyClear")
           ghost: true
           onClicked: section.form.editor.setField("proxies", [])
         }
@@ -109,9 +110,9 @@ Column {
         }
       }
       Txt {
-        text: I18n.t("proxyProviders")
+        text: MihomoI18n.t("proxyProviders")
         faint: true
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
       Repeater {
         model: section.form.editor.metadata.providers || []
@@ -130,7 +131,7 @@ Column {
   Btn {
     visible: !section.form.automatic
     ghost: true
-    text: I18n.t("proxyAutomaticLink")
+    text: MihomoI18n.t("proxyAutomaticLink")
     onClicked: section.form.setAutomatic(true)
   }
   Row {
@@ -141,10 +142,10 @@ Column {
       width: (parent.width - Style.space(16)) * 0.62
       spacing: Style.space(10)
       Txt {
-        text: I18n.t("proxySources")
+        text: MihomoI18n.t("proxySources")
       }
       ProxyCheck {
-        text: I18n.t("proxyProfileNodes")
+        text: MihomoI18n.t("proxyProfileNodes")
         checked: !!(section.form.draft["include-all"] || section.form.draft["include-all-proxies"])
         onToggled: {
           if (section.form.draft["include-all"])
@@ -154,7 +155,7 @@ Column {
         }
       }
       ProxyCheck {
-        text: I18n.t("proxyAllProviders")
+        text: MihomoI18n.t("proxyAllProviders")
         checked: !!(section.form.draft["include-all"] || section.form.draft["include-all-providers"])
         onToggled: {
           if (section.form.draft["include-all"])
@@ -164,7 +165,7 @@ Column {
         }
       }
       Txt {
-        text: I18n.t("proxyIncludeName")
+        text: MihomoI18n.t("proxyIncludeName")
       }
       Field {
         width: parent.width
@@ -185,7 +186,7 @@ Column {
         }
       }
       Txt {
-        text: I18n.t("proxyExcludeName")
+        text: MihomoI18n.t("proxyExcludeName")
       }
       Field {
         width: parent.width
@@ -205,7 +206,7 @@ Column {
         }
       }
       Txt {
-        text: I18n.t("proxyExcludeTypes")
+        text: MihomoI18n.t("proxyExcludeTypes")
       }
       Flow {
         width: parent.width
@@ -228,7 +229,7 @@ Column {
       spacing: Style.space(10)
       Txt {
         width: parent.width
-        text: I18n.t("proxyFilterPreview").arg(section.form.preview.items.filter(function (n) {
+        text: MihomoI18n.t("proxyFilterPreview").arg(section.form.preview.items.filter(function (n) {
           return !n.reason;
         }).length).arg(section.form.preview.items.length)
         bold: true
@@ -239,7 +240,7 @@ Column {
         width: parent.width
         text: section.form.preview.error
         wrapMode: Text.Wrap
-        color: Color.urgent
+        color: Commons.Color.urgent
       }
       Repeater {
         model: section.form.preview.items
@@ -251,13 +252,13 @@ Column {
             text: (parent.modelData.reason ? "× " : "✓ ") + parent.modelData.name
             dim: !!parent.modelData.reason
             elide: Text.ElideRight
-            font.pixelSize: Style.font.bodySmall
+            font.pixelSize: Style.font.body
           }
           Txt {
             visible: !!parent.modelData.reason
-            text: I18n.t(parent.modelData.reason)
+            text: MihomoI18n.t(parent.modelData.reason)
             faint: true
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Style.font.bodySmall
           }
         }
       }
@@ -266,9 +267,9 @@ Column {
   Txt {
     visible: section.form.automatic
     width: parent.width
-    text: I18n.t("proxyAutoHint")
+    text: MihomoI18n.t("proxyAutoHint")
     wrapMode: Text.Wrap
     dim: true
-    font.pixelSize: Style.font.caption
+    font.pixelSize: Style.font.bodySmall
   }
 }

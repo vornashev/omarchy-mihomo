@@ -1,14 +1,16 @@
 #!/bin/bash
-# Copy the shell plugin into omarchy-shell's plugin directory. omarchy-shell
-# reloads plugin code when files there change. Run with --watch to keep syncing.
+# Copy the shell plugin into omarchy-shell's plugin directory and restart the
+# shell: its own reload keeps components such as ProblemTableRow cached.
+# Run with --watch to keep syncing.
 set -euo pipefail
 repo=$(cd "$(dirname "$0")/.." && pwd)
-dest="$HOME/.config/omarchy/plugins/tema.omarchy-mihomo"
+dest="$HOME/.config/omarchy/plugins/vornashev.omarchy-mihomo"
 
 sync() {
   mkdir -p "$dest/plugin"
   cp "$repo/manifest.json" "$dest/manifest.json"
   rsync -a --delete "$repo/plugin/" "$dest/plugin/"
+  if command -v omarchy-restart-shell >/dev/null; then omarchy-restart-shell; fi
 }
 
 sync

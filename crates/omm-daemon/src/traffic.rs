@@ -133,6 +133,15 @@ fn find(dir: &Path, names: &[&str]) -> Option<PathBuf> {
     names.iter().find_map(|n| entries.iter().find(|p| p.file_name().and_then(|f| f.to_str()).is_some_and(|f| f.eq_ignore_ascii_case(n))).cloned())
 }
 
+/// One `(host, app, rule)` seen on an IP; `rule` is `Kind,payload`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Seen {
+    pub host: String,
+    pub app: String,
+    pub rule: String,
+    pub conns: u64,
+}
+
 pub struct Store {
     db: Db,
     root: PathBuf,
@@ -175,6 +184,7 @@ impl Store {
                  up INTEGER NOT NULL, down INTEGER NOT NULL, conns INTEGER NOT NULL
              );
              CREATE INDEX IF NOT EXISTS samples_time ON samples (res, bucket);
+             CREATE INDEX IF NOT EXISTS samples_ip ON samples (ip);
              CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
              CREATE TEMP TABLE live AS SELECT * FROM samples WHERE 0;",
         )?;
@@ -336,6 +346,12 @@ impl Store {
         self.pending.clear();
         self.db.execute_batch("DELETE FROM samples; DELETE FROM meta WHERE key = 'rolled';")?;
         Ok(())
+    }
+
+    /// Names seen on connections to `ip`, per app and rule, with connection counts.
+    pub fn names(&self, ip: &str) -> rusqlite::Result<Vec<Seen>> {
+        let mut stmt = self.db.prepare_cached("SELECT host, app, rule, SUM(conns) FROM samples WHERE ip = ?1 AND host != '' GROUP BY host, app, rule")?;
+        stmt.query_map([ip], |r| Ok(Seen { host: r.get(0)?, app: r.get(1)?, rule: r.get(2)?, conns: r.get::<_, i64>(3)?.max(0) as u64 }))?.collect()
     }
 
     pub fn status(&self) -> rusqlite::Result<StatusView> {

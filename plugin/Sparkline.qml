@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 // A node's delay over time as thin bars: taller is slower, a full red bar
 // is a period where every test failed, a gap is one without tests.
@@ -7,8 +8,8 @@ Canvas {
   id: root
   // Mean delay per period: null, 0 (failed) or ms.
   property var points: []
-  property color color: Color.accent
-  property color failColor: Color.urgent
+  property color color: Commons.Color.accent
+  property color failColor: Commons.Color.urgent
   implicitWidth: Style.space(48)
   implicitHeight: Style.space(14)
   renderStrategy: Canvas.Cooperative

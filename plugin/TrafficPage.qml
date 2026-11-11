@@ -2,6 +2,7 @@ import QtQuick
 import QtQml
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 import "TrafficModels.js" as TM
 
 // Traffic history: how much went where, by app, domain, address, country
@@ -31,17 +32,17 @@ Item {
   readonly property bool longRange: isLong(range, zoom)
   function isLong(r, z) { return z ? z.to - z.from > 2 * TM.DAY : TM.span(r) > 2 * TM.DAY }
 
-  readonly property var colors: [Color.accent, svc.peach, svc.mauve, svc.green, svc.yellow, svc.themeColor("cyan", svc.red)]
-  readonly property color otherColor: Util.alpha(Color.popups.text, 0.45)
+  readonly property var colors: [Commons.Color.accent, svc.peach, svc.mauve, svc.green, svc.yellow, svc.themeColor("cyan", svc.red)]
+  readonly property color otherColor: Util.alpha(Commons.Color.popups.text, 0.45)
 
   // Series for the chart: top keys, then the rest as "other".
   readonly property var chartSeries: {
     if (!view) return []
     var out = view.series.map(function(s, i) {
-      return { key: s.key, label: TM.label(by, s, I18n.t), color: colors[i % colors.length], up: s.up, down: s.down }
+      return { key: s.key, label: TM.label(by, s, MihomoI18n.t), color: colors[i % colors.length], up: s.up, down: s.down }
     })
     if (TM.maxOf(view.other.down) + TM.maxOf(view.other.up) > 0)
-      out.push({ key: "\u0000other", label: I18n.t("trafficOther"), color: otherColor, up: view.other.up, down: view.other.down })
+      out.push({ key: "\u0000other", label: MihomoI18n.t("trafficOther"), color: otherColor, up: view.other.up, down: view.other.down })
     return out
   }
   readonly property var rows: view ? view.rows : []
@@ -89,7 +90,10 @@ Item {
   onRangeChanged: { zoom = null; reload() }
   onByChanged: { cursor = 0; hidden = {}; focusKey = ""; probe = null; reload() }
   onFiltersChanged: { cursor = 0; reload() }
-  onZoomChanged: reload()
+  // The chart redraws the new window at once; data follows when the
+  // wheel rests.
+  onZoomChanged: zoomDelay.restart()
+  Timer { id: zoomDelay; interval: 250; onTriggered: root.reload() }
   onSearchChanged: searchDelay.restart()
   Timer { id: searchDelay; interval: 300; onTriggered: root.reload() }
   Component.onCompleted: {
@@ -123,7 +127,7 @@ Item {
     return m
   }
   // The probed slice, apart from every series color.
-  readonly property color probeColor: Color.popups.text
+  readonly property color probeColor: Commons.Color.popups.text
   // Heatmap cell under the pointer → a band on the chart.
   property int heatDay: -1
   property int heatHour: -1
@@ -212,7 +216,7 @@ Item {
   function copy(row) {
     clipboard.text = row.key
     clipboard.selectAll(); clipboard.copy(); clipboard.deselect()
-    panel.notify(I18n.t("copiedToast").arg(row.key))
+    panel.notify(MihomoI18n.t("copiedToast").arg(row.key))
   }
   function openMenu(row, anchor) {
     rowMenu.row = row
@@ -245,7 +249,7 @@ Item {
 
   function timeLabel(ms, long) {
     var d = new Date(ms)
-    var loc = Qt.locale(I18n.language === "en" ? "en_US" : "ru_RU")
+    var loc = Qt.locale(MihomoI18n.language === "en" ? "en_US" : "ru_RU")
     var step = view ? view.step : TM.MINUTE
     var span = view ? view.to - view.from : TM.DAY
     if (long) return d.toLocaleString(loc, span > TM.DAY ? "ddd d MMM, HH:mm" : "HH:mm") + (step > TM.MINUTE ? "–" + new Date(ms + step).toLocaleString(loc, "HH:mm") : "")
@@ -271,12 +275,12 @@ Item {
         id: titles
         width: parent.width - rangeSeg.width - zoomBtn.width - Style.space(16)
         spacing: Style.space(3)
-        Txt { text: I18n.t("navTraffic"); bold: true; font.pixelSize: Style.font.heading }
+        Txt { text: MihomoI18n.t("navTraffic"); bold: true; font.pixelSize: Style.font.heading }
         Txt {
           width: parent.width
-          text: root.zoom ? I18n.t("trafficSubZoom").arg(root.timeLabel(root.zoom.from, true)).arg(root.timeLabel(root.zoom.to, true))
-            : I18n.t("trafficSub").arg(I18n.t("trafficRangeLong_" + root.range)) + (root.status && !root.status.enabled ? " · " + I18n.t("trafficPaused") : "")
-          dim: true; font.pixelSize: Style.font.bodySmall
+          text: root.zoom ? MihomoI18n.t("trafficSubZoom").arg(root.timeLabel(root.zoom.from, true)).arg(root.timeLabel(root.zoom.to, true))
+            : MihomoI18n.t("trafficSub").arg(MihomoI18n.t("trafficRangeLong_" + root.range)) + (root.status && !root.status.enabled ? " · " + MihomoI18n.t("trafficPaused") : "")
+          dim: true; font.pixelSize: Style.font.body
         }
       }
       Btn {
@@ -286,7 +290,7 @@ Item {
         width: visible ? implicitWidth : 0
         anchors.right: rangeSeg.left; anchors.rightMargin: Style.space(8)
         anchors.verticalCenter: parent.verticalCenter
-        icon: Icons.back; text: I18n.t("trafficResetZoom")
+        icon: Icons.back; text: MihomoI18n.t("trafficResetZoom")
         onClicked: root.zoom = null
       }
       Seg {
@@ -295,7 +299,7 @@ Item {
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         current: root.zoom ? "" : root.range
-        model: TM.RANGES.map(function(r) { return { key: r.key, label: I18n.t("trafficRange_" + r.key) } })
+        model: TM.RANGES.map(function(r) { return { key: r.key, label: MihomoI18n.t("trafficRange_" + r.key) } })
         onPicked: function(k) { if (k === root.range) root.zoom = null; else root.range = k }
       }
     }
@@ -313,7 +317,7 @@ Item {
           id: searchField
           width: Style.space(250)
           icon: Icons.search
-          placeholder: I18n.t("trafficSearch")
+          placeholder: MihomoI18n.t("trafficSearch")
           onTextChanged: root.search = text
           onEscaped: { text = ""; input.focus = false; root.panel.forceKeys() }
         }
@@ -321,8 +325,8 @@ Item {
           visible: root.filters.length > 0
           width: crumb.implicitWidth + Style.space(12); height: parent.height
           radius: Style.cornerRadius
-          color: crumbMa.containsMouse ? Style.hoverFillFor(Color.popups.text, Color.accent) : "transparent"
-          Txt { id: crumb; anchors.centerIn: parent; text: Icons.back + " " + I18n.t("trafficAll"); color: Color.accent; font.pixelSize: Style.font.bodySmall }
+          color: crumbMa.containsMouse ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent) : "transparent"
+          Txt { id: crumb; anchors.centerIn: parent; text: Icons.back + " " + MihomoI18n.t("trafficAll"); color: Commons.Color.accent; font.pixelSize: Style.font.body }
           MouseArea { id: crumbMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.resetAll() }
         }
         Repeater {
@@ -331,8 +335,8 @@ Item {
             required property var modelData
             required property int index
             objectName: "trafficChip"
-            readonly property var chip: TM.chipLabel(modelData, I18n.t)
-            readonly property color tone: modelData.exclude ? root.svc.red : Color.accent
+            readonly property var chip: TM.chipLabel(modelData, MihomoI18n.t)
+            readonly property color tone: modelData.exclude ? root.svc.red : Commons.Color.accent
             anchors.verticalCenter: parent.verticalCenter
             width: chipRow.implicitWidth + Style.space(14)
             height: Style.space(24)
@@ -344,16 +348,16 @@ Item {
               id: chipRow
               anchors.centerIn: parent
               spacing: Style.space(6)
-              Txt { text: chip.dim; dim: true; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
-              Txt { text: chip.value; bold: true; color: modelData.exclude ? root.svc.red : Color.popups.text; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+              Txt { text: chip.dim; dim: true; font.pixelSize: Style.font.bodySmall; anchors.verticalCenter: parent.verticalCenter }
+              Txt { text: chip.value; bold: true; color: modelData.exclude ? root.svc.red : Commons.Color.popups.text; font.pixelSize: Style.font.bodySmall; anchors.verticalCenter: parent.verticalCenter }
               Txt {
-                text: Icons.close; dim: true; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter
+                text: Icons.close; dim: true; font.pixelSize: Style.font.bodySmall; anchors.verticalCenter: parent.verticalCenter
                 MouseArea { anchors.fill: parent; anchors.margins: -Style.space(3); cursorShape: Qt.PointingHandCursor; onClicked: root.removeFilter(index) }
               }
             }
             MouseArea { anchors.fill: parent; anchors.rightMargin: Style.space(18); cursorShape: Qt.PointingHandCursor; onClicked: root.invertFilter(index) }
             HoverHandler { id: chipHover }
-            Hint { visible: chipHover.hovered; text: I18n.t("trafficChipHint") }
+            Hint { visible: chipHover.hovered; text: MihomoI18n.t("trafficChipHint") }
           }
         }
       }
@@ -363,7 +367,7 @@ Item {
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         current: root.metric
-        model: [{ key: "down", label: I18n.t("trafficMetric_down") }, { key: "up", label: I18n.t("trafficMetric_up") }, { key: "both", label: I18n.t("trafficMetric_both") }]
+        model: [{ key: "down", label: MihomoI18n.t("trafficMetric_down") }, { key: "up", label: MihomoI18n.t("trafficMetric_up") }, { key: "both", label: MihomoI18n.t("trafficMetric_both") }]
         onPicked: function(k) { root.metric = k }
       }
     }
@@ -377,10 +381,10 @@ Item {
           if (!v) return [["", "—", "", ""], ["", "—", "", ""], ["", "—", "", ""], ["", "—", "", ""]]
           var dc = TM.change(v.total.down, v.previous.down), uc = TM.change(v.total.up, v.previous.up)
           return [
-            [I18n.t("trafficStatDown"), root.svc.formatBytes(v.total.down), dc ? I18n.t("trafficVsPrev").arg(dc) : "", dc.indexOf("▲") === 0 ? "warn" : ""],
-            [I18n.t("trafficStatUp"), root.svc.formatBytes(v.total.up), uc ? I18n.t("trafficVsPrev").arg(uc) : "", uc.indexOf("▲") === 0 ? "warn" : ""],
-            [I18n.t("trafficStatPeak"), root.svc.formatRate(v.peak), v.peak ? root.timeLabel(v.peak_at, true) : "", ""],
-            [I18n.t("trafficStatConns"), String(v.total.conns), I18n.t("trafficAppsHosts").arg(v.total.apps).arg(v.total.hosts), ""]
+            [MihomoI18n.t("trafficStatDown"), root.svc.formatBytes(v.total.down), dc ? MihomoI18n.t("trafficVsPrev").arg(dc) : "", dc.indexOf("▲") === 0 ? "warn" : ""],
+            [MihomoI18n.t("trafficStatUp"), root.svc.formatBytes(v.total.up), uc ? MihomoI18n.t("trafficVsPrev").arg(uc) : "", uc.indexOf("▲") === 0 ? "warn" : ""],
+            [MihomoI18n.t("trafficStatPeak"), root.svc.formatRate(v.peak), v.peak ? root.timeLabel(v.peak_at, true) : "", ""],
+            [MihomoI18n.t("trafficStatConns"), String(v.total.conns), MihomoI18n.t("trafficAppsHosts").arg(v.total.apps).arg(v.total.hosts), ""]
           ]
         }
         Rectangle {
@@ -388,15 +392,15 @@ Item {
           width: (parent.width - root.gap * 3) / 4
           height: Style.space(58)
           radius: Style.cornerRadius
-          color: Util.alpha(Color.popups.text, 0.04)
+          color: Util.alpha(Commons.Color.popups.text, 0.04)
           border.width: 1
-          border.color: Util.alpha(Color.popups.text, 0.12)
+          border.color: Util.alpha(Commons.Color.popups.text, 0.12)
           Column {
             anchors.fill: parent
             anchors.margins: Style.space(10)
             anchors.leftMargin: Style.space(12)
             spacing: Style.space(3)
-            Txt { text: modelData[0]; faint: true; font.pixelSize: Style.font.caption }
+            Txt { text: modelData[0]; faint: true; font.pixelSize: Style.font.bodySmall }
             Row {
               width: parent.width
               spacing: Style.space(8)
@@ -405,8 +409,8 @@ Item {
                 width: parent.width - kv.width - Style.space(8)
                 anchors.baseline: kv.baseline
                 text: modelData[2]
-                color: modelData[3] === "warn" ? root.svc.peach : Util.alpha(Color.popups.text, 0.68)
-                font.pixelSize: Style.font.caption
+                color: modelData[3] === "warn" ? root.svc.peach : Util.alpha(Commons.Color.popups.text, 0.68)
+                font.pixelSize: Style.font.bodySmall
               }
             }
           }
@@ -422,16 +426,16 @@ Item {
     anchors.bottom: bottomRow.top; anchors.bottomMargin: root.gap
     width: parent.width
     radius: Style.cornerRadius
-    color: Util.alpha(Color.popups.text, 0.04)
+    color: Util.alpha(Commons.Color.popups.text, 0.04)
     border.width: 1
-    border.color: Util.alpha(Color.popups.text, 0.12)
+    border.color: Util.alpha(Commons.Color.popups.text, 0.12)
 
     Item {
       id: chartHead
       x: Style.space(14); y: Style.space(12)
       width: parent.width - Style.space(28)
       height: Style.space(16)
-      Txt { id: chartTitle; text: I18n.t("trafficByTime") + " · " + I18n.t("trafficDims_" + root.by).toUpperCase(); faint: true; bold: true; font.pixelSize: Style.font.caption; font.letterSpacing: 1 }
+      Txt { id: chartTitle; text: MihomoI18n.t("trafficByTime") + " · " + MihomoI18n.t("trafficDims_" + root.by).toUpperCase(); faint: true; bold: true; font.pixelSize: Style.font.bodySmall; font.letterSpacing: 1 }
       Row {
         anchors.right: parent.right
         width: Math.min(implicitWidth, parent.width - chartTitle.width - Style.space(16))
@@ -446,7 +450,7 @@ Item {
             spacing: Style.space(5)
             opacity: root.hidden[modelData.key] ? 0.35 : (root.litKey !== "" && root.litKey !== modelData.key ? 0.45 : 1)
             Rectangle { width: Style.space(8); height: width; radius: 2; color: modelData.color; anchors.verticalCenter: parent.verticalCenter }
-            Txt { text: modelData.label; dim: root.litKey !== modelData.key; bold: root.litKey === modelData.key; font.pixelSize: Style.font.bodySmall; font.strikeout: !!root.hidden[modelData.key] }
+            Txt { text: modelData.label; dim: root.litKey !== modelData.key; bold: root.litKey === modelData.key; font.pixelSize: Style.font.body; font.strikeout: !!root.hidden[modelData.key] }
             TapHandler { onTapped: root.toggleSeries(modelData.key); onDoubleTapped: root.soloSeries(modelData.key) }
             HoverHandler { onHoveredChanged: root.setFocus(modelData.key, hovered) }
           }
@@ -471,8 +475,13 @@ Item {
       focusKey: root.litKey
       bandDay: root.heatDay
       bandHour: root.heatHour
-      overlay: root.probeView && root.probe ? { label: I18n.t("trafficThrough").arg(root.probe.label || root.probe.value), color: root.probeColor, up: root.probeView.all.up, down: root.probeView.all.down } : null
-      onZoomed: function(a, b) { root.zoom = { from: a, to: b } }
+      overlay: root.probeView && root.probe ? { label: MihomoI18n.t("trafficThrough").arg(root.probe.label || root.probe.value), color: root.probeColor, up: root.probeView.all.up, down: root.probeView.all.down } : null
+      viewFrom: root.zoom ? root.zoom.from : 0
+      viewTo: root.zoom ? root.zoom.to : 0
+      onZoomed: function(a, b) {
+        var w = { from: a, to: b }
+        root.zoom = TM.coversRange(w, TM.span(root.range), Date.now(), root.view ? root.view.step : TM.MINUTE) ? null : w
+      }
     }
     Txt {
       visible: root.view !== null && root.totalBytes === 0
@@ -480,7 +489,7 @@ Item {
       width: parent.width * 0.7
       horizontalAlignment: Text.AlignHCenter
       wrapMode: Text.WordWrap
-      text: root.status && !root.status.enabled ? I18n.t("trafficDisabled") : (root.filters.length || root.search ? I18n.t("trafficNoMatch") : I18n.t("trafficEmpty"))
+      text: root.status && !root.status.enabled ? MihomoI18n.t("trafficDisabled") : (root.filters.length || root.search ? MihomoI18n.t("trafficNoMatch") : MihomoI18n.t("trafficEmpty"))
       dim: true
     }
   }
@@ -497,20 +506,20 @@ Item {
       width: parent.width - sideCard.width - root.gap
       height: parent.height
       radius: Style.cornerRadius
-      color: Util.alpha(Color.popups.text, 0.04)
+      color: Util.alpha(Commons.Color.popups.text, 0.04)
       border.width: 1
-      border.color: Util.alpha(Color.popups.text, 0.12)
+      border.color: Util.alpha(Commons.Color.popups.text, 0.12)
 
       Row {
         id: dimRow
         x: Style.space(12); y: Style.space(10)
         spacing: Style.space(10)
-        Txt { text: I18n.t("trafficBy"); faint: true; bold: true; font.pixelSize: Style.font.caption; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
+        Txt { text: MihomoI18n.t("trafficBy"); faint: true; bold: true; font.pixelSize: Style.font.bodySmall; font.letterSpacing: 1; anchors.verticalCenter: parent.verticalCenter }
         Seg {
           id: dimSeg
           objectName: "trafficDims"
           current: root.by
-          model: TM.DIMS.map(function(d) { return { key: d, label: I18n.t("trafficDims_" + d) } })
+          model: TM.DIMS.map(function(d) { return { key: d, label: MihomoI18n.t("trafficDims_" + d) } })
           onPicked: function(k) { root.by = k }
         }
       }
@@ -526,15 +535,15 @@ Item {
         x: Style.space(12); y: dimRow.y + dimRow.height + Style.space(8)
         width: parent.width - Style.space(24) - Style.space(6)
         height: Style.space(14)
-        Txt { x: Style.space(26); text: I18n.t("trafficDim_" + root.by); faint: true; font.pixelSize: Style.font.caption }
+        Txt { x: Style.space(26); text: MihomoI18n.t("trafficDim_" + root.by); faint: true; font.pixelSize: Style.font.bodySmall }
         Row {
           anchors.right: parent.right; anchors.rightMargin: Style.space(8)
           spacing: Style.space(10)
-          Txt { width: breakdown.wBar; text: I18n.t("trafficShare"); faint: true; font.pixelSize: Style.font.caption }
-          Txt { width: breakdown.wNum; horizontalAlignment: Text.AlignRight; text: "↓"; faint: true; font.pixelSize: Style.font.caption }
-          Txt { width: breakdown.wNum; horizontalAlignment: Text.AlignRight; text: "↑"; faint: true; font.pixelSize: Style.font.caption }
-          Txt { width: breakdown.wPct; horizontalAlignment: Text.AlignRight; text: "%"; faint: true; font.pixelSize: Style.font.caption }
-          Txt { width: breakdown.wSpark; text: I18n.t("trafficRange_" + root.range); faint: true; font.pixelSize: Style.font.caption }
+          Txt { width: breakdown.wBar; text: MihomoI18n.t("trafficShare"); faint: true; font.pixelSize: Style.font.bodySmall }
+          Txt { width: breakdown.wNum; horizontalAlignment: Text.AlignRight; text: "↓"; faint: true; font.pixelSize: Style.font.bodySmall }
+          Txt { width: breakdown.wNum; horizontalAlignment: Text.AlignRight; text: "↑"; faint: true; font.pixelSize: Style.font.bodySmall }
+          Txt { width: breakdown.wPct; horizontalAlignment: Text.AlignRight; text: "%"; faint: true; font.pixelSize: Style.font.bodySmall }
+          Txt { width: breakdown.wSpark; text: MihomoI18n.t("trafficRange_" + root.range); faint: true; font.pixelSize: Style.font.bodySmall }
         }
       }
 
@@ -564,7 +573,7 @@ Item {
           width: list.width - Style.space(6)
           height: Style.space(26)
           radius: 4
-          color: index === root.cursor ? Style.hoverFillFor(Color.popups.text, Color.accent) : (rma.containsMouse ? Util.alpha(Color.popups.text, 0.04) : "transparent")
+          color: index === root.cursor ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent) : (rma.containsMouse ? Util.alpha(Commons.Color.popups.text, 0.04) : "transparent")
           MouseArea {
             id: rma
             anchors.fill: parent
@@ -585,8 +594,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.space(8)
             clip: true
-            Txt { id: rn; text: TM.label(root.by, modelData, I18n.t); bold: index === root.cursor; width: Math.min(implicitWidth, parent.width); font.pixelSize: Style.font.bodySmall }
-            Txt { width: parent.width - rn.width - Style.space(8); text: TM.detail(root.by, modelData, I18n.t); faint: true; font.pixelSize: Style.font.caption; anchors.verticalCenter: parent.verticalCenter }
+            Txt { id: rn; text: TM.label(root.by, modelData, MihomoI18n.t); bold: index === root.cursor; width: Math.min(implicitWidth, parent.width); font.pixelSize: Style.font.body }
+            Txt { width: parent.width - rn.width - Style.space(8); text: TM.detail(root.by, modelData, MihomoI18n.t); faint: true; font.pixelSize: Style.font.bodySmall; anchors.verticalCenter: parent.verticalCenter }
           }
           Row {
             id: nums
@@ -596,7 +605,7 @@ Item {
             Item {
               width: breakdown.wBar; height: Style.space(6)
               anchors.verticalCenter: parent.verticalCenter
-              Rectangle { anchors.fill: parent; radius: 3; color: Util.alpha(Color.popups.text, 0.06) }
+              Rectangle { anchors.fill: parent; radius: 3; color: Util.alpha(Commons.Color.popups.text, 0.06) }
               Rectangle {
                 id: shareBar
                 width: Math.max(3, parent.width * modelData.share / Math.max(rowItem.maxShare, 0.0001)); height: parent.height; radius: 3
@@ -609,9 +618,9 @@ Item {
                 color: root.probeColor
               }
             }
-            Txt { width: breakdown.wNum; horizontalAlignment: Text.AlignRight; text: root.svc.formatBytes(modelData.down); font.pixelSize: Style.font.bodySmall }
-            Txt { width: breakdown.wNum; horizontalAlignment: Text.AlignRight; text: root.svc.formatBytes(modelData.up); dim: true; font.pixelSize: Style.font.bodySmall }
-            Txt { width: breakdown.wPct; horizontalAlignment: Text.AlignRight; text: TM.percent(modelData.up + modelData.down, root.totalBytes); dim: true; font.pixelSize: Style.font.bodySmall }
+            Txt { width: breakdown.wNum; horizontalAlignment: Text.AlignRight; text: root.svc.formatBytes(modelData.down); font.pixelSize: Style.font.body }
+            Txt { width: breakdown.wNum; horizontalAlignment: Text.AlignRight; text: root.svc.formatBytes(modelData.up); dim: true; font.pixelSize: Style.font.body }
+            Txt { width: breakdown.wPct; horizontalAlignment: Text.AlignRight; text: TM.percent(modelData.up + modelData.down, root.totalBytes); dim: true; font.pixelSize: Style.font.body }
             Canvas {
               width: breakdown.wSpark; height: Style.space(16)
               anchors.verticalCenter: parent.verticalCenter
@@ -635,7 +644,7 @@ Item {
             }
           }
         }
-        Txt { visible: root.view !== null && root.rows.length === 0; anchors.centerIn: parent; text: I18n.t("trafficNoRows"); dim: true }
+        Txt { visible: root.view !== null && root.rows.length === 0; anchors.centerIn: parent; text: MihomoI18n.t("trafficNoRows"); dim: true }
       }
 
       Row {
@@ -644,16 +653,16 @@ Item {
         anchors.bottom: parent.bottom; anchors.bottomMargin: Style.space(8)
         spacing: Style.space(14)
         Repeater {
-          model: [["Enter", TM.next(root.by) ? I18n.t("trafficHintDrill").arg(I18n.t("trafficDims_" + TM.next(root.by)).toLowerCase()) : I18n.t("trafficHintOnly")], ["x", I18n.t("trafficHintExclude")], ["r", I18n.t("trafficHintRule")], ["m", I18n.t("trafficHintMenu")], ["t", I18n.t("trafficHintRange")]]
+          model: [["Enter", TM.next(root.by) ? MihomoI18n.t("trafficHintDrill").arg(MihomoI18n.t("trafficDims_" + TM.next(root.by)).toLowerCase()) : MihomoI18n.t("trafficHintOnly")], ["x", MihomoI18n.t("trafficHintExclude")], ["r", MihomoI18n.t("trafficHintRule")], ["m", MihomoI18n.t("trafficHintMenu")], ["t", MihomoI18n.t("trafficHintRange")]]
           Row {
             required property var modelData
             spacing: Style.space(5)
             Rectangle {
               width: kt.implicitWidth + Style.space(8); height: kt.implicitHeight + Style.space(2)
-              radius: 3; color: Style.hoverFillFor(Color.popups.text, Color.accent)
-              Txt { id: kt; anchors.centerIn: parent; text: modelData[0]; dim: true; font.pixelSize: Style.font.caption }
+              radius: 3; color: Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent)
+              Txt { id: kt; anchors.centerIn: parent; text: modelData[0]; dim: true; font.pixelSize: Style.font.bodySmall }
             }
-            Txt { text: modelData[1]; faint: true; font.pixelSize: Style.font.caption }
+            Txt { text: modelData[1]; faint: true; font.pixelSize: Style.font.bodySmall }
           }
         }
       }
@@ -665,9 +674,9 @@ Item {
       width: Style.space(290)
       height: parent.height
       radius: Style.cornerRadius
-      color: Util.alpha(Color.popups.text, 0.04)
+      color: Util.alpha(Commons.Color.popups.text, 0.04)
       border.width: 1
-      border.color: Util.alpha(Color.popups.text, 0.12)
+      border.color: Util.alpha(Commons.Color.popups.text, 0.12)
 
       readonly property var routeSource: root.focusGroups && root.litKey !== "" ? root.focusGroups : root.routes
       readonly property var routeRows: routeSource ? routeSource.rows.slice(0, 4) : []
@@ -684,8 +693,8 @@ Item {
         spacing: Style.space(8)
         Txt {
           width: parent.width
-          text: I18n.t("trafficRoute") + (sideCard.routeSource === root.focusGroups && root.focusGroups ? " · " + TM.label(root.by, { key: root.litKey }, I18n.t) : "")
-          faint: true; bold: true; font.pixelSize: Style.font.caption; font.letterSpacing: 1
+          text: MihomoI18n.t("trafficRoute") + (sideCard.routeSource === root.focusGroups && root.focusGroups ? " · " + TM.label(root.by, { key: root.litKey }, MihomoI18n.t) : "")
+          faint: true; bold: true; font.pixelSize: Style.font.bodySmall; font.letterSpacing: 1
         }
         Row {
           width: parent.width
@@ -704,7 +713,7 @@ Item {
                 ctx.reset()
                 var cx = width / 2, cy = height / 2, r = width / 2 - 1, w = Style.space(9)
                 ctx.lineWidth = w
-                ctx.strokeStyle = Util.alpha(Color.popups.text, 0.08)
+                ctx.strokeStyle = Util.alpha(Commons.Color.popups.text, 0.08)
                 ctx.beginPath(); ctx.arc(cx, cy, r - w / 2, 0, Math.PI * 2); ctx.stroke()
                 var a = -Math.PI / 2
                 for (var i = 0; i < rows.length; i++) {
@@ -721,7 +730,7 @@ Item {
             Column {
               anchors.centerIn: parent
               Txt { anchors.horizontalCenter: parent.horizontalCenter; text: Math.round(sideCard.proxied * 100) + "%"; bold: true }
-              Txt { anchors.horizontalCenter: parent.horizontalCenter; text: I18n.t("trafficProxied"); faint: true; font.pixelSize: Style.font.caption - 1 }
+              Txt { anchors.horizontalCenter: parent.horizontalCenter; text: MihomoI18n.t("trafficProxied"); faint: true; font.pixelSize: Style.font.caption }
             }
           }
           Column {
@@ -736,8 +745,8 @@ Item {
                 width: parent.width; height: rl.implicitHeight
                 Rectangle { width: Style.space(8); height: width; radius: 2; color: root.routeColor(index, modelData.key); anchors.verticalCenter: parent.verticalCenter }
                 readonly property bool lit: root.probe !== null && root.probe.dim === "group" && root.probe.value === modelData.key
-                Txt { id: rl; x: Style.space(14); width: parent.width - x - rp.width - Style.space(6); text: modelData.key; dim: !parent.lit; bold: parent.lit; font.pixelSize: Style.font.caption }
-                Txt { id: rp; anchors.right: parent.right; text: TM.percent(modelData.up + modelData.down, sideCard.routeTotal); font.pixelSize: Style.font.caption }
+                Txt { id: rl; x: Style.space(14); width: parent.width - x - rp.width - Style.space(6); text: modelData.key; dim: !parent.lit; bold: parent.lit; font.pixelSize: Style.font.bodySmall }
+                Txt { id: rp; anchors.right: parent.right; text: TM.percent(modelData.up + modelData.down, sideCard.routeTotal); font.pixelSize: Style.font.bodySmall }
                 MouseArea {
                   objectName: "trafficRouteItem"
                   anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -748,23 +757,23 @@ Item {
             }
           }
         }
-        Rectangle { width: parent.width; height: 1; color: Util.alpha(Color.popups.text, 0.12) }
+        Rectangle { width: parent.width; height: 1; color: Util.alpha(Commons.Color.popups.text, 0.12) }
 
         // Short ranges: top countries. Long ones: weekday × hour.
         Item {
           width: parent.width; height: sideHead.implicitHeight
-          Txt { id: sideHead; text: root.longRange ? I18n.t("trafficHeat") : I18n.t("trafficCountries"); faint: true; bold: true; font.pixelSize: Style.font.caption; font.letterSpacing: 1 }
+          Txt { id: sideHead; text: root.longRange ? MihomoI18n.t("trafficHeat") : MihomoI18n.t("trafficCountries"); faint: true; bold: true; font.pixelSize: Style.font.bodySmall; font.letterSpacing: 1 }
           Txt {
             anchors.right: parent.right
             visible: !root.longRange && root.status !== null && !root.status.country
-            text: I18n.t("trafficNoCountryDb"); faint: true; font.pixelSize: Style.font.caption
+            text: MihomoI18n.t("trafficNoCountryDb"); faint: true; font.pixelSize: Style.font.bodySmall
           }
           Txt {
             anchors.right: parent.right
             visible: root.longRange && heat.hovered >= 0
-            text: heat.hovered < 0 ? "" : Qt.locale(I18n.language === "en" ? "en_US" : "ru_RU").dayName((Math.floor(heat.hovered / 24) + 1) % 7, Locale.ShortFormat)
+            text: heat.hovered < 0 ? "" : Qt.locale(MihomoI18n.language === "en" ? "en_US" : "ru_RU").dayName((Math.floor(heat.hovered / 24) + 1) % 7, Locale.ShortFormat)
               + " " + (heat.hovered % 24) + ":00 · " + root.svc.formatBytes(heat.grid[Math.floor(heat.hovered / 24)][heat.hovered % 24])
-            dim: true; font.pixelSize: Style.font.caption
+            dim: true; font.pixelSize: Style.font.bodySmall
           }
         }
         Column {
@@ -781,20 +790,20 @@ Item {
               width: parent.width; height: Style.space(16)
               Rectangle {
                 width: Style.space(24); height: Style.space(14); radius: 3
-                color: Style.hoverFillFor(Color.popups.text, Color.accent)
+                color: Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent)
                 anchors.verticalCenter: parent.verticalCenter
-                Txt { anchors.centerIn: parent; text: modelData.key || "—"; dim: true; bold: true; font.pixelSize: Style.font.caption - 1 }
+                Txt { anchors.centerIn: parent; text: modelData.key || "—"; dim: true; bold: true; font.pixelSize: Style.font.caption }
               }
               Item {
                 x: Style.space(32); width: parent.width - x - cv.width - Style.space(8); height: Style.space(5)
                 anchors.verticalCenter: parent.verticalCenter
-                Rectangle { anchors.fill: parent; radius: 3; color: Util.alpha(Color.popups.text, 0.06) }
-                Rectangle { width: Math.max(3, parent.width * (modelData.up + modelData.down) / Math.max(parent.parent.best, 1)); height: parent.height; radius: 3; color: Util.alpha(Color.accent, 0.7) }
+                Rectangle { anchors.fill: parent; radius: 3; color: Util.alpha(Commons.Color.popups.text, 0.06) }
+                Rectangle { width: Math.max(3, parent.width * (modelData.up + modelData.down) / Math.max(parent.parent.best, 1)); height: parent.height; radius: 3; color: Util.alpha(Commons.Color.accent, 0.7) }
               }
-              Txt { id: cv; anchors.right: parent.right; width: Style.space(58); horizontalAlignment: Text.AlignRight; text: root.svc.formatBytes(modelData.up + modelData.down); font.pixelSize: Style.font.caption }
+              Txt { id: cv; anchors.right: parent.right; width: Style.space(58); horizontalAlignment: Text.AlignRight; text: root.svc.formatBytes(modelData.up + modelData.down); font.pixelSize: Style.font.bodySmall }
               MouseArea {
                 anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onContainsMouseChanged: root.setProbe({ dim: "country", value: modelData.key, label: modelData.key || "—", color: Color.accent }, containsMouse)
+                onContainsMouseChanged: root.setProbe({ dim: "country", value: modelData.key, label: modelData.key || "—", color: Commons.Color.accent }, containsMouse)
                 onClicked: root.filters = TM.addFilter(root.filters, { dim: "country", value: modelData.key, exclude: false })
               }
             }
@@ -825,7 +834,7 @@ Item {
               required property int index
               readonly property int day: index
               spacing: 1
-              Txt { width: Style.space(20); text: Qt.locale(I18n.language === "en" ? "en_US" : "ru_RU").dayName((day + 1) % 7, Locale.ShortFormat); faint: true; font.pixelSize: Style.font.caption - 1 }
+              Txt { width: Style.space(20); text: Qt.locale(MihomoI18n.language === "en" ? "en_US" : "ru_RU").dayName((day + 1) % 7, Locale.ShortFormat); faint: true; font.pixelSize: Style.font.caption }
               Repeater {
                 model: 24
                 Rectangle {
@@ -834,7 +843,7 @@ Item {
                   width: heat.cell; height: heat.cell; radius: 2
                   color: Util.alpha(root.svc.peach, 0.06 + 0.9 * v / heat.peak)
                   border.width: heat.hovered === parent.day * 24 + index || heat.chartCell === parent.day * 24 + index ? 1 : 0
-                  border.color: Color.popups.text
+                  border.color: Commons.Color.popups.text
                   HoverHandler {
                     onHoveredChanged: {
                       var cell = parent.parent.day * 24 + index
@@ -854,7 +863,7 @@ Item {
   function routeColor(i, key) {
     if (key === "DIRECT") return svc.green
     if (routes) for (var j = 0; j < routes.rows.length; j++) if (routes.rows[j].key === key) { i = j; break }
-    var c = [Color.accent, svc.peach, svc.mauve, svc.yellow]
+    var c = [Commons.Color.accent, svc.peach, svc.mauve, svc.yellow]
     return c[i % c.length]
   }
 
@@ -865,14 +874,14 @@ Item {
     ActionMenuItem {
       enabled: rowMenu.row !== null && TM.next(root.by) !== ""
       glyph: Icons.search
-      text: I18n.t("trafficMenuDrill").arg(I18n.t("trafficDims_" + (TM.next(root.by) || root.by)).toLowerCase())
+      text: MihomoI18n.t("trafficMenuDrill").arg(MihomoI18n.t("trafficDims_" + (TM.next(root.by) || root.by)).toLowerCase())
       keyHint: "Enter"
       onTriggered: root.drill(rowMenu.row)
     }
-    ActionMenuItem { glyph: Icons.check; text: I18n.t("trafficMenuOnly"); keyHint: "O"; onTriggered: root.filterBy(rowMenu.row, false) }
-    ActionMenuItem { glyph: Icons.hide; text: I18n.t("trafficMenuExclude"); keyHint: "X"; onTriggered: root.filterBy(rowMenu.row, true) }
+    ActionMenuItem { glyph: Icons.check; text: MihomoI18n.t("trafficMenuOnly"); keyHint: "O"; onTriggered: root.filterBy(rowMenu.row, false) }
+    ActionMenuItem { glyph: Icons.hide; text: MihomoI18n.t("trafficMenuExclude"); keyHint: "X"; onTriggered: root.filterBy(rowMenu.row, true) }
     ActionMenuSeparator {}
-    ActionMenuItem { enabled: root.canRule(rowMenu.row); glyph: Icons.ruleAdd; text: I18n.t("trafficMenuRule"); keyHint: "R"; onTriggered: root.ruleFor(rowMenu.row) }
-    ActionMenuItem { enabled: rowMenu.row !== null && rowMenu.row.key !== ""; glyph: Icons.copy; text: I18n.t("trafficMenuCopy"); onTriggered: root.copy(rowMenu.row) }
+    ActionMenuItem { enabled: root.canRule(rowMenu.row); glyph: Icons.ruleAdd; text: MihomoI18n.t("trafficMenuRule"); keyHint: "R"; onTriggered: root.ruleFor(rowMenu.row) }
+    ActionMenuItem { enabled: rowMenu.row !== null && rowMenu.row.key !== ""; glyph: Icons.copy; text: MihomoI18n.t("trafficMenuCopy"); onTriggered: root.copy(rowMenu.row) }
   }
 }

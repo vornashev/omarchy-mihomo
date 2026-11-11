@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 // One problem resource: host, error kinds, app, route, repeats.
 Rectangle {
@@ -18,9 +19,9 @@ Rectangle {
 
   implicitHeight: Style.space(46)
   radius: Style.cornerRadius
-  color: selected ? Style.hoverFillFor(Color.popups.text, Color.accent) : (ma.containsMouse ? Util.alpha(Color.popups.text, 0.04) : "transparent")
+  color: selected ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent) : (ma.containsMouse ? Util.alpha(Commons.Color.popups.text, 0.04) : "transparent")
   border.width: selected ? 1 : 0
-  border.color: Util.alpha(Color.popups.text, 0.15)
+  border.color: Util.alpha(Commons.Color.popups.text, 0.15)
 
   MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; onClicked: root.clicked(); onDoubleClicked: root.routeClicked() }
 
@@ -29,7 +30,7 @@ Rectangle {
     anchors.left: parent.left; anchors.leftMargin: Style.space(10)
     anchors.verticalCenter: parent.verticalCenter
     width: Style.space(6); height: width; radius: width / 2
-    color: root.problem && root.problem["new"] ? Color.urgent : "transparent"
+    color: root.problem && root.problem["new"] ? Commons.Color.urgent : "transparent"
   }
 
   Column {
@@ -42,7 +43,7 @@ Rectangle {
       width: parent.width
       Txt {
         id: hostText
-        text: root.problem.host + (root.problem.domain_hint ? "  (" + root.problem.domain_hint + ")" : "")
+        text: (root.problem.name || root.problem.domain_hint || root.problem.host) + (root.problem.name || root.problem.domain_hint ? "  (" + root.problem.host + ")" : "")
         bold: true
         width: Math.min(implicitWidth, parent.width - chips.width - Style.space(8))
       }
@@ -53,8 +54,8 @@ Rectangle {
           model: root.kinds.slice(0, 2)
           Chip {
             required property string modelData
-            text: I18n.kind(modelData)
-            dot: root.svc ? root.svc.kindColor(modelData) : Color.urgent
+            text: MihomoI18n.kind(modelData)
+            dot: root.svc ? root.svc.kindColor(modelData) : Commons.Color.urgent
           }
         }
       }
@@ -62,13 +63,13 @@ Rectangle {
     Txt {
       width: parent.width
       dim: true
-      font.pixelSize: Style.font.bodySmall
+      font.pixelSize: Style.font.body
       text: {
         var parts = []
-        parts.push(Icons.app + " " + (root.apps.length ? root.apps.slice(0, 2).join(", ") : I18n.t("unknownApp")))
+        parts.push(Icons.app + " " + (root.apps.length ? root.apps.slice(0, 2).join(", ") : MihomoI18n.t("unknownApp")))
         var r = root.route.rule ? root.route.rule + " → " + root.route.target : root.route.target
         if (r) parts.push(Icons.route + " " + r)
-        if (root.problem.ok_since_error > 0) parts.push(I18n.t("okSince").arg(root.problem.ok_since_error))
+        if (root.problem.ok_since_error > 0) parts.push(MihomoI18n.t("okSince").arg(root.problem.ok_since_error))
         else if (root.svc) parts.push(root.svc.ago(root.problem.last_seen))
         return parts.join("  ·  ")
       }
@@ -83,9 +84,9 @@ Rectangle {
     Column {
       anchors.verticalCenter: parent.verticalCenter
       Txt { anchors.right: parent.right; text: "×" + root.problem.count; bold: true; font.pixelSize: Style.font.subtitle }
-      Txt { anchors.right: parent.right; text: root.svc ? I18n.t("since").arg(root.svc.clock(root.problem.first_seen)) : ""; faint: true; font.pixelSize: Style.font.caption }
+      Txt { anchors.right: parent.right; text: root.svc ? MihomoI18n.t("since").arg(root.svc.clock(root.problem.first_seen)) : ""; faint: true; font.pixelSize: Style.font.bodySmall }
     }
-    Btn { visible: !root.compact; anchors.verticalCenter: parent.verticalCenter; icon: Icons.route; text: I18n.t("route"); onClicked: root.routeClicked() }
-    Btn { visible: !root.compact; anchors.verticalCenter: parent.verticalCenter; ghost: true; icon: root.problem.hidden ? Icons.show : Icons.hide; tooltip: I18n.t(root.problem.hidden ? "hintShowProblem" : "hintHideProblem"); onClicked: root.hideClicked() }
+    Btn { visible: !root.compact; anchors.verticalCenter: parent.verticalCenter; icon: Icons.route; text: MihomoI18n.t("route"); onClicked: root.routeClicked() }
+    Btn { visible: !root.compact; anchors.verticalCenter: parent.verticalCenter; ghost: true; icon: root.problem.hidden ? Icons.show : Icons.hide; tooltip: MihomoI18n.t(root.problem.hidden ? "hintShowProblem" : "hintHideProblem"); onClicked: root.hideClicked() }
   }
 }

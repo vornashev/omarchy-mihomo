@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "tema.omarchy-mihomo",
+  "id": "vornashev.omarchy-mihomo",
   "name": "Mihomo",
   "version": "0.2.0",
-  "author": "tema",
+  "author": "vornashev",
   "license": "MIT",
   "description": "mihomo for Omarchy: profiles and subscriptions, proxy and group editors, your own routing rules and rule sets, failed connections with autofix, traffic statistics, node latency history, DNS, notifications and core updates. Backed by the omarchy-mihomod daemon.",
   "kinds": ["bar-widget"],
@@ -17,11 +17,15 @@
     "allowMultiple": false,
     "defaultSection": "right",
     "defaults": {
-      "locale": "ru",
-      "badge": "on"
+      "locale": "auto",
+      "badge": "on",
+      "leftClick": "normal",
+      "rightClick": "large"
     },
     "schema": [
-      { "key": "locale", "type": "enum", "label": "Language", "options": ["ru", "en"], "defaultValue": "ru" },
+      { "key": "locale", "type": "enum", "label": "Language (auto = system)", "options": ["auto", "en", "ru"], "defaultValue": "auto" },
+      { "key": "leftClick", "type": "enum", "label": "Left click opens", "options": ["compact", "normal", "large"], "defaultValue": "normal" },
+      { "key": "rightClick", "type": "enum", "label": "Right click opens", "options": ["compact", "normal", "large"], "defaultValue": "large" },
       { "key": "badge", "type": "enum", "label": "New-problems badge", "options": ["on", "off"], "defaultValue": "on" },
       { "key": "socketPath", "type": "string", "label": "Daemon socket (empty = default)" }
     ]

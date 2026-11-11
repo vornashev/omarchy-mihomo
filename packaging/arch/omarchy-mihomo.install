@@ -10,7 +10,7 @@ post_upgrade() {
 
 pre_remove() {
   echo '==> Per-user parts stay after removal unless you ran  omarchy-mihomo-setup --uninstall  first:'
-  echo '    the widget link ~/.config/omarchy/plugins/tema.omarchy-mihomo, the core in'
+  echo '    the widget link ~/.config/omarchy/plugins/vornashev.omarchy-mihomo, the core in'
   echo '    ~/.local/lib/omarchy-mihomo and your data in ~/.local/share/omarchy-mihomo.'
   echo '    Stop the services with:  systemctl --user disable --now omarchy-mihomod omarchy-mihomo-core'
 }

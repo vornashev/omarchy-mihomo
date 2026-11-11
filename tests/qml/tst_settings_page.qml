@@ -39,6 +39,8 @@ Rectangle {
     property string moduleName: "mihomo"
     property var settings: ({})
     property var bar: null
+    property string leftClick: "normal"
+    property string rightClick: "large"
     property string notification: ""
     function notify(t) { notification = t }
     function forceKeys() {}
@@ -55,17 +57,25 @@ Rectangle {
     name: "SettingsPage"
     when: windowShown
     function init() {
-      Plugin.I18n.language = "ru"
+      Plugin.MihomoI18n.language = "ru"
       panel.settingsTab = "main"
       service.calls = []
       panel.notification = ""
       waitForRendering(page)
+    }
+    function flickableOf(item) {
+      for (var f = item.parent; f; f = f.parent) if (f.contentHeight !== undefined && f.flick) return f
+      return null
     }
     function last() { return service.calls[service.calls.length - 1] }
 
     function test_backup_export_then_import() {
       var exp = findChild(page, "backupExport")
       verify(exp.visible)
+      // The main tab scrolls: bring the backup row into view.
+      var f = flickableOf(exp)
+      f.contentY = f.contentHeight - f.height
+      waitForRendering(page)
       mouseClick(exp)
       compare(last().method, "backup.export")
       compare(last().params.path, null, "empty field: the daemon picks the path")
@@ -75,6 +85,22 @@ Rectangle {
       compare(service.calls.filter(function(c) { return c.method === "backup.import" })[0].params.path, "/home/u/omarchy-mihomo-2026-10-27.json")
       compare(panel.notification, "Загружено: 12 правил; профилей добавлено 1, оставлено как было 0")
       grabImage(scene).save("/tmp/omm-settings-main.png")
+    }
+
+    function test_left_click_writes_the_shell_entry() {
+      var written = null
+      panel.settings = { id: "mihomo", locale: "ru" }
+      panel.bar = { shell: { updateEntryInline: function(id, entry) { written = { id: id, entry: entry } } } }
+      var seg = findChild(page, "leftClickSetting")
+      flickableOf(seg).contentY = 0
+      waitForRendering(page)
+      compare(seg.current, "normal")
+      mouseClick(seg, 20, seg.height / 2)
+      compare(written.id, "mihomo")
+      compare(written.entry.leftClick, "compact")
+      compare(written.entry.locale, "ru", "other settings are kept")
+      panel.bar = null
+      panel.settings = {}
     }
 
     function test_every_tab_opens() {

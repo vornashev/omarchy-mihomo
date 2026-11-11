@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyNodeModels.js" as Nodes
 
 Column {
@@ -14,21 +15,21 @@ Column {
     visible: root.leftTitle !== ""
     Txt {
       width: parent.width * 0.34
-      text: I18n.t("nodeField")
+      text: MihomoI18n.t("nodeField")
       faint: true
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
     }
     Txt {
       width: parent.width * 0.33
       text: root.leftTitle
       faint: true
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
     }
     Txt {
       width: parent.width * 0.33
       text: root.rightTitle
       faint: true
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
     }
   }
   Repeater {
@@ -39,7 +40,7 @@ Column {
       width: parent.width
       height: Style.space(34)
       radius: Style.cornerRadius
-      color: Util.alpha(Color.popups.text, 0.04)
+      color: Util.alpha(Commons.Color.popups.text, 0.04)
       Row {
         anchors.fill: parent
         anchors.margins: Style.space(6)
@@ -49,22 +50,22 @@ Column {
           text: row.modelData.key
           elide: Text.ElideRight
           dim: true
-          font.pixelSize: Style.font.caption
+          font.pixelSize: Style.font.bodySmall
           anchors.verticalCenter: parent.verticalCenter
         }
         Txt {
           width: (parent.width - Style.space(12)) * 0.33
           text: Nodes.display(row.modelData.before, row.modelData.key)
           elide: Text.ElideRight
-          font.pixelSize: Style.font.caption
+          font.pixelSize: Style.font.bodySmall
           anchors.verticalCenter: parent.verticalCenter
         }
         Txt {
           width: (parent.width - Style.space(12)) * 0.33
           text: Nodes.display(row.modelData.after, row.modelData.key)
           elide: Text.ElideRight
-          color: Color.accent
-          font.pixelSize: Style.font.caption
+          color: Commons.Color.accent
+          font.pixelSize: Style.font.bodySmall
           anchors.verticalCenter: parent.verticalCenter
         }
       }

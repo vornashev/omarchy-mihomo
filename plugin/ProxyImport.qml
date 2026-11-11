@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyModels.js" as Models
 
 Item {
@@ -57,7 +58,7 @@ Item {
   }
   FileDialog {
     id: fileDialog
-    title: I18n.t("proxyOpenFile")
+    title: MihomoI18n.t("proxyOpenFile")
     nameFilters: ["Proxy files (*.yaml *.yml *.conf *.txt)", "All files (*)"]
     onAccepted: root.filePath = decodeURIComponent(String(selectedFile).replace(/^file:\/\//, ""))
   }
@@ -101,7 +102,7 @@ Item {
       return r.selected && r.definition && r.action !== "skip";
     });
     if (!selected.length) {
-      error = I18n.t("proxySelectNodes");
+      error = MihomoI18n.t("proxySelectNodes");
       return;
     }
     var items = selected.map(function (r) {
@@ -113,7 +114,7 @@ Item {
     if (createGroup && (!newGroup.trim() || (metadata.targets || []).indexOf(newGroup.trim()) >= 0 || items.some(function (n) {
         return n.name === newGroup.trim();
       }))) {
-      error = I18n.t("nodeCollision");
+      error = MihomoI18n.t("nodeCollision");
       return;
     }
     busy = true;
@@ -145,9 +146,9 @@ Item {
     Row {
       spacing: Style.space(6)
       Txt {
-        text: I18n.t("navProxies")
-        color: Color.accent
-        font.pixelSize: Style.font.caption
+        text: MihomoI18n.t("navProxies")
+        color: Commons.Color.accent
+        font.pixelSize: Style.font.bodySmall
         MouseArea {
           anchors.fill: parent
           cursorShape: Qt.PointingHandCursor
@@ -155,18 +156,18 @@ Item {
         }
       }
       Txt {
-        text: "› " + I18n.t("proxyImport")
+        text: "› " + MihomoI18n.t("proxyImport")
         dim: true
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
     }
     Txt {
-      text: I18n.t("proxyImportTitle")
+      text: MihomoI18n.t("proxyImportTitle")
       bold: true
       font.pixelSize: Style.font.heading
     }
     Txt {
-      text: root.step === 0 ? I18n.t("proxyImportDescription") : root.step === 1 ? I18n.t("nodeImportReview") : I18n.t("nodeImportTarget").arg(root.selectedRows.length)
+      text: root.step === 0 ? MihomoI18n.t("proxyImportDescription") : root.step === 1 ? MihomoI18n.t("nodeImportReview") : MihomoI18n.t("nodeImportTarget").arg(root.selectedRows.length)
       dim: true
       width: parent.width
       wrapMode: Text.Wrap
@@ -184,19 +185,19 @@ Item {
             width: Style.space(20)
             height: width
             radius: width / 2
-            color: parent.index === root.step ? Color.accent : Util.alpha(Color.popups.text, 0.1)
+            color: parent.index === root.step ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.1)
             Txt {
               anchors.centerIn: parent
               text: parent.parent.index + 1
-              color: parent.parent.index === root.step ? Color.background : Color.popups.text
-              font.pixelSize: Style.font.caption
+              color: parent.parent.index === root.step ? Commons.Color.background : Commons.Color.popups.text
+              font.pixelSize: Style.font.bodySmall
             }
           }
           Txt {
-            text: I18n.t(parent.modelData)
+            text: MihomoI18n.t(parent.modelData)
             dim: parent.index !== root.step
             anchors.verticalCenter: parent.verticalCenter
-            font.pixelSize: Style.font.bodySmall
+            font.pixelSize: Style.font.body
           }
         }
       }
@@ -204,7 +205,7 @@ Item {
     Txt {
       text: root.error
       visible: text !== ""
-      color: Color.urgent
+      color: Commons.Color.urgent
       width: parent.width
       wrapMode: Text.Wrap
     }
@@ -232,12 +233,12 @@ Item {
           spacing: Style.space(8)
           Txt {
             width: Math.max(0, parent.width - pasteButton.width - formatLabel.width - Style.space(16))
-            text: I18n.t("proxyPasteText")
+            text: MihomoI18n.t("proxyPasteText")
             anchors.verticalCenter: parent.verticalCenter
           }
           Btn {
             id: pasteButton
-            text: I18n.t("proxyPaste")
+            text: MihomoI18n.t("proxyPaste")
             onClicked: {
               root.filePath = "";
               inputArea.paste();
@@ -246,9 +247,9 @@ Item {
           }
           Txt {
             id: formatLabel
-            text: I18n.t("proxyFormatAuto")
+            text: MihomoI18n.t("proxyFormatAuto")
             dim: true
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Style.font.bodySmall
             anchors.verticalCenter: parent.verticalCenter
           }
         }
@@ -256,9 +257,9 @@ Item {
           width: parent.width
           height: Style.space(270)
           radius: Style.cornerRadius
-          color: Util.alpha(Color.popups.text, 0.025)
+          color: Util.alpha(Commons.Color.popups.text, 0.025)
           border.width: 1
-          border.color: inputArea.activeFocus ? Color.accent : Util.alpha(Color.popups.text, 0.15)
+          border.color: inputArea.activeFocus ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.15)
           ScrollView {
             id: inputScroll
             anchors.fill: parent
@@ -278,13 +279,13 @@ Item {
                 }, function (_, i) {
                   return i + 1;
                 }).join("\n")
-                color: Color.muted
+                color: Commons.Color.muted
                 font: inputArea.font
               }
               selectByMouse: true
-              color: Color.popups.text
+              color: Commons.Color.popups.text
               font.family: Style.font.family
-              font.pixelSize: Style.font.bodySmall
+              font.pixelSize: Style.font.body
               background: null
               onTextChanged: if (activeFocus) {
                 root.filePath = "";
@@ -310,9 +311,9 @@ Item {
           width: parent.width
           spacing: Style.space(6)
           Txt {
-            text: I18n.t("proxyRecognized")
+            text: MihomoI18n.t("proxyRecognized")
             dim: true
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Style.font.bodySmall
           }
           Repeater {
             model: root.detectedTypes
@@ -331,10 +332,10 @@ Item {
           Txt {
             required property var modelData
             width: parent.width
-            text: I18n.t("proxyLine") + " " + modelData.index + ": " + modelData.error
-            color: Color.urgent
+            text: MihomoI18n.t("proxyLine") + " " + modelData.index + ": " + modelData.error
+            color: Commons.Color.urgent
             wrapMode: Text.Wrap
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Style.font.bodySmall
           }
         }
         Row {
@@ -342,16 +343,16 @@ Item {
           spacing: Style.space(8)
           Btn {
             id: openFileButton
-            text: I18n.t("proxyOpenFile")
+            text: MihomoI18n.t("proxyOpenFile")
             icon: Icons.file
             onClicked: fileDialog.open()
           }
           Txt {
             width: parent.width - openFileButton.width - Style.space(8)
-            text: root.filePath || I18n.t("proxyDropHint")
+            text: root.filePath || MihomoI18n.t("proxyDropHint")
             elide: Text.ElideMiddle
             dim: true
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Style.font.bodySmall
             anchors.verticalCenter: parent.verticalCenter
           }
         }
@@ -362,7 +363,7 @@ Item {
         width: parent.width
         spacing: Style.space(10)
         Txt {
-          text: I18n.t("proxyReviewWarnings")
+          text: MihomoI18n.t("proxyReviewWarnings")
           width: parent.width
           wrapMode: Text.Wrap
           dim: true
@@ -376,7 +377,7 @@ Item {
             width: parent.width
             height: entryBody.implicitHeight + Style.space(16)
             radius: Style.cornerRadius
-            color: Util.alpha(Color.popups.text, 0.04)
+            color: Util.alpha(Commons.Color.popups.text, 0.04)
             Column {
               id: entryBody
               x: Style.space(8)
@@ -384,7 +385,7 @@ Item {
               width: parent.width - Style.space(16)
               spacing: Style.space(6)
               ProxyCheck {
-                text: entry.row.definition ? entry.row.definition.type + " · " + entry.row.original : I18n.t("proxyLine") + " " + entry.row.index
+                text: entry.row.definition ? entry.row.definition.type + " · " + entry.row.original : MihomoI18n.t("proxyLine") + " " + entry.row.index
                 enabled: !!entry.row.definition
                 checked: entry.row.selected
                 onToggled: root.changeRow(entry.index, "selected", checked)
@@ -395,7 +396,7 @@ Item {
                 text: entry.row.definition ? (entry.row.definition.server || "") + (entry.row.definition.port ? ":" + entry.row.definition.port : "") : ""
                 elide: Text.ElideRight
                 dim: true
-                font.pixelSize: Style.font.caption
+                font.pixelSize: Style.font.bodySmall
               }
               Row {
                 visible: !!entry.row.definition && (root.metadata.targets || []).indexOf(entry.row.original) >= 0
@@ -405,15 +406,15 @@ Item {
                   model: [
                     {
                       key: "rename",
-                      label: I18n.t("proxyRename")
+                      label: MihomoI18n.t("proxyRename")
                     },
                     {
                       key: "replace",
-                      label: I18n.t("proxyReplace")
+                      label: MihomoI18n.t("proxyReplace")
                     },
                     {
                       key: "skip",
-                      label: I18n.t("proxySkip")
+                      label: MihomoI18n.t("proxySkip")
                     }
                   ]
                   current: entry.row.action
@@ -437,8 +438,8 @@ Item {
                 text: entry.row.error || entry.row.warnings.join("\n")
                 width: parent.width
                 wrapMode: Text.Wrap
-                color: Color.urgent
-                font.pixelSize: Style.font.bodySmall
+                color: Commons.Color.urgent
+                font.pixelSize: Style.font.body
               }
             }
           }
@@ -449,7 +450,7 @@ Item {
         width: parent.width
         spacing: Style.space(8)
         Txt {
-          text: I18n.t("proxyMemberOf")
+          text: MihomoI18n.t("proxyMemberOf")
           bold: true
         }
         Repeater {
@@ -460,18 +461,18 @@ Item {
             readonly property var details:root.groupItems.filter(function(g) { return g.name===modelData })[0] || ({})
             width:parent.width; spacing:Style.space(4)
             ProxyCheck { text:importGroup.modelData; enabled:!importGroup.details.automatic; checked:root.memberOf.indexOf(importGroup.modelData)>=0; onToggled:root.memberOf=Models.toggleMember(root.memberOf,importGroup.modelData,checked) }
-            Txt { width:parent.width; text:importGroup.details.automatic ? I18n.t("nodeAutoGroup") : (I18n.t("proxyType_"+(importGroup.details.type || "select")) + " · " + (importGroup.details.members || []).length + (root.memberOf.indexOf(importGroup.modelData)>=0 ? " → " + ((importGroup.details.members || []).length+root.selectedRows.length) : "")); dim:true; font.pixelSize:Style.font.caption; wrapMode:Text.Wrap }
+            Txt { width:parent.width; text:importGroup.details.automatic ? MihomoI18n.t("nodeAutoGroup") : (MihomoI18n.t("proxyType_"+(importGroup.details.type || "select")) + " · " + (importGroup.details.members || []).length + (root.memberOf.indexOf(importGroup.modelData)>=0 ? " → " + ((importGroup.details.members || []).length+root.selectedRows.length) : "")); dim:true; font.pixelSize:Style.font.bodySmall; wrapMode:Text.Wrap }
           }
         }
         ProxyCheck {
-          text: I18n.t("nodeImportGroup")
+          text: MihomoI18n.t("nodeImportGroup")
           checked: root.createGroup
           onToggled: root.createGroup = checked
         }
         Field {
           visible: root.createGroup
           width: parent.width
-          placeholder: I18n.t("proxyGroup")
+          placeholder: MihomoI18n.t("proxyGroup")
           text: root.newGroup
           input.onTextEdited: root.newGroup = text
         }
@@ -479,7 +480,7 @@ Item {
           width: parent.width
           height: summary.implicitHeight + Style.space(24)
           radius: Style.cornerRadius
-          color: Util.alpha(Color.popups.text, 0.04)
+          color: Util.alpha(Commons.Color.popups.text, 0.04)
           Column {
             id: summary
             x: Style.space(12)
@@ -487,15 +488,15 @@ Item {
             width: parent.width - Style.space(24)
             spacing: Style.space(8)
             Txt {
-              text: I18n.t("nodeImportSummary")
+              text: MihomoI18n.t("nodeImportSummary")
               bold: true
             }
             Txt {
               width: parent.width
-              text: I18n.t("nodeImportCount").arg(root.metadata.profile_name || "").arg(root.selectedRows.length)
+              text: MihomoI18n.t("nodeImportCount").arg(root.metadata.profile_name || "").arg(root.selectedRows.length)
               wrapMode: Text.Wrap
               dim: true
-              font.pixelSize: Style.font.bodySmall
+              font.pixelSize: Style.font.body
             }
             Repeater {
               model: root.memberOf
@@ -503,21 +504,21 @@ Item {
                 required property string modelData
                 text: modelData + ": +" + root.selectedRows.length
                 dim: true
-                font.pixelSize: Style.font.bodySmall
+                font.pixelSize: Style.font.body
               }
             }
             Txt {
               visible: root.createGroup
               text: root.newGroup + ": +" + root.selectedRows.length
               dim: true
-              font.pixelSize: Style.font.bodySmall
+              font.pixelSize: Style.font.body
             }
             Txt {
               width: parent.width
-              text: I18n.t("nodeImportCheck")
+              text: MihomoI18n.t("nodeImportCheck")
               wrapMode: Text.Wrap
               dim: true
-              font.pixelSize: Style.font.bodySmall
+              font.pixelSize: Style.font.body
             }
           }
         }
@@ -529,7 +530,7 @@ Item {
     anchors.bottomMargin: Style.space(10)
     width: parent.width
     height: 1
-    color: Util.alpha(Color.popups.text, 0.15)
+    color: Util.alpha(Commons.Color.popups.text, 0.15)
   }
   Row {
     id: foot
@@ -538,15 +539,15 @@ Item {
     spacing: Style.space(8)
     Txt {
       width: Math.max(0, parent.width - backButton.width - nextButton.width - Style.space(16))
-      text: root.step === 0 ? I18n.t("proxyLocalParsing") : I18n.t("nodeImportedCount").arg(root.selectedRows.length)
+      text: root.step === 0 ? MihomoI18n.t("proxyLocalParsing") : MihomoI18n.t("nodeImportedCount").arg(root.selectedRows.length)
       elide: Text.ElideRight
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
       dim: true
       anchors.verticalCenter: parent.verticalCenter
     }
     Btn {
       id: backButton
-      text: root.step ? I18n.t("proxyBack") : I18n.t("cancel")
+      text: root.step ? MihomoI18n.t("proxyBack") : MihomoI18n.t("cancel")
       enabled: !root.busy
       onClicked: {
         if (root.step)
@@ -557,7 +558,7 @@ Item {
     }
     Btn {
       id: nextButton
-      text: root.step === 0 ? I18n.t("proxyImportNext").arg(root.validRows.length) : root.step === 1 ? I18n.t("proxyNext") : I18n.t("proxyImportApply")
+      text: root.step === 0 ? MihomoI18n.t("proxyImportNext").arg(root.validRows.length) : root.step === 1 ? MihomoI18n.t("proxyNext") : MihomoI18n.t("proxyImportApply")
       primary: true
       busy: root.busy
       enabled: !root.busy && (root.step === 0 ? !!root.inputText.trim() || !!root.filePath : root.selectedRows.length > 0)

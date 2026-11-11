@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 
 // The user's own rules: they sit above the profile's rules and survive
 // profile updates. Journal + rollback for every change.
@@ -38,17 +39,17 @@ Item {
 
   function after(r, err) {
     if (err) { panel.notify(err.message); reload(); return }
-    if (r && r.closed > 0) panel.notify(I18n.t("closedConns").arg(r.closed))
+    if (r && r.closed > 0) panel.notify(MihomoI18n.t("closedConns").arg(r.closed))
     reload()
   }
   function toggle(rule) { svc.request("rules.update", { id: rule.id, enabled: !rule.enabled }, after) }
-  function del(rule) { svc.request("rules.delete", { id: rule.id }, function(r, err) { if (!err) panel.notify(I18n.t("deletedToast").arg(rule.value)); after(r, err) }) }
+  function del(rule) { svc.request("rules.delete", { id: rule.id }, function(r, err) { if (!err) panel.notify(MihomoI18n.t("deletedToast").arg(rule.value)); after(r, err) }) }
   function undoLast() {
     if (history.length === 0) return
-    svc.request("rules.rollback", { to: history[0].id - 1 }, function(r, err) { if (!err) panel.notify(I18n.t("undoneToast")); after(null, err) })
+    svc.request("rules.rollback", { to: history[0].id - 1 }, function(r, err) { if (!err) panel.notify(MihomoI18n.t("undoneToast")); after(null, err) })
   }
   function rollbackTo(change) {
-    svc.request("rules.rollback", { to: change.id }, function(r, err) { if (!err) panel.notify(I18n.t("rolledBack").arg(r.undone)); after(null, err) })
+    svc.request("rules.rollback", { to: change.id }, function(r, err) { if (!err) panel.notify(MihomoI18n.t("rolledBack").arg(r.undone)); after(null, err) })
   }
 
   function move(dx, dy) {
@@ -93,11 +94,11 @@ Item {
       Column {
         width: parent.width - histBtn.width - setsBtn.width - Style.space(20)
         spacing: Style.space(3)
-        Txt { text: I18n.t("rulesTitle"); bold: true; font.pixelSize: Style.font.heading }
-        Txt { text: I18n.t("rulesSubtitle").arg(root.rules.length); dim: true; font.pixelSize: Style.font.bodySmall }
+        Txt { text: MihomoI18n.t("rulesTitle"); bold: true; font.pixelSize: Style.font.heading }
+        Txt { text: MihomoI18n.t("rulesSubtitle").arg(root.rules.length); dim: true; font.pixelSize: Style.font.body }
       }
-      Btn { id: setsBtn; objectName: "ruleSetsBtn"; anchors.verticalCenter: parent.verticalCenter; icon: Icons.sets; text: I18n.t("ruleSets"); primary: root.showSets; onClicked: root.showSets = !root.showSets }
-      Btn { id: histBtn; anchors.verticalCenter: parent.verticalCenter; icon: Icons.history; text: I18n.t("history"); onClicked: root.showHistory = !root.showHistory }
+      Btn { id: setsBtn; objectName: "ruleSetsBtn"; anchors.verticalCenter: parent.verticalCenter; icon: Icons.sets; text: MihomoI18n.t("ruleSets"); primary: root.showSets; onClicked: root.showSets = !root.showSets }
+      Btn { id: histBtn; anchors.verticalCenter: parent.verticalCenter; icon: Icons.history; text: MihomoI18n.t("history"); onClicked: root.showHistory = !root.showHistory }
     }
 
     Item {
@@ -108,10 +109,10 @@ Item {
       anchors.verticalCenter: parent.verticalCenter
       current: root.tab
       model: [
-        { key: "all", label: I18n.t("tabAll") + " " + root.rules.length },
+        { key: "all", label: MihomoI18n.t("tabAll") + " " + root.rules.length },
         { key: "direct", label: "DIRECT " + root.rules.filter(function(r) { return r.enabled && (r.effective_target || r.target) === "DIRECT" }).length },
-        { key: "proxy", label: I18n.t("tabProxy") + " " + root.rules.filter(function(r) { return r.enabled && (r.effective_target || r.target) !== "DIRECT" }).length },
-        { key: "off", label: I18n.t("tabOff") + " " + root.rules.filter(function(r) { return !r.enabled }).length }
+        { key: "proxy", label: MihomoI18n.t("tabProxy") + " " + root.rules.filter(function(r) { return r.enabled && (r.effective_target || r.target) !== "DIRECT" }).length },
+        { key: "off", label: MihomoI18n.t("tabOff") + " " + root.rules.filter(function(r) { return !r.enabled }).length }
       ]
       onPicked: function(k) { root.tab = k }
     }
@@ -121,7 +122,7 @@ Item {
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
       icon: Icons.add
-      text: I18n.t("addRule")
+      text: MihomoI18n.t("addRule")
       keyHint: "N"
       onClicked: root.add()
     }
@@ -133,8 +134,8 @@ Item {
       tone: "warn"
       toneColor: root.svc.yellow
       icon: Icons.orphan
-      text: I18n.t("orphanBanner").arg(root.orphanRules.map(function(r) { return r.target }).filter(function(v, i, a) { return a.indexOf(v) === i }).join(", ")).arg(root.orphanRules.length)
-      action: I18n.t("fix")
+      text: MihomoI18n.t("orphanBanner").arg(root.orphanRules.map(function(r) { return r.target }).filter(function(v, i, a) { return a.indexOf(v) === i }).join(", ")).arg(root.orphanRules.length)
+      action: MihomoI18n.t("fix")
       onActionClicked: root.edit(root.orphanRules[0])
     }
   }
@@ -169,8 +170,8 @@ Item {
       visible: root.shown.length === 0
       anchors.centerIn: parent
       spacing: Style.space(6)
-      Txt { anchors.horizontalCenter: parent.horizontalCenter; text: I18n.t("noRules"); dim: true }
-      Txt { anchors.horizontalCenter: parent.horizontalCenter; text: I18n.t("noRulesHint"); faint: true; font.pixelSize: Style.font.bodySmall }
+      Txt { anchors.horizontalCenter: parent.horizontalCenter; text: MihomoI18n.t("noRules"); dim: true }
+      Txt { anchors.horizontalCenter: parent.horizontalCenter; text: MihomoI18n.t("noRulesHint"); faint: true; font.pixelSize: Style.font.body }
     }
   }
 
@@ -195,26 +196,26 @@ Item {
       width: historyList.width - Style.space(6)
       height: Style.space(34)
       radius: Style.cornerRadius
-      color: hm.containsMouse ? Util.alpha(Color.popups.text, 0.04) : "transparent"
+      color: hm.containsMouse ? Util.alpha(Commons.Color.popups.text, 0.04) : "transparent"
       function describe(s) {
         if (!s) return "—"
-        return s.value + " → " + s.target + (s.enabled === false ? " (" + I18n.t("off") + ")" : "")
+        return s.value + " → " + s.target + (s.enabled === false ? " (" + MihomoI18n.t("off") + ")" : "")
       }
       Row {
         anchors.left: parent.left; anchors.leftMargin: Style.space(10)
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.space(10)
         Txt { text: "#" + modelData.id; faint: true; width: Style.space(36) }
-        Txt { text: I18n.action(modelData.action); bold: true; width: Style.space(90) }
-        Txt { text: root.svc.ago(modelData.at); dim: true; width: Style.space(90); font.pixelSize: Style.font.bodySmall }
-        Txt { text: parent.parent.describe(modelData.before) + "  ⇒  " + parent.parent.describe(modelData.after); width: historyList.width - Style.space(380); font.pixelSize: Style.font.bodySmall }
+        Txt { text: MihomoI18n.action(modelData.action); bold: true; width: Style.space(90) }
+        Txt { text: root.svc.ago(modelData.at); dim: true; width: Style.space(90); font.pixelSize: Style.font.body }
+        Txt { text: parent.parent.describe(modelData.before) + "  ⇒  " + parent.parent.describe(modelData.after); width: historyList.width - Style.space(380); font.pixelSize: Style.font.body }
       }
       Btn {
         anchors.right: parent.right; anchors.rightMargin: Style.space(6)
         anchors.verticalCenter: parent.verticalCenter
         visible: hm.containsMouse
         icon: Icons.undo
-        text: I18n.t("rollbackHere")
+        text: MihomoI18n.t("rollbackHere")
         onClicked: root.rollbackTo(modelData)
       }
       MouseArea { id: hm; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
@@ -231,9 +232,9 @@ Item {
     Txt {
       anchors.verticalCenter: parent.verticalCenter
       width: parent.width - undoBtn.width - Style.space(40)
-      text: root.history.length ? I18n.t("lastChange").arg(I18n.action(root.history[0].action)).arg((root.history[0].after || root.history[0].before || {}).value || "").arg(root.svc.ago(root.history[0].at)) : I18n.t("noChanges")
-      dim: true; font.pixelSize: Style.font.bodySmall
+      text: root.history.length ? MihomoI18n.t("lastChange").arg(MihomoI18n.action(root.history[0].action)).arg((root.history[0].after || root.history[0].before || {}).value || "").arg(root.svc.ago(root.history[0].at)) : MihomoI18n.t("noChanges")
+      dim: true; font.pixelSize: Style.font.body
     }
-    Btn { id: undoBtn; icon: Icons.undo; text: I18n.t("undo"); enabled: root.history.length > 0; onClicked: root.undoLast() }
+    Btn { id: undoBtn; icon: Icons.undo; text: MihomoI18n.t("undo"); enabled: root.history.length > 0; onClicked: root.undoLast() }
   }
 }

@@ -54,6 +54,10 @@ pub struct Problem {
     /// sniffed name decided the route; the name is what a rule should use.
     #[serde(default)]
     pub domain_hint: Option<String>,
+    /// For IP-only entries: the sniffed name traffic to this IP carried,
+    /// filled in later by the daemon from its traffic history.
+    #[serde(default)]
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -222,6 +226,7 @@ impl Collector {
                     last_ok: None,
                     last_ok_chain: None,
                     domain_hint: None,
+                    name: None,
                 });
                 if p.is_ip && matches!(e.route.rule.as_str(), "Domain" | "DomainSuffix") && !e.route.payload.is_empty() {
                     p.domain_hint = Some(e.route.payload.to_ascii_lowercase());
@@ -322,6 +327,7 @@ impl Collector {
                     let p = v.problem;
                     p.host.contains(s.as_str())
                         || p.domain_hint.as_deref().is_some_and(|h| h.contains(s.as_str()))
+                        || p.name.as_deref().is_some_and(|h| h.contains(s.as_str()))
                         || p.apps.keys().any(|a| a.to_lowercase().contains(s.as_str()))
                 })
             })
@@ -335,6 +341,18 @@ impl Collector {
 
     pub fn get(&self, host: &str) -> Option<View<'_>> {
         self.problems.get(host).map(|p| View { problem: p, new: p.last_seen > self.seen_mark, hidden: self.is_hidden(p) })
+    }
+
+    /// IP-only problems still waiting for a name.
+    pub fn unnamed(&self) -> Vec<Problem> {
+        self.problems.values().filter(|p| p.is_ip && p.name.is_none()).cloned().collect()
+    }
+
+    pub fn set_name(&mut self, host: &str, name: String) {
+        if let Some(p) = self.problems.get_mut(host) {
+            p.name = Some(name);
+            self.dirty.insert(host.to_owned());
+        }
     }
 
     /// Distinct apps and targets, for filter menus.
@@ -489,6 +507,17 @@ mod tests {
         assert_eq!(c.get("8.6.112.0").unwrap().problem.domain_hint.as_deref(), Some("chatgpt.com"));
         assert_eq!(c.get("1.2.3.4").unwrap().problem.domain_hint, None);
         assert_eq!(c.list(&Query { search: Some("chatgpt".into()), ..Default::default() }).len(), 1);
+    }
+
+    #[test]
+    fn ip_entries_take_a_name_later() {
+        let mut c = Collector::in_memory().unwrap();
+        feed(&mut c, TIMEOUT, 1);
+        feed(&mut c, RESET, 1);
+        assert_eq!(c.unnamed().iter().map(|p| p.host.as_str()).collect::<Vec<_>>(), ["142.252.58.41"]);
+        c.set_name("142.252.58.41", "dc.telegram.org".into());
+        assert!(c.unnamed().is_empty());
+        assert_eq!(c.list(&Query { search: Some("telegram.org".into()), ..Default::default() })[0].problem.host, "142.252.58.41");
     }
 
     #[test]

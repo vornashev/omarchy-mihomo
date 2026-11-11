@@ -2,6 +2,7 @@ import QtQuick
 import QtQml
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 import "RuleModels.js" as RuleModels
 
 // Create or edit one of the user's rules: from a connection (scopes it
@@ -66,7 +67,7 @@ Item {
     next.origin = Object.assign({}, origin, { process: c.name, process_path: c.path, pid: c.pid, connections: c.connections })
     panel.openRule(next)
   }
-  function kindTitle(k) { return I18n.t("ruleTab_" + RuleModels.tabOf(k)) + " · " + I18n.t("variant_" + k) }
+  function kindTitle(k) { return MihomoI18n.t("ruleTab_" + RuleModels.tabOf(k)) + " · " + MihomoI18n.t("variant_" + k) }
 
   function init() {
     if (rule) {
@@ -169,13 +170,13 @@ Item {
     if (!preview) return ""
     var c = preview.coverage || {}
     var bits = []
-    if (preview.existing && !preview.existing.id === selfId) bits.push(I18n.t("ruleExists").arg(preview.existing.target))
-    if (c.connections > 0) bits.push(I18n.t("coverConns").arg(c.connections))
-    if (c.seen > 0) bits.push(I18n.t("coverSeen").arg(c.seen))
-    if (c.unknown) bits.push(I18n.t("coverUnknown"))
-    if (!c.connections && !c.seen && !c.unknown) bits.push(I18n.t("coverNone"))
+    if (preview.existing && !preview.existing.id === selfId) bits.push(MihomoI18n.t("ruleExists").arg(preview.existing.target))
+    if (c.connections > 0) bits.push(MihomoI18n.t("coverConns").arg(c.connections))
+    if (c.seen > 0) bits.push(MihomoI18n.t("coverSeen").arg(c.seen))
+    if (c.unknown) bits.push(MihomoI18n.t("coverUnknown"))
+    if (!c.connections && !c.seen && !c.unknown) bits.push(MihomoI18n.t("coverNone"))
     var routes = (c.routes || []).filter(function(r) { return r.target !== target || r.rule === "" })
-    if (routes.length) bits.push(I18n.t("overrides").arg(routes.map(function(r) { return r.rule + (r.payload ? "(" + r.payload + ")" : "") + " → " + r.target }).join(", ")))
+    if (routes.length) bits.push(MihomoI18n.t("overrides").arg(routes.map(function(r) { return r.rule + (r.payload ? "(" + r.payload + ")" : "") + " → " + r.target }).join(", ")))
     return bits.join(" · ")
   }
   readonly property string previewTone: error !== "" ? "error" : (preview && ((preview.existing && !preview.existing.id === selfId) || !(preview.coverage && (preview.coverage.connections || preview.coverage.seen || preview.coverage.unknown))) ? "warn" : "ok")
@@ -195,9 +196,9 @@ Item {
     svc.request("rules.save", params, function(r, err) {
       saving = false
       if (err) { error = err.message; return }
-      var msg = I18n.t("savedToast").arg(r.rule ? RuleModels.display(r.rule.kind, r.rule.value) : effectiveValue).arg(target)
-      if (r.closed > 0) msg += " · " + I18n.t("closedConns").arg(r.closed)
-      if (r.apply && !r.apply.reloaded) msg += " · " + I18n.t("notReloaded")
+      var msg = MihomoI18n.t("savedToast").arg(r.rule ? RuleModels.display(r.rule.kind, r.rule.value) : effectiveValue).arg(target)
+      if (r.closed > 0) msg += " · " + MihomoI18n.t("closedConns").arg(r.closed)
+      if (r.apply && !r.apply.reloaded) msg += " · " + MihomoI18n.t("notReloaded")
       if (from === "window" && r.rule) {
         // The panel closes; the notification keeps the way back.
         if (!svc.automation || !svc.automation.notify || svc.automation.notify.saved)
@@ -239,25 +240,25 @@ Item {
     property string label: ""
     property string hint: ""
     spacing: Style.space(8)
-    Txt { text: parent.label; faint: true; bold: true; font.pixelSize: Style.font.caption; font.letterSpacing: 1 }
-    Txt { text: parent.hint; faint: true; font.pixelSize: Style.font.caption }
+    Txt { text: parent.label; faint: true; bold: true; font.pixelSize: Style.font.bodySmall; font.letterSpacing: 1 }
+    Txt { text: parent.hint; faint: true; font.pixelSize: Style.font.bodySmall }
   }
 
   Row {
     id: header
     width: parent.width
     spacing: Style.space(12)
-    Btn { icon: Icons.back; tooltip: I18n.t("hintBack"); anchors.verticalCenter: parent.verticalCenter; onClicked: root.back() }
+    Btn { icon: Icons.back; tooltip: MihomoI18n.t("hintBack"); anchors.verticalCenter: parent.verticalCenter; onClicked: root.back() }
     Column {
       width: parent.width - Style.space(40)
       spacing: Style.space(3)
-      Txt { text: root.rule && !root.editing.duplicate ? I18n.t("ruleEditTitle") : I18n.t("ruleNewTitle"); bold: true; font.pixelSize: Style.font.heading }
+      Txt { text: root.rule && !root.editing.duplicate ? MihomoI18n.t("ruleEditTitle") : MihomoI18n.t("ruleNewTitle"); bold: true; font.pixelSize: Style.font.heading }
       Txt {
         width: parent.width
-        text: root.win ? I18n.t("activeWindow") + " › " + (root.win.title || root.win.cls) : (root.from === "connections" ? I18n.t("navConnections") : I18n.t("navRules")) + " › "
+        text: root.win ? MihomoI18n.t("activeWindow") + " › " + (root.win.title || root.win.cls) : (root.from === "connections" ? MihomoI18n.t("navConnections") : MihomoI18n.t("navRules")) + " › "
           + (root.origin ? (root.origin.host || root.origin.ip) + (root.origin.port ? ":" + root.origin.port : "")
-          : (root.rule ? RuleModels.display(root.rule.kind, root.rule.value) : I18n.t("ruleNewCrumb")))
-        dim: true; font.pixelSize: Style.font.bodySmall
+          : (root.rule ? RuleModels.display(root.rule.kind, root.rule.value) : MihomoI18n.t("ruleNewCrumb")))
+        dim: true; font.pixelSize: Style.font.body
       }
     }
   }
@@ -283,9 +284,9 @@ Item {
         width: parent.width
         height: facts.implicitHeight + Style.space(20)
         radius: Style.cornerRadius
-        color: Util.alpha(Color.popups.text, 0.04)
+        color: Util.alpha(Commons.Color.popups.text, 0.04)
         border.width: 1
-        border.color: Util.alpha(Color.popups.text, 0.12)
+        border.color: Util.alpha(Commons.Color.popups.text, 0.12)
         Row {
           id: facts
           anchors.fill: parent
@@ -293,28 +294,28 @@ Item {
           spacing: Style.space(12)
           Repeater {
             model: root.win ? [
-              [I18n.t("factWindow"), root.win.title || root.win.cls, root.win.cls ? "class " + root.win.cls : ""],
-              [I18n.t("factProcess"), root.origin.process, "pid " + root.origin.pid + " · " + root.origin.process_path],
-              [I18n.t("factRoute"), root.origin.route || "—", I18n.t("connsShort").arg(root.origin.connections || 0)]
+              [MihomoI18n.t("factWindow"), root.win.title || root.win.cls, root.win.cls ? "class " + root.win.cls : ""],
+              [MihomoI18n.t("factProcess"), root.origin.process, "pid " + root.origin.pid + " · " + root.origin.process_path],
+              [MihomoI18n.t("factRoute"), root.origin.route || "—", MihomoI18n.t("connsShort").arg(root.origin.connections || 0)]
             ] : root.origin ? [
-              [I18n.t("factHost"), root.origin.host || root.origin.ip, (root.origin.ip ? root.origin.ip + ":" + root.origin.port : "") + (root.origin.network ? " · " + root.origin.network : "")],
-              [I18n.t("factProcess"), root.origin.process || I18n.t("unknownApp"), root.origin.process_path],
-              [I18n.t("factRoute"), root.origin.route || "—", root.origin.rule]
+              [MihomoI18n.t("factHost"), root.origin.host || root.origin.ip, (root.origin.ip ? root.origin.ip + ":" + root.origin.port : "") + (root.origin.network ? " · " + root.origin.network : "")],
+              [MihomoI18n.t("factProcess"), root.origin.process || MihomoI18n.t("unknownApp"), root.origin.process_path],
+              [MihomoI18n.t("factRoute"), root.origin.route || "—", root.origin.rule]
             ] : []
             Column {
               required property var modelData
               width: (facts.width - facts.spacing * 2) / 3
               spacing: Style.space(3)
-              Txt { text: modelData[0]; faint: true; font.pixelSize: Style.font.caption }
+              Txt { text: modelData[0]; faint: true; font.pixelSize: Style.font.bodySmall }
               Txt { width: parent.width; text: modelData[1]; bold: true }
-              Txt { width: parent.width; text: modelData[2] || ""; dim: true; font.pixelSize: Style.font.caption }
+              Txt { width: parent.width; text: modelData[2] || ""; dim: true; font.pixelSize: Style.font.bodySmall }
             }
           }
         }
       }
 
       // A terminal: pick which of the programs in it the rule is for.
-      SectionLabel { visible: root.candidates.length > 1; label: I18n.t("windowProcess"); hint: I18n.t("windowProcessHint") }
+      SectionLabel { visible: root.candidates.length > 1; label: MihomoI18n.t("windowProcess"); hint: MihomoI18n.t("windowProcessHint") }
       Flow {
         visible: root.candidates.length > 1
         width: parent.width
@@ -323,14 +324,14 @@ Item {
           model: root.candidates
           Btn {
             required property var modelData
-            text: modelData.name + "  " + I18n.t("connsShort").arg(modelData.connections)
+            text: modelData.name + "  " + MihomoI18n.t("connsShort").arg(modelData.connections)
             primary: root.origin && modelData.path === root.origin.process_path
             onClicked: root.pickCandidate(modelData)
           }
         }
       }
 
-      SectionLabel { label: I18n.t("matchLabel"); hint: root.full ? "" : I18n.t(root.win ? "matchFromWindow" : "matchFromConn") }
+      SectionLabel { label: MihomoI18n.t("matchLabel"); hint: root.full ? "" : MihomoI18n.t(root.win ? "matchFromWindow" : "matchFromConn") }
 
       // Scopes a connection suggests.
       Grid {
@@ -349,9 +350,9 @@ Item {
             width: (scopeGrid.width - scopeGrid.spacing) / 2
             height: Style.space(58)
             radius: Style.cornerRadius
-            color: on ? Style.selectedFillFor(Color.popups.text, Color.accent) : Util.alpha(Color.popups.text, 0.04)
+            color: on ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent) : Util.alpha(Commons.Color.popups.text, 0.04)
             border.width: 1
-            border.color: on ? Color.accent : Util.alpha(Color.popups.text, 0.15)
+            border.color: on ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.15)
             Rectangle {
               id: radio
               anchors.left: parent.left; anchors.leftMargin: Style.space(12)
@@ -359,22 +360,22 @@ Item {
               width: Style.space(14); height: width; radius: width / 2
               color: "transparent"
               border.width: 1
-              border.color: parent.on ? Color.accent : Util.alpha(Color.popups.text, 0.4)
-              Rectangle { visible: parent.parent.on; anchors.centerIn: parent; width: Style.space(6); height: width; radius: width / 2; color: Color.accent }
+              border.color: parent.on ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.4)
+              Rectangle { visible: parent.parent.on; anchors.centerIn: parent; width: Style.space(6); height: width; radius: width / 2; color: Commons.Color.accent }
             }
             Column {
               anchors.left: radio.right; anchors.leftMargin: Style.space(10)
               anchors.right: parent.right; anchors.rightMargin: Style.space(10)
               anchors.verticalCenter: parent.verticalCenter
               spacing: Style.space(2)
-              Txt { width: parent.width; text: (modelData.kind === "process-name" ? I18n.t("processPrefix") + " " : "") + RuleModels.display(modelData.kind, modelData.value); bold: true }
-              Txt { width: parent.width; text: I18n.matchKindLong(modelData.kind); dim: true; font.pixelSize: Style.font.caption }
+              Txt { width: parent.width; text: (modelData.kind === "process-name" ? MihomoI18n.t("processPrefix") + " " : "") + RuleModels.display(modelData.kind, modelData.value); bold: true }
+              Txt { width: parent.width; text: MihomoI18n.matchKindLong(modelData.kind); dim: true; font.pixelSize: Style.font.bodySmall }
               Row {
                 spacing: Style.space(8)
-                Txt { text: RuleModels.keyword(modelData.kind, modelData.value); color: root.svc.mauve; font.pixelSize: Style.font.caption }
+                Txt { text: RuleModels.keyword(modelData.kind, modelData.value); color: root.svc.mauve; font.pixelSize: Style.font.bodySmall }
                 Txt {
-                  text: [modelData.connections ? I18n.t("coverConns").arg(modelData.connections) : "", modelData.seen ? I18n.t("coverSeen").arg(modelData.seen) : ""].filter(function(s) { return s }).join(" · ")
-                  faint: true; font.pixelSize: Style.font.caption
+                  text: [modelData.connections ? MihomoI18n.t("coverConns").arg(modelData.connections) : "", modelData.seen ? MihomoI18n.t("coverSeen").arg(modelData.seen) : ""].filter(function(s) { return s }).join(" · ")
+                  faint: true; font.pixelSize: Style.font.bodySmall
                 }
               }
             }
@@ -384,9 +385,9 @@ Item {
       }
       Txt {
         visible: !root.full
-        text: Icons.add + " " + I18n.t("otherType")
-        color: Color.accent
-        font.pixelSize: Style.font.bodySmall
+        text: Icons.add + " " + MihomoI18n.t("otherType")
+        color: Commons.Color.accent
+        font.pixelSize: Style.font.body
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.showFull() }
       }
 
@@ -396,7 +397,7 @@ Item {
         width: parent.width
         height: Style.space(32)
         radius: Style.cornerRadius
-        color: Util.alpha(Color.popups.text, 0.04)
+        color: Util.alpha(Commons.Color.popups.text, 0.04)
         Row {
           anchors.fill: parent
           anchors.margins: Style.space(3)
@@ -410,12 +411,12 @@ Item {
               width: (parent.width - Style.space(2) * (RuleModels.tabs.length - 1)) / RuleModels.tabs.length
               height: parent.height
               radius: Style.cornerRadius
-              color: on ? Style.selectedFillFor(Color.popups.text, Color.accent) : (tm.containsMouse ? Style.hoverFillFor(Color.popups.text, Color.accent) : "transparent")
+              color: on ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent) : (tm.containsMouse ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent) : "transparent")
               Row {
                 anchors.centerIn: parent
                 spacing: Style.space(6)
-                Txt { text: Icons[modelData.icon]; color: parent.parent.on ? Color.accent : Util.alpha(Color.popups.text, 0.42) }
-                Txt { text: I18n.t("ruleTab_" + modelData.key); bold: parent.parent.on; dim: !parent.parent.on; font.pixelSize: Style.font.bodySmall }
+                Txt { text: Icons[modelData.icon]; color: parent.parent.on ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.42) }
+                Txt { text: MihomoI18n.t("ruleTab_" + modelData.key); bold: parent.parent.on; dim: !parent.parent.on; font.pixelSize: Style.font.body }
               }
               MouseArea { id: tm; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.pickTab(modelData.key) }
             }
@@ -435,15 +436,15 @@ Item {
             width: variantText.implicitWidth + Style.space(20)
             height: variantText.implicitHeight + Style.space(12)
             radius: Style.cornerRadius
-            color: on ? Style.selectedFillFor(Color.popups.text, Color.accent) : Util.alpha(Color.popups.text, 0.04)
+            color: on ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent) : Util.alpha(Commons.Color.popups.text, 0.04)
             border.width: 1
-            border.color: on ? Color.accent : Util.alpha(Color.popups.text, 0.15)
+            border.color: on ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.15)
             Column {
               id: variantText
               anchors.centerIn: parent
               spacing: Style.space(1)
-              Txt { text: I18n.t("variant_" + modelData); bold: parent.parent.on; dim: !parent.parent.on; font.pixelSize: Style.font.bodySmall }
-              Txt { text: RuleModels.keyword(modelData, ""); color: root.svc.mauve; font.pixelSize: Style.font.caption - 1 }
+              Txt { text: MihomoI18n.t("variant_" + modelData); bold: parent.parent.on; dim: !parent.parent.on; font.pixelSize: Style.font.body }
+              Txt { text: RuleModels.keyword(modelData, ""); color: root.svc.mauve; font.pixelSize: Style.font.caption }
             }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.kind = modelData }
           }
@@ -452,8 +453,8 @@ Item {
 
       SectionLabel {
         visible: root.full
-        label: I18n.t("valueLabel_" + root.tabKey)
-        hint: I18n.t("valueHint_" + root.kind)
+        label: MihomoI18n.t("valueLabel_" + root.tabKey)
+        hint: MihomoI18n.t("valueHint_" + root.kind)
       }
       RuleValueInput {
         id: valueInput
@@ -461,7 +462,7 @@ Item {
         width: parent.width
         svc: root.svc
         kind: root.kind
-        placeholder: I18n.t("valuePlaceholder_" + root.kind)
+        placeholder: MihomoI18n.t("valuePlaceholder_" + root.kind)
         onTextChanged: root.refreshPreview()
         onAccepted: { root.panel.forceKeys() }
         onEscaped: { input.focus = false; root.panel.forceKeys() }
@@ -484,8 +485,8 @@ Item {
               width: Style.space(40)
               anchors.verticalCenter: parent.verticalCenter
               horizontalAlignment: Text.AlignHCenter
-              text: cond.index === 0 ? I18n.t(root.kind === "not" ? "logicNot" : "logicIf") : I18n.t(root.kind === "or" ? "logicOr" : "logicAnd")
-              color: root.svc.mauve; bold: true; font.pixelSize: Style.font.caption
+              text: cond.index === 0 ? MihomoI18n.t(root.kind === "not" ? "logicNot" : "logicIf") : MihomoI18n.t(root.kind === "or" ? "logicOr" : "logicAnd")
+              color: root.svc.mauve; bold: true; font.pixelSize: Style.font.bodySmall
             }
             Btn {
               id: kindBtn
@@ -499,7 +500,7 @@ Item {
               svc: root.svc
               kind: cond.modelData.kind
               text: cond.modelData.value
-              placeholder: I18n.t("valuePlaceholder_" + cond.modelData.kind)
+              placeholder: MihomoI18n.t("valuePlaceholder_" + cond.modelData.kind)
               onTextChanged: if (text !== cond.modelData.value) root.setPart(cond.index, "value", text)
               input.onActiveFocusChanged: root.conditionFocus = input.activeFocus
               onEscaped: { input.focus = false; root.panel.forceKeys() }
@@ -508,7 +509,7 @@ Item {
               ghost: true
               anchors.verticalCenter: parent.verticalCenter
               icon: Icons.close
-              tooltip: I18n.t("delete")
+              tooltip: MihomoI18n.t("delete")
               enabled: root.parts.length > (root.kind === "not" ? 1 : 2)
               onClicked: root.removePart(cond.index)
             }
@@ -517,14 +518,14 @@ Item {
         Txt {
           visible: root.kind !== "not"
           leftPadding: Style.space(46)
-          text: Icons.add + " " + I18n.t("addCondition")
-          color: Color.accent
-          font.pixelSize: Style.font.bodySmall
+          text: Icons.add + " " + MihomoI18n.t("addCondition")
+          color: Commons.Color.accent
+          font.pixelSize: Style.font.body
           MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.addPart() }
         }
       }
 
-      SectionLabel { label: I18n.t("targetLabel"); hint: I18n.t("ruleTargetHint") }
+      SectionLabel { label: MihomoI18n.t("targetLabel"); hint: MihomoI18n.t("ruleTargetHint") }
       Flow {
         width: parent.width
         spacing: Style.space(6)
@@ -538,20 +539,20 @@ Item {
             width: chipRow.implicitWidth + Style.space(20)
             height: Style.space(28)
             radius: Style.cornerRadius
-            color: on ? Style.selectedFillFor(Color.popups.text, Color.accent) : Util.alpha(Color.popups.text, 0.04)
+            color: on ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent) : Util.alpha(Commons.Color.popups.text, 0.04)
             border.width: 1
-            border.color: on ? Color.accent : Util.alpha(Color.popups.text, 0.15)
+            border.color: on ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.15)
             Row {
               id: chipRow
               anchors.centerIn: parent
               spacing: Style.space(6)
-              Txt { text: modelData.name === "DIRECT" ? Icons.arrow : (modelData.kind === "Reject" ? Icons.ban : Icons.proxies); color: parent.parent.on ? Color.accent : Util.alpha(Color.popups.text, 0.6) }
+              Txt { text: modelData.name === "DIRECT" ? Icons.arrow : (modelData.kind === "Reject" ? Icons.ban : Icons.proxies); color: parent.parent.on ? Commons.Color.accent : Util.alpha(Commons.Color.popups.text, 0.6) }
               Txt { text: modelData.name; bold: parent.parent.on; dim: !parent.parent.on }
               Txt {
                 visible: !!parent.parent.res
-                text: !parent.parent.res ? "" : (parent.parent.res.ok ? parent.parent.res.delay + " " + I18n.t("ms") : (parent.parent.res.error === "timeout" ? I18n.t("timeout") : I18n.t("failed")))
+                text: !parent.parent.res ? "" : (parent.parent.res.ok ? parent.parent.res.delay + " " + MihomoI18n.t("ms") : (parent.parent.res.error === "timeout" ? MihomoI18n.t("timeout") : MihomoI18n.t("failed")))
                 color: !parent.parent.res ? "transparent" : (parent.parent.res.ok ? (parent.parent.res.delay < 400 ? root.svc.green : root.svc.yellow) : root.svc.red)
-                font.pixelSize: Style.font.caption
+                font.pixelSize: Style.font.bodySmall
               }
             }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.target = modelData.name }
@@ -560,34 +561,34 @@ Item {
         Btn {
           id: moreBtn
           visible: root.chipModel.more.length > 0
-          text: I18n.t("moreTargets").arg(root.chipModel.more.length) + " ▾"
+          text: MihomoI18n.t("moreTargets").arg(root.chipModel.more.length) + " ▾"
           onClicked: moreMenu.popup(moreBtn, 0, moreBtn.height + Style.space(4))
         }
       }
 
-      SectionLabel { label: I18n.t("paramsLabel") }
+      SectionLabel { label: MihomoI18n.t("paramsLabel") }
       Row {
         width: parent.width
         spacing: Style.space(8)
         Column {
           spacing: Style.space(4)
-          Txt { text: I18n.t("lifetimeLabel"); dim: true; font.pixelSize: Style.font.caption }
+          Txt { text: MihomoI18n.t("lifetimeLabel"); dim: true; font.pixelSize: Style.font.bodySmall }
           Btn {
             id: lifetimeBtn
             objectName: "lifetimeButton"
             width: Style.space(170)
-            text: (root.lifetimeKey === "until" && root.rule ? I18n.t("lifetimeUntil").arg(root.svc.clock(root.rule.expires)) : I18n.t("lifetime_" + root.lifetimeKey)) + " ▾"
+            text: (root.lifetimeKey === "until" && root.rule ? MihomoI18n.t("lifetimeUntil").arg(root.svc.clock(root.rule.expires)) : MihomoI18n.t("lifetime_" + root.lifetimeKey)) + " ▾"
             onClicked: lifetimeMenu.popup(lifetimeBtn, 0, lifetimeBtn.height + Style.space(4))
           }
         }
         Column {
           width: parent.width - Style.space(178)
           spacing: Style.space(4)
-          Txt { text: I18n.t("noteLabel"); dim: true; font.pixelSize: Style.font.caption }
+          Txt { text: MihomoI18n.t("noteLabel"); dim: true; font.pixelSize: Style.font.bodySmall }
           Field {
             id: noteField
             width: parent.width
-            placeholder: I18n.t("notePlaceholder")
+            placeholder: MihomoI18n.t("notePlaceholder")
             onEscaped: { input.focus = false; root.panel.forceKeys() }
             onAccepted: root.panel.forceKeys()
           }
@@ -602,14 +603,14 @@ Item {
         Rectangle {
           anchors.verticalCenter: parent.verticalCenter
           width: Style.space(14); height: width; radius: 3
-          color: root.reconnect ? Color.accent : "transparent"
+          color: root.reconnect ? Commons.Color.accent : "transparent"
           border.width: root.reconnect ? 0 : 1
-          border.color: Util.alpha(Color.popups.text, 0.4)
-          Txt { anchors.centerIn: parent; visible: root.reconnect; text: Icons.check; color: Color.background; font.pixelSize: Style.font.caption }
+          border.color: Util.alpha(Commons.Color.popups.text, 0.4)
+          Txt { anchors.centerIn: parent; visible: root.reconnect; text: Icons.check; color: Commons.Color.background; font.pixelSize: Style.font.bodySmall }
         }
         Txt {
-          text: I18n.t("reconnectAfter") + (root.preview && root.preview.coverage && root.preview.coverage.connections ? " (" + root.preview.coverage.connections + ")" : "")
-          dim: true; font.pixelSize: Style.font.bodySmall
+          text: MihomoI18n.t("reconnectAfter") + (root.preview && root.preview.coverage && root.preview.coverage.connections ? " (" + root.preview.coverage.connections + ")" : "")
+          dim: true; font.pixelSize: Style.font.body
         }
       }
         MouseArea { objectName: "reconnectToggle"; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.reconnect = !root.reconnect }
@@ -631,9 +632,9 @@ Item {
       width: parent.width
       height: previewCol.implicitHeight + Style.space(18)
       radius: Style.cornerRadius
-      color: Qt.darker(Color.popups.background, 1.15)
+      color: Qt.darker(Commons.Color.popups.background, 1.15)
       border.width: 1
-      border.color: root.previewTone === "error" ? Util.alpha(root.svc.red, 0.5) : Util.alpha(Color.popups.text, 0.15)
+      border.color: root.previewTone === "error" ? Util.alpha(root.svc.red, 0.5) : Util.alpha(Commons.Color.popups.text, 0.15)
       Column {
         id: previewCol
         anchors.left: parent.left; anchors.leftMargin: Style.space(12)
@@ -649,9 +650,9 @@ Item {
         Txt {
           width: parent.width
           text: root.previewText()
-          color: root.previewTone === "error" ? root.svc.red : (root.previewTone === "warn" ? root.svc.yellow : Util.alpha(Color.popups.text, 0.68))
+          color: root.previewTone === "error" ? root.svc.red : (root.previewTone === "warn" ? root.svc.yellow : Util.alpha(Commons.Color.popups.text, 0.68))
           wrapMode: Text.Wrap; maximumLineCount: 3
-          font.pixelSize: Style.font.caption
+          font.pixelSize: Style.font.bodySmall
         }
       }
     }
@@ -660,14 +661,14 @@ Item {
       width: parent.width
       spacing: Style.space(8)
       layoutDirection: Qt.RightToLeft
-      Btn { id: saveBtn; objectName: "saveRule"; primary: true; icon: Icons.check; text: I18n.t("saveApply"); busy: root.saving; enabled: root.canSave; onClicked: root.save() }
-      Btn { id: checkBtn; icon: Icons.test; text: I18n.t("check"); busy: root.testing; enabled: root.probeHost !== ""; onClicked: root.testTargets() }
-      Btn { id: cancelBtn; text: I18n.t("cancel"); onClicked: root.back() }
+      Btn { id: saveBtn; objectName: "saveRule"; primary: true; icon: Icons.check; text: MihomoI18n.t("saveApply"); busy: root.saving; enabled: root.canSave; onClicked: root.save() }
+      Btn { id: checkBtn; icon: Icons.test; text: MihomoI18n.t("check"); busy: root.testing; enabled: root.probeHost !== ""; onClicked: root.testTargets() }
+      Btn { id: cancelBtn; text: MihomoI18n.t("cancel"); onClicked: root.back() }
       Txt {
         width: parent.width - saveBtn.width - checkBtn.width - cancelBtn.width - parent.spacing * 3
         anchors.verticalCenter: parent.verticalCenter
-        text: I18n.t("ruleKeysHint")
-        faint: true; font.pixelSize: Style.font.caption; horizontalAlignment: Text.AlignLeft
+        text: MihomoI18n.t("ruleKeysHint")
+        faint: true; font.pixelSize: Style.font.bodySmall; horizontalAlignment: Text.AlignLeft
       }
     }
   }
@@ -694,7 +695,7 @@ Item {
       model: ["always", "hour", "day", "boot"]
       delegate: ActionMenuItem {
         required property string modelData
-        text: I18n.t("lifetime_" + modelData)
+        text: MihomoI18n.t("lifetime_" + modelData)
         radio: true
         marked: modelData === root.lifetimeKey
         onTriggered: root.lifetimeKey = modelData

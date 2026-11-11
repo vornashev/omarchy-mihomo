@@ -573,6 +573,7 @@ pub async fn dispatch(state: &Arc<State>, method: &str, params: Value) -> Reply 
 
         "backup.export" | "backup.import" => crate::config::backup::rpc(state, method, params).await,
         m if m.starts_with("rule_sets.") => crate::rule_sets::rpc(state, m, params).await,
+        m if m.starts_with("sites.") => crate::sites::rpc(state, m, params).await,
         m if m.starts_with("dns.") => crate::dns::rpc(state, m, params).await,
 
         "core.updates" | "core.check_updates" | "core.update_geo" | "core.rollback" => crate::updates::rpc(state, method).await,

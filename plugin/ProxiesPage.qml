@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyModels.js" as Models
 
 Item {
@@ -227,7 +228,7 @@ Item {
       return;
     }
     if (item.definition_available === false) {
-      error = I18n.t("proxyDefinitionUnavailable");
+      error = MihomoI18n.t("proxyDefinitionUnavailable");
       return;
     }
     busy = true;
@@ -258,7 +259,7 @@ Item {
   function done(reloaded) {
     stage = "list";
     pendingApply = !reloaded;
-    panel.notify(I18n.t(reloaded ? "configApplied" : "proxySavedOffline"));
+    panel.notify(MihomoI18n.t(reloaded ? "configApplied" : "proxySavedOffline"));
     if (panel.proxyDraft !== undefined)
       panel.proxyDraft = null;
     reload();
@@ -495,7 +496,7 @@ Item {
         width: list.width - Style.space(6)
         height: 2
         radius: 1
-        color: Color.accent
+        color: Commons.Color.accent
       }
       Timer {
         // Scroll while a dragged card hovers near either edge.
@@ -566,13 +567,13 @@ Item {
         spacing: Style.space(12)
         Txt {
           width: parent.width
-          text: !root.metadata.profile_id ? I18n.t("proxyNoProfile") : root.search || root.protocolFilter || root.sourceFilter || root.failedOnly ? I18n.t("proxyNoResults") : I18n.t("proxyEmpty")
+          text: !root.metadata.profile_id ? MihomoI18n.t("proxyNoProfile") : root.search || root.protocolFilter || root.sourceFilter || root.failedOnly ? MihomoI18n.t("proxyNoResults") : MihomoI18n.t("proxyEmpty")
           bold: true
           horizontalAlignment: Text.AlignHCenter
         }
         Txt {
           width: parent.width
-          text: I18n.t(!root.metadata.profile_id ? "nodeNoProfileHint" : "nodeEmptyHint")
+          text: MihomoI18n.t(!root.metadata.profile_id ? "nodeNoProfileHint" : "nodeEmptyHint")
           wrapMode: Text.Wrap
           dim: true
           horizontalAlignment: Text.AlignHCenter
@@ -582,17 +583,17 @@ Item {
           spacing: Style.space(8)
           Btn {
             visible: !root.metadata.profile_id
-            text: I18n.t("navProfiles")
+            text: MihomoI18n.t("navProfiles")
             onClicked: root.panel.showPage("profiles")
           }
           Btn {
             visible: !!root.metadata.profile_id
-            text: I18n.t("proxyImport")
+            text: MihomoI18n.t("proxyImport")
             onClicked: root.stage = "import"
           }
           Btn {
             visible: !!root.metadata.profile_id
-            text: I18n.t("nodeClearFilters")
+            text: MihomoI18n.t("nodeClearFilters")
             onClicked: {
               root.search = "";
               root.protocolFilter = "";
@@ -643,7 +644,7 @@ Item {
   ProxyDialog {
     visible: !!root.deleting
     busy: root.busy
-    title: I18n.t("nodeDelete").arg(root.deleting ? root.deleting.name : "")
+    title: MihomoI18n.t("nodeDelete").arg(root.deleting ? root.deleting.name : "")
     onClosed: {
       if (root.deleting) {
         root.deleting = null;
@@ -652,7 +653,7 @@ Item {
     }
     Txt {
       width: parent.width
-      text: I18n.t("nodeDeleteHint").arg(root.deleting ? (root.deleting.dependencies || []).length : 0)
+      text: MihomoI18n.t("nodeDeleteHint").arg(root.deleting ? (root.deleting.dependencies || []).length : 0)
       wrapMode: Text.Wrap
       dim: true
     }
@@ -663,32 +664,32 @@ Item {
         width: parent.width
         height: Style.space(36)
         radius: Style.cornerRadius
-        color: Util.alpha(Color.popups.text, 0.04)
+        color: Util.alpha(Commons.Color.popups.text, 0.04)
         Txt {
           anchors.fill: parent
           anchors.margins: Style.space(8)
           text: parent.modelData.owner + " · " + parent.modelData.field
           elide: Text.ElideRight
-          font.pixelSize: Style.font.caption
+          font.pixelSize: Style.font.bodySmall
         }
       }
     }
     Txt {
-      text: I18n.t("nodeReplaceAll")
+      text: MihomoI18n.t("nodeReplaceAll")
     }
     ProxyChoice {
       width: parent.width
       searchable: true
       groupNames: root.metadata.groups || []
       optionDetails: root.choiceDetails
-      model: [I18n.t("proxyNoReplacement")].concat((root.metadata.targets || []).filter(function (n) {
+      model: [MihomoI18n.t("proxyNoReplacement")].concat((root.metadata.targets || []).filter(function (n) {
         return !root.deleting || n !== root.deleting.name;
       }))
       currentIndex: Math.max(0, model.indexOf(root.replacement))
       onActivated: root.replacement = currentIndex ? currentText : ""
     }
     ProxyCheck {
-      text: I18n.t("nodeRemoveOnly")
+      text: MihomoI18n.t("nodeRemoveOnly")
       checked: !root.replacement
       enabled: !!root.deleting && !(root.deleting.dependencies || []).some(function (d) {
         return d.field !== "proxies";
@@ -700,22 +701,22 @@ Item {
         return d.field !== "proxies";
       })
       width: parent.width
-      text: I18n.t("nodeRemoveBlocked")
+      text: MihomoI18n.t("nodeRemoveBlocked")
       wrapMode: Text.Wrap
-      color: Color.urgent
-      font.pixelSize: Style.font.caption
+      color: Commons.Color.urgent
+      font.pixelSize: Style.font.bodySmall
     }
     Txt {
       visible: root.error !== ""
       width: parent.width
       text: root.error
       wrapMode: Text.Wrap
-      color: Color.urgent
+      color: Commons.Color.urgent
     }
     Row {
       spacing: Style.space(8)
       Btn {
-        text: I18n.t("cancel")
+        text: MihomoI18n.t("cancel")
         enabled: !root.busy
         onClicked: {
           root.deleting = null;
@@ -723,7 +724,7 @@ Item {
         }
       }
       Btn {
-        text: I18n.t(root.replacement ? "nodeDeleteReplace" : "delete")
+        text: MihomoI18n.t(root.replacement ? "nodeDeleteReplace" : "delete")
         primary: true
         busy: root.busy
         enabled: !root.busy && !!root.deleting && (!!root.replacement || !(root.deleting.dependencies || []).some(function (d) {
@@ -781,29 +782,29 @@ Item {
       id: editAction
       glyph: Icons.edit
       keyHint: "Enter"
-      text: I18n.t("proxyEdit")
+      text: MihomoI18n.t("proxyEdit")
       onTriggered: root.edit(entryMenu.entry, false)
     }
     ActionMenuItem {
       id: testAction
       glyph: Icons.test
       keyHint: "T"
-      text: I18n.t("proxyCheckNow")
+      text: MihomoI18n.t("proxyCheckNow")
       onTriggered: root.test(entryMenu.entry)
     }
     ActionMenuItem {
       id: duplicateAction
       glyph: Icons.copy
       keyHint: "Ctrl+D"
-      text: I18n.t("proxyDuplicate")
+      text: MihomoI18n.t("proxyDuplicate")
       enabled: entryMenu.entry.definition_available !== false
       onTriggered: root.edit(entryMenu.entry, true)
     }
     ActionMenuSeparator {}
     ActionMenuItem {
       glyph: Icons.undo
-      text: I18n.t("proxyResetProfile")
-      hint: enabled ? "" : I18n.t("proxyNoLocalChanges")
+      text: MihomoI18n.t("proxyResetProfile")
+      hint: enabled ? "" : MihomoI18n.t("proxyNoLocalChanges")
       enabled: !!entryMenu.entry.resettable
       onTriggered: root.mutate("reset", entryMenu.entry.name, "")
     }
@@ -813,7 +814,7 @@ Item {
       glyph: Icons.remove
       dangerous: true
       keyHint: "Del"
-      text: I18n.t("delete") + "…"
+      text: MihomoI18n.t("delete") + "…"
       enabled: entryMenu.entry.source !== "provider"
       onTriggered: {
         root.deleteQueue = [];
@@ -841,13 +842,13 @@ Item {
     visible: root.addingToGroup
     anchors.fill: parent
     z: 20
-    color: Color.popups.background
+    color: Commons.Color.popups.background
     Column {
       anchors.centerIn: parent
       width: parent.width - Style.space(24)
       spacing: Style.space(12)
       Txt {
-        text: I18n.t("proxyAddToGroup")
+        text: MihomoI18n.t("proxyAddToGroup")
         bold: true
       }
       ProxyChoice {
@@ -859,18 +860,18 @@ Item {
         width: parent.width
         text: root.error
         visible: text !== ""
-        color: Color.urgent
+        color: Commons.Color.urgent
         wrapMode: Text.Wrap
       }
       Row {
         spacing: Style.space(8)
         Btn {
-          text: I18n.t("cancel")
+          text: MihomoI18n.t("cancel")
           enabled: !root.busy
           onClicked: root.addingToGroup = false
         }
         Btn {
-          text: I18n.t("saveApply")
+          text: MihomoI18n.t("saveApply")
           primary: true
           enabled: !root.busy && !!root.addGroup
           busy: root.busy

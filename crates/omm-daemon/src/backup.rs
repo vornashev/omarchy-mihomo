@@ -34,6 +34,9 @@ pub struct Backup {
     pub settings: Settings,
     pub automation: Value,
     pub rules: Vec<Rule>,
+    /// The sites of the «Check» page; older backups have none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sites: Option<Vec<crate::sites::Site>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profiles: Option<Profiles>,
 }
@@ -62,6 +65,7 @@ pub struct Profiles {
 #[derive(Debug, Default, Serialize)]
 pub struct Report {
     pub rules: usize,
+    pub sites: usize,
     pub profiles_added: Vec<String>,
     pub profiles_kept: Vec<String>,
     /// TUN stayed as it was: the backup comes from another platform.
@@ -127,6 +131,7 @@ impl Manager {
             settings: inner.settings.clone(),
             automation,
             rules,
+            sites: Some(state.sites.lock().unwrap().list.clone()),
             profiles,
         })
     }
@@ -213,6 +218,8 @@ impl Manager {
             }
         }
         report.rules = changes.len();
+        // Added, never replaced: like rules, kept even if the setup fails to apply.
+        report.sites = b.sites.map(|s| state.sites.lock().unwrap().merge(s)).unwrap_or(0);
 
         if inner.store.current().is_none() {
             return Ok(report);

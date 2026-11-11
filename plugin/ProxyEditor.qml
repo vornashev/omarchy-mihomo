@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 import "ProxyModels.js" as Models
 import "ProxyNodeModels.js" as Nodes
 
@@ -31,7 +32,7 @@ Item {
     return (metadata.targets || []).indexOf(n) < 0;
   })
   function sectionLabel(key) {
-    return key === "peers" ? I18n.t("nodePeers") + " · " + (draft.peers || []).length : key === "amnezia" ? "AmneziaWG" : I18n.t("proxySection_" + key);
+    return key === "peers" ? MihomoI18n.t("nodePeers") + " · " + (draft.peers || []).length : key === "amnezia" ? "AmneziaWG" : MihomoI18n.t("proxySection_" + key);
   }
   function captureBaseline() {
     originalDraft = Models.clone(draft);
@@ -41,7 +42,7 @@ Item {
   function testNode() {
     if (!original || dirty) {
       validate(function () {
-        testResult = I18n.t("proxyValid");
+        testResult = MihomoI18n.t("proxyValid");
       });
       return;
     }
@@ -50,7 +51,7 @@ Item {
       name: original
     }, function (r, e) {
       testing = false;
-      testResult = e ? e.message : r.delay === 0 ? I18n.t("proxyNoResponse") : r.delay + " " + I18n.t("ms");
+      testResult = e ? e.message : r.delay === 0 ? MihomoI18n.t("proxyNoResponse") : r.delay + " " + MihomoI18n.t("ms");
     });
   }
   function fetchConflict() {
@@ -201,7 +202,7 @@ Item {
     if (Object.keys(issues).some(function (k) {
       return issues[k] !== "";
     })) {
-      error = I18n.t("proxyFixFields");
+      error = MihomoI18n.t("proxyFixFields");
       return;
     }
     busy = true;
@@ -220,7 +221,7 @@ Item {
     if (Object.keys(issues).some(function (k) {
       return issues[k] !== "";
     })) {
-      error = I18n.t("proxyFixFields");
+      error = MihomoI18n.t("proxyFixFields");
       return;
     }
     // Syntax conversion is independent of full configuration validity.
@@ -247,7 +248,7 @@ Item {
     if (Object.keys(issues).some(function (k) {
       return issues[k] !== "";
     })) {
-      error = I18n.t("proxyFixFields");
+      error = MihomoI18n.t("proxyFixFields");
       return;
     }
     busy = true;
@@ -308,9 +309,9 @@ Item {
     Row {
       spacing: Style.space(6)
       Txt {
-        text: I18n.t("navProxies")
-        color: Color.accent
-        font.pixelSize: Style.font.caption
+        text: MihomoI18n.t("navProxies")
+        color: Commons.Color.accent
+        font.pixelSize: Style.font.bodySmall
         MouseArea {
           anchors.fill: parent
           cursorShape: Qt.PointingHandCursor
@@ -318,10 +319,10 @@ Item {
         }
       }
       Txt {
-        text: "› " + I18n.t(root.group ? "proxyGroups" : "proxyNodes") + " › " + (root.draft.name || "")
+        text: "› " + MihomoI18n.t(root.group ? "proxyGroups" : "proxyNodes") + " › " + (root.draft.name || "")
         dim: true
         anchors.verticalCenter: parent.verticalCenter
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
     }
     Row {
@@ -331,7 +332,7 @@ Item {
         width: Math.max(0, parent.width - yamlButton.width - unsaved.width - testButton.width - renameButton.width - Style.space(32))
         spacing: Style.space(4)
         Txt {
-          text: root.draft.name || I18n.t("proxyCreate")
+          text: root.draft.name || MihomoI18n.t("proxyCreate")
           width: parent.width
           elide: Text.ElideRight
           bold: true
@@ -339,24 +340,24 @@ Item {
         }
         Txt {
           width: parent.width
-          text: root.group ? I18n.t("proxyTypeHint_" + root.draft.type) : I18n.t("nodeDescription_" + root.draft.type)
+          text: root.group ? MihomoI18n.t("proxyTypeHint_" + root.draft.type) : MihomoI18n.t("nodeDescription_" + root.draft.type)
           dim: true
-          font.pixelSize: Style.font.caption
+          font.pixelSize: Style.font.bodySmall
           wrapMode: Text.Wrap
         }
       }
       Txt {
         id: unsaved
-        text: root.dirty ? I18n.t("proxyUnsavedBadge") : ""
-        color: Color.urgent
+        text: root.dirty ? MihomoI18n.t("proxyUnsavedBadge") : ""
+        color: Commons.Color.urgent
         anchors.verticalCenter: parent.verticalCenter
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
       Btn {
         id: testButton
         visible: !root.group && !Nodes.service(root.draft.type)
         width: visible ? implicitWidth : 0
-        text: I18n.t("check")
+        text: MihomoI18n.t("check")
         icon: Icons.test
         busy: root.testing
         enabled: !root.busy
@@ -368,12 +369,12 @@ Item {
         width: visible ? implicitWidth : 0
         ghost: true
         icon: Icons.history
-        tooltip: I18n.t("nodeHistory")
+        tooltip: MihomoI18n.t("nodeHistory")
         onClicked: root.loadHistory()
       }
       Btn {
         id: yamlButton
-        text: root.yamlMode ? I18n.t("proxyForm") : "YAML"
+        text: root.yamlMode ? MihomoI18n.t("proxyForm") : "YAML"
         enabled: !root.busy
         onClicked: root.switchMode()
       }
@@ -385,19 +386,19 @@ Item {
       model: root.group ? [
         {
           key: "basic",
-          label: I18n.t("proxySection_basic")
+          label: MihomoI18n.t("proxySection_basic")
         },
         {
           key: "members",
-          label: I18n.t("proxyMembers").arg((root.draft.proxies || []).length)
+          label: MihomoI18n.t("proxyMembers").arg((root.draft.proxies || []).length)
         },
         {
           key: "health",
-          label: I18n.t("proxyHealthTab")
+          label: MihomoI18n.t("proxyHealthTab")
         },
         {
           key: "advanced",
-          label: I18n.t("proxySection_advanced")
+          label: MihomoI18n.t("proxySection_advanced")
         }
       ].concat([]) : Nodes.sections(root.schema, root.draft.type).map(function (k) {
         return {
@@ -411,18 +412,18 @@ Item {
     }
     Txt {
       visible: root.catalog.supported === false
-      text: I18n.t("proxyOldCore")
+      text: MihomoI18n.t("proxyOldCore")
       width: parent.width
       wrapMode: Text.Wrap
-      color: Color.urgent
+      color: Commons.Color.urgent
     }
     Txt {
       text: root.error
       visible: text !== ""
       width: parent.width
       wrapMode: Text.Wrap
-      color: Color.urgent
-      font.pixelSize: Style.font.bodySmall
+      color: Commons.Color.urgent
+      font.pixelSize: Style.font.body
     }
     Flow {
       visible: root.error !== "" && root.applyState !== "idle"
@@ -434,25 +435,25 @@ Item {
           root.switchMode()
       }
       Btn {
-        text: I18n.t("nodeCopyLog")
+        text: MihomoI18n.t("nodeCopyLog")
         onClicked: root.copyError()
       }
       Btn {
         visible: root.group && root.missingMembers.length > 0
-        text: I18n.t("nodeMissing")
+        text: MihomoI18n.t("nodeMissing")
         onClicked: root.setField("proxies", (root.draft.proxies || []).filter(function (n) {
           return root.missingMembers.indexOf(n) < 0;
         }))
       }
       Btn {
         visible: root.applyState === "restore-failed"
-        text: I18n.t("navLogs")
+        text: MihomoI18n.t("navLogs")
         onClicked: if (root.panel)
           root.panel.showPage("logs")
       }
       Btn {
         visible: root.applyState === "restore-failed"
-        text: I18n.t("nodeStartCore")
+        text: MihomoI18n.t("nodeStartCore")
         onClicked: root.svc.request("core.restart", null, function (r, e) {
           if (e)
             root.error = e.message;
@@ -463,11 +464,11 @@ Item {
       visible: root.testResult !== ""
       text: root.testResult
       dim: true
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
     }
     Txt {
       visible: root.original !== "" && root.draft.name !== root.original
-      text: I18n.t("proxyRenameReferences") + " " + ((root.metadata.items || [])[0] || {
+      text: MihomoI18n.t("proxyRenameReferences") + " " + ((root.metadata.items || [])[0] || {
           dependencies: []
         }).dependencies.map(function (d) {
         return d.owner;
@@ -475,7 +476,7 @@ Item {
       width: parent.width
       wrapMode: Text.Wrap
       dim: true
-      font.pixelSize: Style.font.bodySmall
+      font.pixelSize: Style.font.body
     }
   }
   ScrollView {
@@ -500,10 +501,10 @@ Item {
         wrapMode: TextEdit.WrapAnywhere
         selectByMouse: true
         font.family: Style.font.family
-        font.pixelSize: Style.font.bodySmall
-        color: Color.popups.text
+        font.pixelSize: Style.font.body
+        color: Commons.Color.popups.text
         background: Rectangle {
-          color: Util.alpha(Color.popups.text, 0.04)
+          color: Util.alpha(Commons.Color.popups.text, 0.04)
           radius: Style.cornerRadius
         }
         onTextChanged: if (activeFocus) {
@@ -527,10 +528,10 @@ Item {
         spacing: Style.space(12)
         Txt {
           visible: !root.schema.fields.length
-          text: I18n.t("proxyUnknownType")
+          text: MihomoI18n.t("proxyUnknownType")
           width: parent.width
           wrapMode: Text.Wrap
-          color: Color.urgent
+          color: Commons.Color.urgent
         }
         Repeater {
           model: root.schema.fields
@@ -561,7 +562,7 @@ Item {
     anchors.bottomMargin: Style.space(10)
     width: parent.width
     height: 1
-    color: Util.alpha(Color.popups.text, 0.15)
+    color: Util.alpha(Commons.Color.popups.text, 0.15)
   }
   Row {
     id: foot
@@ -570,7 +571,7 @@ Item {
     spacing: Style.space(8)
     Txt {
       width: Math.max(0, parent.width - cancelButton.width - saveButton.width - Style.space(16))
-      text: I18n.t(({
+      text: MihomoI18n.t(({
           checking: "nodeChecking",
           applying: "nodeApplying",
           success: "nodeApplied",
@@ -580,12 +581,12 @@ Item {
         })[root.applyState] || (root.dirty ? "proxyChanges" : "proxyNoChanges"))
       dim: true
       elide: Text.ElideRight
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
       anchors.verticalCenter: parent.verticalCenter
     }
     Btn {
       id: cancelButton
-      text: I18n.t(root.applyState === "success" ? "nodeUndo" : root.applyState === "offline" ? "nodeStartCore" : "cancel")
+      text: MihomoI18n.t(root.applyState === "success" ? "nodeUndo" : root.applyState === "offline" ? "nodeStartCore" : "cancel")
       enabled: !root.busy
       onClicked: {
         if (root.applyState === "success")
@@ -603,7 +604,7 @@ Item {
     }
     Btn {
       id: saveButton
-      text: I18n.t(root.applyState === "success" || root.applyState === "offline" ? "nodeDone" : "saveApply")
+      text: MihomoI18n.t(root.applyState === "success" || root.applyState === "offline" ? "nodeDone" : "saveApply")
       primary: true
       busy: root.busy
       enabled: !root.busy && (root.yamlMode || root.catalog.supported !== false)
@@ -619,7 +620,7 @@ Item {
     id: discardDialog
     objectName: "proxy-discard-dialog"
     visible: root.discarding
-    title: I18n.t("nodeDiscardTitle").arg(root.draft.name || "")
+    title: MihomoI18n.t("nodeDiscardTitle").arg(root.draft.name || "")
     onClosed: root.discarding = false
     onConfirmRequested: {
       root.discarding = false;
@@ -628,7 +629,7 @@ Item {
     }
     Txt {
       width: parent.width
-      text: I18n.t("nodeDiscardHint")
+      text: MihomoI18n.t("nodeDiscardHint")
       wrapMode: Text.Wrap
       dim: true
     }
@@ -640,7 +641,7 @@ Item {
       width: parent.width
       spacing: Style.space(8)
       Btn {
-        text: I18n.t("nodeDontSave")
+        text: MihomoI18n.t("nodeDontSave")
         onClicked: {
           root.dirty = false;
           root.discarding = false;
@@ -648,11 +649,11 @@ Item {
         }
       }
       Btn {
-        text: I18n.t("nodeStay")
+        text: MihomoI18n.t("nodeStay")
         onClicked: root.discarding = false
       }
       Btn {
-        text: I18n.t("saveApply")
+        text: MihomoI18n.t("saveApply")
         primary: true
         onClicked: {
           root.discarding = false;
@@ -664,19 +665,19 @@ Item {
   }
   ProxyDialog {
     visible: !!root.conflict
-    title: I18n.t("nodeConflict")
+    title: MihomoI18n.t("nodeConflict")
     onClosed: root.conflict = null
     Txt {
       width: parent.width
-      text: I18n.t("nodeConflictHint")
+      text: MihomoI18n.t("nodeConflictHint")
       wrapMode: Text.Wrap
       dim: true
     }
     ProxyDiff {
       visible: !root.compareYaml
       width: parent.width
-      leftTitle: I18n.t("nodeMine")
-      rightTitle: I18n.t("nodeProfile")
+      leftTitle: MihomoI18n.t("nodeMine")
+      rightTitle: MihomoI18n.t("nodeProfile")
       rows: root.conflict ? Nodes.diff(root.draft, root.conflict.items[0].definition) : []
     }
     Row {
@@ -684,7 +685,7 @@ Item {
       width: parent.width
       spacing: Style.space(8)
       Repeater {
-        model: [I18n.t("nodeMine"), I18n.t("nodeProfile")]
+        model: [MihomoI18n.t("nodeMine"), MihomoI18n.t("nodeProfile")]
         Column {
           required property int index
           required property string modelData
@@ -700,11 +701,11 @@ Item {
             readOnly: true
             selectByMouse: true
             text: parent.index === 0 ? root.localYaml : root.remoteYaml
-            color: Color.popups.text
+            color: Commons.Color.popups.text
             font.family: Style.font.family
             wrapMode: TextEdit.WrapAnywhere
             background: Rectangle {
-              color: Util.alpha(Color.popups.text, 0.04)
+              color: Util.alpha(Commons.Color.popups.text, 0.04)
             }
           }
         }
@@ -712,24 +713,24 @@ Item {
     }
     Txt {
       width: parent.width
-      text: I18n.t("nodeOverrideHint")
+      text: MihomoI18n.t("nodeOverrideHint")
       wrapMode: Text.Wrap
       dim: true
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
     }
     Flow {
       width: parent.width
       spacing: Style.space(8)
       Btn {
-        text: I18n.t("nodeCompareYaml")
+        text: MihomoI18n.t("nodeCompareYaml")
         onClicked: root.compareYaml = !root.compareYaml
       }
       Btn {
-        text: I18n.t("nodeTakeProfile")
+        text: MihomoI18n.t("nodeTakeProfile")
         onClicked: root.resolveConflict(false)
       }
       Btn {
-        text: I18n.t("nodeKeepMine")
+        text: MihomoI18n.t("nodeKeepMine")
         primary: true
         onClicked: root.resolveConflict(true)
       }
@@ -737,7 +738,7 @@ Item {
   }
   ProxyDialog {
     visible: root.renaming
-    title: I18n.t("nodeRename")
+    title: MihomoI18n.t("nodeRename")
     onClosed: root.renaming = false
     Field {
       width: parent.width
@@ -745,7 +746,7 @@ Item {
       input.onTextEdited: root.renameValue = text
     }
     Txt {
-      text: I18n.t("nodeReferences")
+      text: MihomoI18n.t("nodeReferences")
       dim: true
     }
     Txt {
@@ -756,11 +757,11 @@ Item {
         return d.owner;
       }).join("\n")
       wrapMode: Text.Wrap
-      font.pixelSize: Style.font.caption
+      font.pixelSize: Style.font.bodySmall
       dim: true
     }
     Txt {
-      text: I18n.t("nodeHistory")
+      text: MihomoI18n.t("nodeHistory")
       bold: true
     }
     Repeater {
@@ -771,14 +772,14 @@ Item {
         spacing: Style.space(8)
         Txt {
           width: parent.width - restoreButton.width - Style.space(8)
-          text: modelData.original ? I18n.t("nodeOriginal") : new Date(modelData.at * 1000).toLocaleString()
+          text: modelData.original ? MihomoI18n.t("nodeOriginal") : new Date(modelData.at * 1000).toLocaleString()
           elide: Text.ElideRight
           anchors.verticalCenter: parent.verticalCenter
-          font.pixelSize: Style.font.caption
+          font.pixelSize: Style.font.bodySmall
         }
         Btn {
           id: restoreButton
-          text: I18n.t("proxyRestore")
+          text: MihomoI18n.t("proxyRestore")
           onClicked: root.restoreVersion(parent.modelData)
         }
       }
@@ -787,11 +788,11 @@ Item {
       width: parent.width
       spacing: Style.space(8)
       Btn {
-        text: I18n.t("cancel")
+        text: MihomoI18n.t("cancel")
         onClicked: root.renaming = false
       }
       Btn {
-        text: I18n.t("nodeRename")
+        text: MihomoI18n.t("nodeRename")
         primary: true
         enabled: root.renameValue.trim() !== ""
         onClicked: {

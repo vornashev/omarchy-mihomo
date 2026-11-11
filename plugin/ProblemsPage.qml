@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 import "ProblemModels.js" as ProblemModels
 
 // Problem resources: failed connections merged per host.
@@ -85,7 +86,7 @@ Item {
     if (p.hidden) { tab = "hidden"; return }
     svc.request("problems.hide", { kind: "host", value: p.host }, function(r, err) {
       if (err) panel.notify(err.message)
-      else panel.notify(I18n.t("hiddenToast").arg(p.host))
+      else panel.notify(MihomoI18n.t("hiddenToast").arg(p.host))
       reload()
     })
   }
@@ -117,10 +118,10 @@ Item {
       Column {
         width: parent.width - searchField.width - seenBtn.width - Style.space(20)
         spacing: Style.space(3)
-        Txt { text: I18n.t("problemsTitle"); bold: true; font.pixelSize: Style.font.heading }
+        Txt { text: MihomoI18n.t("problemsTitle"); bold: true; font.pixelSize: Style.font.heading }
         Txt {
-          text: I18n.t("problemsSubtitle").arg(root.counts.visible).arg(root.counts["new"]).arg(root.counts.hidden)
-          dim: true; font.pixelSize: Style.font.bodySmall
+          text: MihomoI18n.t("problemsSubtitle").arg(root.counts.visible).arg(root.counts["new"]).arg(root.counts.hidden)
+          dim: true; font.pixelSize: Style.font.body
         }
       }
       Field {
@@ -128,13 +129,13 @@ Item {
         width: Style.space(190)
         anchors.verticalCenter: parent.verticalCenter
         icon: Icons.search
-        placeholder: I18n.t("searchHint")
+        placeholder: MihomoI18n.t("searchHint")
         onTextChanged: { root.search = text; searchTimer.restart() }
         onEscaped: { text = ""; input.focus = false; root.panel.forceKeys() }
         onAccepted: { input.focus = false; root.panel.forceKeys() }
         Timer { id: searchTimer; interval: 250; onTriggered: root.reload() }
       }
-      Btn { id: seenBtn; anchors.verticalCenter: parent.verticalCenter; icon: Icons.seen; text: I18n.t("markSeen"); enabled: root.counts["new"] > 0; onClicked: root.markSeen() }
+      Btn { id: seenBtn; anchors.verticalCenter: parent.verticalCenter; icon: Icons.seen; text: MihomoI18n.t("markSeen"); enabled: root.counts["new"] > 0; onClicked: root.markSeen() }
     }
 
     Row {
@@ -143,15 +144,15 @@ Item {
       Seg {
         current: root.tab
         model: [
-          { key: "new", label: I18n.t("tabNew") + " " + root.counts["new"] },
-          { key: "all", label: I18n.t("tabAll") + " " + root.counts.visible },
-          { key: "hidden", label: I18n.t("tabHidden") + " " + root.counts.hidden }
+          { key: "new", label: MihomoI18n.t("tabNew") + " " + root.counts["new"] },
+          { key: "all", label: MihomoI18n.t("tabAll") + " " + root.counts.visible },
+          { key: "hidden", label: MihomoI18n.t("tabHidden") + " " + root.counts.hidden }
         ]
         onPicked: function(k) { root.tab = k }
       }
       Seg {
         current: root.viewMode
-        model: [{ key: "table", label: I18n.t("problemTable") }, { key: "groups", label: I18n.t("problemGroups") }]
+        model: [{ key: "table", label: MihomoI18n.t("problemTable") }, { key: "groups", label: MihomoI18n.t("problemGroups") }]
         onPicked: function(k) { root.panel.problemsView = k }
       }
     }
@@ -163,9 +164,9 @@ Item {
         model: root.kindFilters.slice(1)
         Chip {
           required property string modelData
-          text: I18n.kind(modelData)
+          text: MihomoI18n.kind(modelData)
           dot: root.svc.kindColor(modelData)
-          color: root.kind === modelData ? Style.selectedFillFor(Color.popups.text, Color.accent) : Util.alpha(Color.popups.text, 0.04)
+          color: root.kind === modelData ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent) : Util.alpha(Commons.Color.popups.text, 0.04)
           MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.kind = root.kind === modelData ? "" : modelData }
         }
       }
@@ -174,8 +175,8 @@ Item {
     Banner {
       width: parent.width
       tone: "info"
-      text: root.svc.automation && root.svc.automation.autofix && root.svc.automation.mode === "trial" ? I18n.t("autofixHint") : I18n.t("diagnosisHint")
-      action: root.svc.automation ? I18n.t("navSettings") : ""
+      text: root.svc.automation && root.svc.automation.autofix && root.svc.automation.mode === "trial" ? MihomoI18n.t("autofixHint") : MihomoI18n.t("diagnosisHint")
+      action: root.svc.automation ? MihomoI18n.t("navSettings") : ""
       onActionClicked: { root.panel.settingsTab = "auto"; root.panel.showPage("settings") }
     }
 
@@ -189,10 +190,10 @@ Item {
         Chip {
           required property var modelData
           showDot: false
-          text: I18n.ignoreKind(modelData.kind) + ": " + modelData.value + "  " + Icons.close
+          text: MihomoI18n.ignoreKind(modelData.kind) + ": " + modelData.value + "  " + Icons.close
           Hint {
             visible: unhideHover.containsMouse && !unhideHover.pressed
-            text: I18n.t("hintShowProblem")
+            text: MihomoI18n.t("hintShowProblem")
           }
           MouseArea {
             id: unhideHover
@@ -244,15 +245,15 @@ Item {
           y: entry.modelData.group ? 0 : -radius
           height: parent.height + (entry.modelData.group ? 0 : radius) + (entry.modelData.last ? 0 : radius)
           radius: Style.cornerRadius
-          color: Util.alpha(Color.popups.text, 0.04)
+          color: Util.alpha(Commons.Color.popups.text, 0.04)
           border.width: 1
-          border.color: Util.alpha(Color.popups.text, 0.15)
+          border.color: Util.alpha(Commons.Color.popups.text, 0.15)
         }
         Rectangle {
           visible: !!entry.modelData.group && entry.index === root.cursor
           anchors.fill: parent
           radius: Style.cornerRadius
-          color: Style.hoverFillFor(Color.popups.text, Color.accent)
+          color: Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent)
         }
       }
       Loader {
@@ -302,7 +303,7 @@ Item {
       anchors.centerIn: parent
       spacing: Style.space(6)
       Txt { anchors.horizontalCenter: parent.horizontalCenter; text: Icons.check; color: root.svc.green; font.pixelSize: Style.font.display }
-      Txt { anchors.horizontalCenter: parent.horizontalCenter; text: root.tab === "new" ? I18n.t("noNewProblems") : I18n.t("noProblems"); dim: true }
+      Txt { anchors.horizontalCenter: parent.horizontalCenter; text: root.tab === "new" ? MihomoI18n.t("noNewProblems") : MihomoI18n.t("noProblems"); dim: true }
     }
   }
 
@@ -315,13 +316,13 @@ Item {
     Row {
       spacing: Style.space(5)
       Rectangle { anchors.verticalCenter: parent.verticalCenter; width: Style.space(6); height: width; radius: width / 2; color: root.svc.green }
-      Txt { text: I18n.t("problemRecovered"); faint: true; font.pixelSize: Style.font.caption }
+      Txt { text: MihomoI18n.t("problemRecovered"); faint: true; font.pixelSize: Style.font.bodySmall }
     }
     Flow {
       width: parent.width
       spacing: Style.space(14)
       Repeater {
-        model: [["j/k", I18n.t("keyNav")], ["Enter", I18n.t("keyRoute")], ["x", I18n.t("keyHide")], ["/", I18n.t("keySearch")], ["s", I18n.t("keySeen")]].concat(root.viewMode === "groups" ? [["g", I18n.t("keyGroup")]] : [])
+        model: [["j/k", MihomoI18n.t("keyNav")], ["Enter", MihomoI18n.t("keyRoute")], ["x", MihomoI18n.t("keyHide")], ["/", MihomoI18n.t("keySearch")], ["s", MihomoI18n.t("keySeen")]].concat(root.viewMode === "groups" ? [["g", MihomoI18n.t("keyGroup")]] : [])
         Row {
           required property var modelData
           spacing: Style.space(5)
@@ -330,10 +331,10 @@ Item {
             radius: Style.space(3)
             color: "transparent"
             border.width: 1
-            border.color: Util.alpha(Color.popups.text, 0.18)
-            Txt { id: k; anchors.centerIn: parent; text: modelData[0]; dim: true; font.pixelSize: Style.font.caption }
+            border.color: Util.alpha(Commons.Color.popups.text, 0.18)
+            Txt { id: k; anchors.centerIn: parent; text: modelData[0]; dim: true; font.pixelSize: Style.font.bodySmall }
           }
-          Txt { text: modelData[1]; faint: true; font.pixelSize: Style.font.caption }
+          Txt { text: modelData[1]; faint: true; font.pixelSize: Style.font.bodySmall }
         }
       }
     }

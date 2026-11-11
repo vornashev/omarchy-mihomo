@@ -2,7 +2,9 @@ import QtQuick
 import QtQml
 import QtQuick.Controls
 import qs.Commons
+import qs.Commons as Commons
 import "RuleModels.js" as RuleModels
+import "SearchModels.js" as SM
 
 // Live connections, polled only while this page is open.
 Item {
@@ -16,9 +18,7 @@ Item {
   readonly property bool typing: filter.input.activeFocus || connMenu.visible
 
   readonly property var shown: conns.filter(function(c) {
-    if (search === "") return true
-    var m = c.metadata, s = search.toLowerCase()
-    return (m.host + " " + m.sniffHost + " " + m.destinationIP + " " + m.process + " " + c.chains.join(" ")).toLowerCase().indexOf(s) !== -1
+    return search === "" || SM.connMatches(c, search.toLowerCase())
   })
 
   function reload() {
@@ -56,11 +56,20 @@ Item {
     var o = RuleModels.origin(conn)
     clipboard.text = o.host || o.ip
     clipboard.selectAll(); clipboard.copy(); clipboard.deselect()
-    panel.notify(I18n.t("copiedToast").arg(clipboard.text))
+    panel.notify(MihomoI18n.t("copiedToast").arg(clipboard.text))
   }
   TextEdit { id: clipboard; visible: false }
 
-  Component.onCompleted: reload()
+  // A host picked in the title bar search.
+  function takeFilter() {
+    if (!panel.connectionsFilter) return
+    filter.text = panel.connectionsFilter
+    panel.connectionsFilter = ""
+    cursor = 0
+  }
+  Connections { target: root.panel; function onConnectionsFilterChanged() { root.takeFilter() } }
+
+  Component.onCompleted: { takeFilter(); reload() }
   Timer { interval: 2000; running: true; repeat: true; onTriggered: root.reload() }
 
   Row {
@@ -69,20 +78,20 @@ Item {
     Column {
       width: parent.width - filter.width - closeAll.width - Style.space(8)
       spacing: Style.space(3)
-      Txt { text: I18n.t("connectionsTitle"); bold: true; font.pixelSize: Style.font.heading }
-      Txt { text: I18n.t("connectionsSubtitle").arg(root.conns.length); dim: true; font.pixelSize: Style.font.bodySmall }
+      Txt { text: MihomoI18n.t("connectionsTitle"); bold: true; font.pixelSize: Style.font.heading }
+      Txt { text: MihomoI18n.t("connectionsSubtitle").arg(root.conns.length); dim: true; font.pixelSize: Style.font.body }
     }
     Field {
       id: filter
       width: Style.space(180)
       anchors.verticalCenter: parent.verticalCenter
       icon: Icons.search
-      placeholder: I18n.t("filter")
+      placeholder: MihomoI18n.t("filter")
       onTextChanged: root.search = text
       onEscaped: { text = ""; input.focus = false; root.panel.forceKeys() }
     }
     Item { width: Style.space(8); height: 1 }
-    Btn { id: closeAll; anchors.verticalCenter: parent.verticalCenter; icon: Icons.close; text: I18n.t("closeAll"); onClicked: root.svc.request("connections.close", null, function() { root.reload() }) }
+    Btn { id: closeAll; anchors.verticalCenter: parent.verticalCenter; icon: Icons.close; text: MihomoI18n.t("closeAll"); onClicked: root.svc.request("connections.close", null, function() { root.reload() }) }
   }
 
   ListView {
@@ -103,7 +112,7 @@ Item {
       width: list.width - Style.space(6)
       height: Style.space(40)
       radius: Style.cornerRadius
-      color: index === root.cursor ? Style.hoverFillFor(Color.popups.text, Color.accent) : (cma.containsMouse ? Util.alpha(Color.popups.text, 0.04) : "transparent")
+      color: index === root.cursor ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent) : (cma.containsMouse ? Util.alpha(Commons.Color.popups.text, 0.04) : "transparent")
       HoverHandler { id: rowHover }
       MouseArea {
         id: cma
@@ -120,11 +129,11 @@ Item {
         anchors.right: right.left; anchors.rightMargin: Style.space(10)
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.space(2)
-        Txt { width: parent.width; text: (m.host || m.sniffHost || m.destinationIP) + ":" + m.destinationPort; bold: true; font.pixelSize: Style.font.bodySmall }
+        Txt { width: parent.width; text: (m.host || m.sniffHost || m.destinationIP) + ":" + m.destinationPort; bold: true; font.pixelSize: Style.font.body }
         Txt {
           width: parent.width
           text: (m.process ? Icons.app + " " + m.process + "  ·  " : "") + Icons.route + " " + modelData.chains.slice().reverse().join(" → ") + "  ·  " + modelData.rule + (modelData.rulePayload ? "(" + modelData.rulePayload + ")" : "")
-          dim: true; font.pixelSize: Style.font.caption
+          dim: true; font.pixelSize: Style.font.bodySmall
         }
       }
       Row {
@@ -132,21 +141,21 @@ Item {
         anchors.right: parent.right; anchors.rightMargin: Style.space(6)
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.space(10)
-        Txt { anchors.verticalCenter: parent.verticalCenter; text: Icons.down + " " + root.svc.formatBytes(modelData.download) + "  " + Icons.up + " " + root.svc.formatBytes(modelData.upload); faint: true; font.pixelSize: Style.font.caption }
+        Txt { anchors.verticalCenter: parent.verticalCenter; text: Icons.down + " " + root.svc.formatBytes(modelData.download) + "  " + Icons.up + " " + root.svc.formatBytes(modelData.upload); faint: true; font.pixelSize: Style.font.bodySmall }
         Btn {
           id: ruleBtn
           objectName: "connRuleButton"
           ghost: true
           opacity: rowHover.hovered || index === root.cursor ? 1 : 0
           icon: Icons.ruleAdd
-          tooltip: I18n.t("hintAddRule")
+          tooltip: MihomoI18n.t("hintAddRule")
           keyHint: "R"
           onClicked: root.openMenu(modelData, ruleBtn)
         }
-        Btn { ghost: true; icon: Icons.close; tooltip: I18n.t("hintCloseConnection"); onClicked: root.closeConn(modelData) }
+        Btn { ghost: true; icon: Icons.close; tooltip: MihomoI18n.t("hintCloseConnection"); onClicked: root.closeConn(modelData) }
       }
     }
-    Txt { visible: root.shown.length === 0; anchors.centerIn: parent; text: I18n.t("noConnections"); dim: true }
+    Txt { visible: root.shown.length === 0; anchors.centerIn: parent; text: MihomoI18n.t("noConnections"); dim: true }
   }
 
   ActionMenu {
@@ -160,19 +169,19 @@ Item {
       width: connMenu.availableWidth
       leftPadding: Style.space(8); topPadding: Style.space(4); bottomPadding: Style.space(4)
       spacing: Style.space(2)
-      Txt { width: parent.width - Style.space(16); text: (connMenu.origin.host || connMenu.origin.ip || "") + (connMenu.origin.port ? ":" + connMenu.origin.port : ""); bold: true; font.pixelSize: Style.font.bodySmall }
-      Txt { width: parent.width - Style.space(16); text: [connMenu.origin.process, connMenu.origin.route].filter(function(s) { return s }).join(" · "); faint: true; font.pixelSize: Style.font.caption }
+      Txt { width: parent.width - Style.space(16); text: (connMenu.origin.host || connMenu.origin.ip || "") + (connMenu.origin.port ? ":" + connMenu.origin.port : ""); bold: true; font.pixelSize: Style.font.body }
+      Txt { width: parent.width - Style.space(16); text: [connMenu.origin.process, connMenu.origin.route].filter(function(s) { return s }).join(" · "); faint: true; font.pixelSize: Style.font.bodySmall }
     }
     ActionMenuSeparator {}
-    Txt { leftPadding: Style.space(8); topPadding: Style.space(3); bottomPadding: Style.space(2); text: I18n.t("connRuleSection"); faint: true; bold: true; font.pixelSize: Style.font.caption; font.letterSpacing: 1 }
+    Txt { leftPadding: Style.space(8); topPadding: Style.space(3); bottomPadding: Style.space(2); text: MihomoI18n.t("connRuleSection"); faint: true; bold: true; font.pixelSize: Style.font.bodySmall; font.letterSpacing: 1 }
     Instantiator {
       model: connMenu.quick
       delegate: ActionMenuItem {
         required property var modelData
         objectName: "quick_" + modelData.kind
         glyph: modelData.kind === "process-name" ? Icons.cpu : (modelData.kind === "ip-cidr" ? Icons.ip : Icons.globe)
-        text: (modelData.kind === "process-name" ? I18n.t("processPrefix") + " " : "") + modelData.title
-        keyHint: I18n.t("quick_" + modelData.kind) + (modelData.kind === RuleModels.quickDefault(connMenu.origin).kind ? "  R" : "")
+        text: (modelData.kind === "process-name" ? MihomoI18n.t("processPrefix") + " " : "") + modelData.title
+        keyHint: MihomoI18n.t("quick_" + modelData.kind) + (modelData.kind === RuleModels.quickDefault(connMenu.origin).kind ? "  R" : "")
         onTriggered: root.ruleFor(connMenu.conn, modelData, false)
       }
       onObjectAdded: function(index, object) { connMenu.insertItem(3 + index, object) }
@@ -181,21 +190,21 @@ Item {
     ActionMenuItem {
       objectName: "quick_custom"
       glyph: Icons.settings
-      text: I18n.t("connRuleCustom")
+      text: MihomoI18n.t("connRuleCustom")
       keyHint: "Shift+R"
       onTriggered: root.ruleFor(connMenu.conn, RuleModels.quickDefault(connMenu.origin), true)
     }
     ActionMenuSeparator {}
-    ActionMenuItem { glyph: Icons.copy; text: I18n.t("copyHost"); keyHint: "Ctrl+C"; onTriggered: root.copyHost(connMenu.conn) }
-    ActionMenuItem { glyph: Icons.logs; text: I18n.t("showInLogs"); keyHint: "L"; onTriggered: root.panel.showLogs(connMenu.origin.host || connMenu.origin.ip) }
+    ActionMenuItem { glyph: Icons.copy; text: MihomoI18n.t("copyHost"); keyHint: "Ctrl+C"; onTriggered: root.copyHost(connMenu.conn) }
+    ActionMenuItem { glyph: Icons.logs; text: MihomoI18n.t("showInLogs"); keyHint: "L"; onTriggered: root.panel.showLogs(connMenu.origin.host || connMenu.origin.ip) }
     ActionMenuSeparator {}
-    ActionMenuItem { glyph: Icons.close; dangerous: true; text: I18n.t("closeConnection"); keyHint: "Del"; onTriggered: root.closeConn(connMenu.conn) }
+    ActionMenuItem { glyph: Icons.close; dangerous: true; text: MihomoI18n.t("closeConnection"); keyHint: "Del"; onTriggered: root.closeConn(connMenu.conn) }
     Txt {
       visible: connMenu.origin.rule !== undefined && connMenu.origin.rule !== ""
       width: connMenu.availableWidth
       leftPadding: Style.space(8); topPadding: Style.space(4); bottomPadding: Style.space(3)
-      text: Icons.info + " " + I18n.t("connRuleNow").arg(connMenu.origin.rule || "").arg((connMenu.conn && connMenu.conn.chains.length ? connMenu.conn.chains[connMenu.conn.chains.length - 1] : ""))
-      faint: true; font.pixelSize: Style.font.caption
+      text: Icons.info + " " + MihomoI18n.t("connRuleNow").arg(connMenu.origin.rule || "").arg((connMenu.conn && connMenu.conn.chains.length ? connMenu.conn.chains[connMenu.conn.chains.length - 1] : ""))
+      faint: true; font.pixelSize: Style.font.bodySmall
     }
     Shortcut { sequence: "R"; enabled: connMenu.visible; onActivated: { connMenu.close(); root.ruleFor(connMenu.conn, RuleModels.quickDefault(connMenu.origin), false) } }
     Shortcut { sequence: "Shift+R"; enabled: connMenu.visible; onActivated: { connMenu.close(); root.ruleFor(connMenu.conn, RuleModels.quickDefault(connMenu.origin), true) } }

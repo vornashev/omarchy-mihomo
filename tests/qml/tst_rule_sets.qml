@@ -37,7 +37,7 @@ Rectangle {
     name: "RuleSets"
     when: windowShown
     function init() {
-      Plugin.I18n.language = "ru"
+      Plugin.MihomoI18n.language = "ru"
       service.calls = []; service.error = null; panel.notification = ""
       sets.reload()
       waitForRendering(sets)

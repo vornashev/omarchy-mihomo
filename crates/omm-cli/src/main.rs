@@ -315,7 +315,7 @@ fn run(cli: Cli) -> Result<()> {
         Some(Cmd::RuleForWindow) => {
             // The panel lives in the shell; ask it over the shell's IPC.
             let status = std::process::Command::new("omarchy-shell")
-                .args(["tema.omarchy-mihomo", "ruleForWindow"])
+                .args(["vornashev.omarchy-mihomo", "ruleForWindow"])
                 .status()
                 .context("running omarchy-shell")?;
             if !status.success() {
@@ -661,7 +661,7 @@ fn problems(conn: &mut Conn, cmd: ProblemsCmd, json: bool) -> Result<()> {
                 let route = &p["route"];
                 let rule = route["rule"].as_str().filter(|r| !r.is_empty()).map(|r| format!("{r} → ")).unwrap_or_default();
                 let ok = p["ok_since_error"].as_u64().filter(|n| *n > 0).map(|n| format!(" · ok×{n} since")).unwrap_or_default();
-                let host = match p["domain_hint"].as_str() {
+                let host = match p["name"].as_str().or(p["domain_hint"].as_str()) {
                     Some(h) => format!("{} ({h})", p["host"].as_str().unwrap_or("")),
                     None => p["host"].as_str().unwrap_or("").to_owned(),
                 };

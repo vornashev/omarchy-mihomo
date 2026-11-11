@@ -582,7 +582,7 @@ Rectangle {
       keyClick(Qt.Key_X);
       verify(e.issues.port !== "");
       e.save();
-      compare(e.error, Plugin.I18n.t("proxyFixFields"));
+      compare(e.error, Plugin.MihomoI18n.t("proxyFixFields"));
     }
     function test_group_modes_and_sections() {
       var req = new XMLHttpRequest();

@@ -7,7 +7,7 @@ import "../../plugin/Notices.js" as Notices
 
 Rectangle {
   id: scene
-  width: 954; height: 684
+  width: 854; height: 684
   color: "#1e1e2e"
 
   QtObject {
@@ -36,7 +36,8 @@ Rectangle {
       return Math.round(f * 900 * 1048576 * (1 + 0.12 * Math.sin(i * 1.7 + k * 2.3)))
     }
     function view(params) {
-      var n = 96, step = 15 * 60000, from = 1760000000000 - (1760000000000 % step)
+      var n = 96, step = 15 * 60000, from = Date.now() - n * step
+      from -= from % step
       var names = params.by === "group" ? ["DIRECT", "Proxy", "AI"] : (params.by === "country" ? ["RU", "NL", "US", "DE"] : (params.by === "domain" ? ["googlevideo.com", "github.com", "reddit.com", "wikipedia.org", "anthropic.com"] : ["firefox", "steam", "Telegram", "code", "spotify"]))
       if (empty) names = []
       var series = [], rows = [], total = { up: 0, down: 0, conns: 0, apps: 27, hosts: 1904 }
@@ -99,8 +100,8 @@ Rectangle {
     function test_models() {
       compare(TM.next("app"), "domain")
       compare(TM.next("ip"), "")
-      compare(TM.label("app", { key: "" }, Plugin.I18n.t), Plugin.I18n.t("trafficSystem"))
-      compare(TM.label("asn", { key: "15169", label: "GOOGLE" }, Plugin.I18n.t), "AS15169 GOOGLE")
+      compare(TM.label("app", { key: "" }, Plugin.MihomoI18n.t), Plugin.MihomoI18n.t("trafficSystem"))
+      compare(TM.label("asn", { key: "15169", label: "GOOGLE" }, Plugin.MihomoI18n.t), "AS15169 GOOGLE")
       var st = TM.stack([{ key: "a", down: [1, 2] }, { key: "b", down: [3, 4] }], "down", { a: true })
       compare(st[1].top, [3, 4])
       compare(TM.niceMax(730), 1024)
@@ -114,16 +115,16 @@ Rectangle {
     }
 
     function test_service_apps_and_notices() {
-      compare(TM.label("app", { key: "[alpm]" }, Plugin.I18n.t), "alpm")
-      verify(TM.detail("app", { key: "[alpm]", hosts: 0 }, Plugin.I18n.t).length > 0)
+      compare(TM.label("app", { key: "[alpm]" }, Plugin.MihomoI18n.t), "alpm")
+      verify(TM.detail("app", { key: "[alpm]", hosts: 0 }, Plugin.MihomoI18n.t).length > 0)
       page.by = "app"
       verify(!page.canRule({ key: "[root]" }))
       verify(page.canRule({ key: "firefox" }))
-      var spike = Notices.text({ kind: "traffic_spike", data: { app: "steam", bytes: 3 * 1073741824, usual_per_hour: 100 * 1048576, new: false, domains: [["steamcontent.com", 1]], groups: [] } }, Plugin.I18n.t, function() { return "" })
+      var spike = Notices.text({ kind: "traffic_spike", data: { app: "steam", bytes: 3 * 1073741824, usual_per_hour: 100 * 1048576, new: false, domains: [["steamcontent.com", 1]], groups: [] } }, Plugin.MihomoI18n.t, function() { return "" })
       compare(spike.title, "steam: 3.0 ГБ за час")
       verify(spike.body.indexOf("steamcontent.com") !== -1)
       verify(spike.body.indexOf("31") !== -1, spike.body)
-      var route = Notices.text({ kind: "traffic_route", data: { app: "curl", proxied: 150 * 1048576, groups: [["Proxy", 1]], domains: [] } }, Plugin.I18n.t, function() { return "" })
+      var route = Notices.text({ kind: "traffic_route", data: { app: "curl", proxied: 150 * 1048576, groups: [["Proxy", 1]], domains: [] } }, Plugin.MihomoI18n.t, function() { return "" })
       compare(route.title, "curl пошёл через прокси: 150.0 МБ за час")
       verify(route.body.indexOf("Proxy") !== -1)
     }
@@ -164,10 +165,46 @@ Rectangle {
       var side = service.calls.filter(function(c) { return c.params && c.params.step === TM.HOUR })
       verify(side.length > 0, "heatmap asks for hourly buckets")
       page.zoom = { from: 1000, to: 2000 }
-      var q = service.queries()
-      compare(q[q.length - 1].params.to, 2000)
+      tryVerify(function() { var q = service.queries(); return q[q.length - 1].params.to === 2000 })
       page.remove()
       compare(page.zoom, null)
+    }
+
+    function test_zoom_window_math() {
+      var now = 100 * TM.DAY
+      // Zoom in ×0.8 around the middle keeps the middle in place.
+      var w = TM.zoomWindow(now - TM.DAY, now, now - TM.DAY / 2, 0.8, 0, now)
+      compare(w.to - w.from, Math.round(TM.DAY * 0.8))
+      compare((w.from + w.to) / 2, now - TM.DAY / 2)
+      // Never past now, never shorter than the minimum.
+      w = TM.zoomWindow(now - TM.HOUR, now, now, 0.01, 0, now)
+      compare(w.to, now); compare(w.to - w.from, TM.MIN_SPAN)
+      w = TM.zoomWindow(now - TM.HOUR, now, now, 1, TM.DAY, now)
+      compare(w.to, now)
+      // Never longer than 30 days or older than the history.
+      w = TM.zoomWindow(now - 20 * TM.DAY, now, now - 10 * TM.DAY, 10, 0, now)
+      compare(w.to - w.from, TM.MAX_SPAN); compare(w.from, now - TM.MAX_SPAN)
+      verify(TM.coversRange({ from: now - TM.DAY, to: now }, TM.DAY, now, TM.MINUTE))
+      verify(!TM.coversRange({ from: now - TM.DAY, to: now - TM.HOUR }, TM.DAY, now, TM.MINUTE))
+    }
+
+    function test_wheel_zooms_around_pointer_and_pans() {
+      tryVerify(function() { return page.rows.length > 0 })
+      var chart = findChild(page, "trafficChart")
+      var span0 = chart.vTo - chart.vFrom
+      var at = chart.timeAt(chart.plotX + chart.plotW / 2)
+      chart.wheel(chart.plotX + chart.plotW / 2, 120, 0, false)
+      verify(page.zoom !== null)
+      fuzzyCompare(page.zoom.to - page.zoom.from, span0 * 0.8, 1000)
+      fuzzyCompare(chart.timeAt(chart.plotX + chart.plotW / 2), at, 1000)
+      // The chart follows before the data comes back.
+      compare(chart.vFrom, page.zoom.from)
+      var from = page.zoom.from
+      chart.wheel(chart.plotX + 10, -120, 0, true)
+      verify(page.zoom.from > from, "Shift+wheel down moves later")
+      // Wheel through the zoom-out back past the whole range: live again.
+      for (var i = 0; i < 6 && page.zoom; i++) chart.wheel(chart.plotX + chart.plotW, -240, 0, false)
+      if (page.zoom) verify(page.zoom.to - page.zoom.from > TM.DAY)
     }
 
     function test_rule_from_row() {

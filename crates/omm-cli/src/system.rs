@@ -10,7 +10,7 @@ use serde_json::Value;
 
 pub use omm_config::host::{CORE_UNIT, DAEMON_UNIT};
 const SETUP_HINT: &str = "run packaging/install.sh, or omarchy-mihomo-setup after installing the package";
-const PLUGIN_ID: &str = "tema.omarchy-mihomo";
+const PLUGIN_ID: &str = "vornashev.omarchy-mihomo";
 
 fn runtime() -> Result<tokio::runtime::Runtime> {
     Ok(tokio::runtime::Builder::new_current_thread().enable_all().build()?)

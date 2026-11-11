@@ -1,5 +1,6 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 Rectangle {
   id: root
@@ -17,7 +18,7 @@ Rectangle {
 
   implicitHeight: Style.space(30)
   radius: Style.cornerRadius
-  color: selected ? Style.selectedFillFor(Color.popups.text, Color.accent) : (ma.containsMouse ? Style.hoverFillFor(Color.popups.text, Color.accent) : "transparent")
+  color: selected ? Style.selectedFillFor(Commons.Color.popups.text, Commons.Color.accent) : (ma.containsMouse ? Style.hoverFillFor(Commons.Color.popups.text, Commons.Color.accent) : "transparent")
 
   Row {
     anchors.fill: parent
@@ -40,10 +41,10 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.max(height, badgeText.implicitWidth + Style.space(8)); height: badgeText.implicitHeight + Style.space(2)
         radius: height / 2
-        color: Color.urgent
-        Txt { id: badgeText; anchors.centerIn: parent; text: root.badge > 99 ? "99+" : String(root.badge); color: Color.background; bold: true; font.pixelSize: Style.font.caption }
+        color: Commons.Color.urgent
+        Txt { id: badgeText; anchors.centerIn: parent; text: root.badge > 99 ? "99+" : String(root.badge); color: Commons.Color.background; bold: true; font.pixelSize: Style.font.bodySmall }
       }
-      Txt { visible: root.badge <= 0; anchors.centerIn: parent; text: root.keyHint; faint: true; font.pixelSize: Style.font.caption }
+      Txt { visible: root.badge <= 0; anchors.centerIn: parent; text: root.keyHint; faint: true; font.pixelSize: Style.font.bodySmall }
     }
   }
   MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.clicked() }

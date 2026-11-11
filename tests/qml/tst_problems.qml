@@ -46,6 +46,7 @@ Rectangle {
     }
   }
   Component { id: pageComponent; Plugin.ProblemsPage { anchors.fill: parent; anchors.margins: 20; svc: mockService; panel: mockPanel } }
+  Component { id: rowComponent; Plugin.ProblemTableRow { width: 560; svc: mockService } }
   Component { id: editorComponent; Plugin.RouteEditor { anchors.fill: parent; anchors.margins: 20; svc: mockService; panel: mockPanel } }
   TestCase {
     name: "Problems"
@@ -58,6 +59,7 @@ Rectangle {
       mockService.data = [problem("142.252.58.41", "DIRECT", "Match", "", 38, false), problem("8.6.112.0", "AI", "DomainSuffix", "chatgpt.com", 3, true), problem("142.252.58.48", "DIRECT", "Match", "", 38, false), problem("8.47.69.0", "AI", "DomainSuffix", "chatgpt.com", 3, true), problem("api.example.com", "AI", "DomainSuffix", "example.com", 2, false)]
       mockService.data[1].domain_hint = "chatgpt.com"
       mockService.data[3].domain_hint = "chatgpt.com"
+      mockService.data[3].name = "ab.chatgpt.com"
       mockService.calls = []; mockService.pending = []; mockService.defer = false
       mockPanel.problemsView = "table"; mockPanel.editing = null
       page = createTemporaryObject(pageComponent, scene)
@@ -75,6 +77,16 @@ Rectangle {
       compare(Models.groupScopes(groups[0]).length, 2)
       compare(Models.groupScopes(groups[0])[0].kind, "ip-cidr")
       compare(Models.groupScopes(groups[1]), [{ kind: "domain-suffix", value: "chatgpt.com" }])
+    }
+    function test_ip_rows_show_their_name() {
+      var named = createTemporaryObject(rowComponent, scene, { problem: mockService.data[3] })
+      compare(named.label, "ab.chatgpt.com")
+      verify(named.named)
+      var hinted = createTemporaryObject(rowComponent, scene, { problem: mockService.data[1] })
+      compare(hinted.label, "chatgpt.com")
+      var bare = createTemporaryObject(rowComponent, scene, { problem: mockService.data[0] })
+      compare(bare.label, "142.252.58.41")
+      verify(!bare.named)
     }
     function test_switch_collapse_navigation_actions() {
       page.select(2)

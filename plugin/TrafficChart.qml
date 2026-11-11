@@ -1,14 +1,17 @@
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 import "TrafficModels.js" as TM
 
 // Stacked areas over time: download above the axis, upload mirrored below
 // (on its own scale). Hover shows the values at a point; dragging selects
-// a span to zoom into.
+// a span to zoom into; the wheel zooms around the pointer and Shift+wheel
+// (or a sideways swipe) pans. Points sit on a time axis, so a new window
+// shows at once with the buckets at hand while finer ones load.
 Item {
   id: root
   property var svc
-  // [{key, label, color, up: [], down: []}], bottom of the stack first.
+  // [{key, label, color, upColor?, up: [], down: []}], bottom of the stack first.
   property var series: []
   property double from: 0
   property double step: 60000
@@ -28,6 +31,11 @@ Item {
   readonly property double hoverMs: hover >= 0 && hover < count ? from + hover * step : -1
   // Series under the pointer.
   property string hoveredKey: ""
+  // Time window to show, ms; 0 for the data's own extent.
+  property double viewFrom: 0
+  property double viewTo: 0
+  readonly property double vFrom: viewTo > viewFrom ? viewFrom : from
+  readonly property double vTo: viewTo > viewFrom ? viewTo : from + Math.max(1, count - 1) * step
   signal zoomed(double from, double to)
 
   readonly property int count: series.length ? series[0].down.length : 0
@@ -48,8 +56,25 @@ Item {
   property real dragFrom: -1
   property real dragTo: -1
 
-  function xAt(i) { return plotX + (count > 1 ? i * plotW / (count - 1) : plotW / 2) }
-  function indexAt(x) { return count > 1 ? Math.max(0, Math.min(count - 1, Math.round((x - plotX) * (count - 1) / plotW))) : 0 }
+  function xOf(ms) { return plotX + (ms - vFrom) * plotW / Math.max(1, vTo - vFrom) }
+  function timeAt(x) { return vFrom + (x - plotX) * (vTo - vFrom) / plotW }
+  function xAt(i) { return count > 1 || viewTo > viewFrom ? xOf(from + i * step) : plotX + plotW / 2 }
+  // Bucket under `x`; -1 off the data unless `clamp`.
+  function indexAt(x, clamp) {
+    if (count === 0) return -1
+    var i = Math.round((timeAt(x) - from) / step)
+    if (clamp) return Math.max(0, Math.min(count - 1, i))
+    return i >= 0 && i < count ? i : -1
+  }
+
+  // One wheel event: zoom around the pointer, or pan with Shift or a
+  // sideways swipe. Emits the new window.
+  function wheel(x, dy, dx, shift) {
+    var span = vTo - vFrom
+    var pan = shift ? (dy || dx) : dx
+    var w = TM.zoomWindow(vFrom, vTo, timeAt(x), shift || dy === 0 ? 1 : Math.pow(1.25, -dy / 120), -pan / 120 * span * 0.1, Date.now())
+    if (w.from !== Math.round(vFrom) || w.to !== Math.round(vTo)) zoomed(w.from, w.to)
+  }
   function yDown(bytes) { return baseY - (baseY - Style.space(4)) * TM.rate(bytes, step) / downMax }
   function yUp(bytes) { return baseY + (plotH - baseY - Style.space(2)) * TM.rate(bytes, step) / upMax }
 
@@ -63,6 +88,8 @@ Item {
   onOverlayChanged: canvas.requestPaint()
   onBandDayChanged: canvas.requestPaint()
   onBandHourChanged: canvas.requestPaint()
+  onVFromChanged: canvas.requestPaint()
+  onVToChanged: canvas.requestPaint()
 
   // The stacked series at height `y` of bucket `i`.
   function keyAt(i, y) {
@@ -97,9 +124,9 @@ Item {
     onPaint: {
       var ctx = getContext("2d")
       ctx.reset()
-      var text = Color.popups.text
+      var text = Commons.Color.popups.text
       var grid = Qt.rgba(text.r, text.g, text.b, 0.07)
-      ctx.font = Style.font.caption + "px \"" + Style.font.family + "\""
+      ctx.font = Style.font.bodySmall + "px \"" + Style.font.family + "\""
       ctx.textBaseline = "middle"
       ctx.textAlign = "right"
       ctx.fillStyle = Qt.rgba(text.r, text.g, text.b, 0.42)
@@ -110,7 +137,7 @@ Item {
           ctx.fillStyle = grid
           ctx.fillRect(root.plotX, Math.round(y), root.plotW, 1)
           ctx.fillStyle = Qt.rgba(text.r, text.g, text.b, 0.42)
-          if (g > 0) ctx.fillText((root.showUp ? "↓ " : "") + root.svc.formatRate(root.downMax * g / 2), root.plotX - Style.space(6), Math.max(y, Style.font.caption))
+          if (g > 0) ctx.fillText((root.showUp ? "↓ " : "") + root.svc.formatRate(root.downMax * g / 2), root.plotX - Style.space(6), Math.max(y, Style.font.bodySmall))
         }
       }
       if (root.showUp) {
@@ -118,15 +145,20 @@ Item {
         ctx.fillStyle = grid
         ctx.fillRect(root.plotX, Math.round(yu), root.plotW, 1)
         ctx.fillStyle = Qt.rgba(text.r, text.g, text.b, 0.42)
-        ctx.fillText("↑ " + root.svc.formatRate(root.upMax), root.plotX - Style.space(6), Math.min(yu, root.plotH - Style.font.caption / 2))
+        ctx.fillText("↑ " + root.svc.formatRate(root.upMax), root.plotX - Style.space(6), Math.min(yu, root.plotH - Style.font.bodySmall / 2))
       }
       ctx.fillStyle = Qt.rgba(text.r, text.g, text.b, 0.25)
       ctx.fillRect(root.plotX, Math.round(root.baseY), root.plotW, 1)
       if (root.count === 0) return
+      // A window wider than the data leaves the rest blank, not smeared.
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(root.plotX, 0, root.plotW, root.plotH + 1)
+      ctx.clip()
 
       // Heatmap hour, every day it falls on.
       if (root.bandDay >= 0 && root.count > 1) {
-        var half = root.plotW / (root.count - 1) / 2
+        var half = root.step * root.plotW / Math.max(1, root.vTo - root.vFrom) / 2
         ctx.fillStyle = Qt.rgba(text.r, text.g, text.b, 0.08)
         for (var bi = 0; bi < root.count; bi++) if (root.inBand(bi)) ctx.fillRect(root.xAt(bi) - half, 0, half * 2, root.plotH)
       }
@@ -151,7 +183,7 @@ Item {
       for (var s = 0; s < root.series.length; s++) {
         if (root.hidden[root.series[s].key]) continue
         if (root.showDown) area(root.downStack[s], root.series[s].color, root.yDown, root.series[s].key)
-        if (root.showUp) area(root.upStack[s], Qt.darker(root.series[s].color, root.showDown ? 1.25 : 1), root.yUp, root.series[s].key)
+        if (root.showUp) area(root.upStack[s], root.series[s].upColor || Qt.darker(root.series[s].color, root.showDown ? 1.25 : 1), root.yUp, root.series[s].key)
       }
 
       // The probed slice: how much of the stack it accounts for.
@@ -176,7 +208,7 @@ Item {
 
       if (root.dragFrom >= 0 && root.dragTo >= 0) {
         var a = Math.min(root.dragFrom, root.dragTo), b = Math.max(root.dragFrom, root.dragTo)
-        ctx.fillStyle = Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.15)
+        ctx.fillStyle = Qt.rgba(Commons.Color.accent.r, Commons.Color.accent.g, Commons.Color.accent.b, 0.15)
         ctx.fillRect(a, 0, b - a, root.plotH)
       }
       if (root.hover >= 0 && root.hover < root.count) {
@@ -192,10 +224,11 @@ Item {
           ctx.fillStyle = root.series[d].color
           ctx.fill()
           ctx.lineWidth = 1.5
-          ctx.strokeStyle = Color.popups.background
+          ctx.strokeStyle = Commons.Color.popups.background
           ctx.stroke()
         }
       }
+      ctx.restore()
     }
   }
 
@@ -204,11 +237,11 @@ Item {
     model: root.count > 1 ? 6 : 0
     Txt {
       required property int index
-      readonly property int at: Math.round(index * (root.count - 1) / 5)
-      x: Math.max(root.plotX, Math.min(root.width - width, root.xAt(at) - width / 2))
+      readonly property double at: root.vFrom + index * (root.vTo - root.vFrom) / 5
+      x: Math.max(root.plotX, Math.min(root.width - width, root.xOf(at) - width / 2))
       y: root.plotH + Style.space(4)
-      text: root.timeLabel(root.from + at * root.step, false)
-      faint: true; font.pixelSize: Style.font.caption
+      text: root.timeLabel(at, false)
+      faint: true; font.pixelSize: Style.font.bodySmall
     }
   }
 
@@ -218,18 +251,22 @@ Item {
     hoverEnabled: true
     cursorShape: Qt.CrossCursor
     onPositionChanged: function(mouse) {
-      root.hover = root.indexAt(mouse.x + root.plotX)
+      root.hover = root.indexAt(mouse.x + root.plotX, false)
       root.hoveredKey = pressed ? "" : root.keyAt(root.hover, mouse.y)
       if (pressed) { root.dragTo = mouse.x + root.plotX; canvas.requestPaint() }
     }
     onExited: { root.hover = -1; root.hoveredKey = "" }
+    onWheel: function(wheel) {
+      root.wheel(wheel.x + root.plotX, wheel.angleDelta.y, wheel.angleDelta.x, (wheel.modifiers & Qt.ShiftModifier) !== 0)
+      wheel.accepted = true
+    }
     onPressed: function(mouse) { root.dragFrom = mouse.x + root.plotX; root.dragTo = -1 }
     onReleased: function(mouse) {
       var a = root.dragFrom, b = mouse.x + root.plotX
       root.dragFrom = -1; root.dragTo = -1
       canvas.requestPaint()
       if (Math.abs(b - a) < Style.space(8)) return
-      var i = root.indexAt(Math.min(a, b)), j = root.indexAt(Math.max(a, b))
+      var i = root.indexAt(Math.min(a, b), true), j = root.indexAt(Math.max(a, b), true)
       if (j > i) root.zoomed(root.from + i * root.step, root.from + (j + 1) * root.step)
     }
   }
@@ -244,15 +281,15 @@ Item {
     width: Style.space(260)
     height: tipCol.implicitHeight + Style.space(12)
     radius: 4
-    color: Qt.lighter(Color.popups.background, 1.35)
+    color: Qt.lighter(Commons.Color.popups.background, 1.35)
     border.width: 1
-    border.color: Util.alpha(Color.popups.text, 0.15)
+    border.color: Util.alpha(Commons.Color.popups.text, 0.15)
     Column {
       id: tipCol
       x: Style.space(9); y: Style.space(6)
       width: tip.width - Style.space(18)
       spacing: Style.space(3)
-      Txt { id: tipTime; width: parent.width; text: root.hover >= 0 ? root.timeLabel(root.from + root.hover * root.step, true) : ""; bold: true; font.pixelSize: Style.font.bodySmall }
+      Txt { id: tipTime; width: parent.width; text: root.hover >= 0 ? root.timeLabel(root.from + root.hover * root.step, true) : ""; bold: true; font.pixelSize: Style.font.body }
       Txt {
         width: parent.width
         text: {
@@ -261,18 +298,18 @@ Item {
           for (var s = 0; s < root.series.length; s++) if (!root.hidden[root.series[s].key]) { d += root.series[s].down[root.hover] || 0; u += root.series[s].up[root.hover] || 0 }
           return (root.showDown ? "↓ " + root.svc.formatRate(TM.rate(d, root.step)) : "") + (root.showDown && root.showUp ? "   " : "") + (root.showUp ? "↑ " + root.svc.formatRate(TM.rate(u, root.step)) : "")
         }
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: Style.font.body
       }
       Item {
         visible: root.overlay !== null && root.hover >= 0
         width: tipCol.width; height: visible ? ol.implicitHeight : 0
         Rectangle { width: Style.space(6); height: 2; color: root.overlay ? root.overlay.color : "transparent"; anchors.verticalCenter: parent.verticalCenter }
-        Txt { id: ol; x: Style.space(12); width: parent.width - x - olv.implicitWidth - Style.space(8); text: root.overlay ? root.overlay.label : ""; bold: true; font.pixelSize: Style.font.caption }
+        Txt { id: ol; x: Style.space(12); width: parent.width - x - olv.implicitWidth - Style.space(8); text: root.overlay ? root.overlay.label : ""; bold: true; font.pixelSize: Style.font.bodySmall }
         Txt {
           id: olv
           anchors.right: parent.right
           text: root.overlay && root.hover >= 0 ? (root.showDown ? root.svc.formatRate(TM.rate(root.overlay.down[root.hover] || 0, root.step)) : "") + (root.showDown && root.showUp ? " · " : "") + (root.showUp ? root.svc.formatRate(TM.rate(root.overlay.up[root.hover] || 0, root.step)) : "") : ""
-          bold: true; font.pixelSize: Style.font.caption
+          bold: true; font.pixelSize: Style.font.bodySmall
         }
       }
       Repeater {
@@ -281,14 +318,21 @@ Item {
           required property var modelData
           width: tipCol.width; height: tn.implicitHeight
           Rectangle { width: Style.space(6); height: width; radius: 1; color: modelData.color; anchors.verticalCenter: parent.verticalCenter }
-          Txt { id: tn; x: Style.space(12); width: parent.width - x - tv.implicitWidth - Style.space(8); text: modelData.label; dim: modelData.key !== root.focusKey; bold: modelData.key === root.focusKey; font.pixelSize: Style.font.caption }
+          Txt { id: tn; x: Style.space(12); width: parent.width - x - tv.implicitWidth - Style.space(8); text: modelData.label; dim: modelData.key !== root.focusKey; bold: modelData.key === root.focusKey; font.pixelSize: Style.font.bodySmall }
           Txt {
             id: tv
             anchors.right: parent.right
             text: (root.showDown ? root.svc.formatRate(TM.rate(modelData.down[root.hover] || 0, root.step)) : "") + (root.showDown && root.showUp ? " · " : "") + (root.showUp ? root.svc.formatRate(TM.rate(modelData.up[root.hover] || 0, root.step)) : "")
-            font.pixelSize: Style.font.caption
+            font.pixelSize: Style.font.bodySmall
           }
         }
+      }
+      Txt {
+        objectName: "trafficZoomHint"
+        width: tipCol.width
+        topPadding: Style.space(2)
+        text: MihomoI18n.t("trafficZoomHint")
+        faint: true; wrapMode: Text.WordWrap; font.pixelSize: Style.font.caption
       }
     }
   }

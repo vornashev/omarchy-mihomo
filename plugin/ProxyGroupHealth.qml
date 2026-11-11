@@ -13,12 +13,12 @@ Column {
   width: parent.width
   spacing: Style.space(12)
   Txt {
-    text: I18n.t("proxyHealthUrl")
+    text: MihomoI18n.t("proxyHealthUrl")
   }
   Txt {
-    text: I18n.t("proxyHealthUrlHint")
+    text: MihomoI18n.t("proxyHealthUrlHint")
     dim: true
-    font.pixelSize: Style.font.caption
+    font.pixelSize: Style.font.bodySmall
   }
   Seg {
     model: [
@@ -32,7 +32,7 @@ Column {
       },
       {
         key: "custom",
-        label: I18n.t("proxyCustom")
+        label: MihomoI18n.t("proxyCustom")
       }
     ]
     current: section.form.customUrl ? "custom" : !section.form.draft.url ? "https://www.gstatic.com/generate_204" : ["https://www.gstatic.com/generate_204", "https://cp.cloudflare.com/generate_204"].indexOf(section.form.draft.url) >= 0 ? section.form.draft.url : "custom"
@@ -69,7 +69,7 @@ Column {
       spacing: Style.space(10)
       Txt {
         width: parent.width - Style.space(140)
-        text: I18n.t(numberRow.modelData.label)
+        text: MihomoI18n.t(numberRow.modelData.label)
         anchors.verticalCenter: parent.verticalCenter
       }
       Field {
@@ -80,13 +80,13 @@ Column {
           top: 2147483647
         }
         input.onTextEdited: {
-          section.form.editor.issues = Models.put(section.form.editor.issues, numberRow.modelData.key, input.acceptableInput ? "" : I18n.t("proxyFixFields"));
+          section.form.editor.issues = Models.put(section.form.editor.issues, numberRow.modelData.key, input.acceptableInput ? "" : MihomoI18n.t("proxyFixFields"));
           if (input.acceptableInput)
             section.form.editor.setField(numberRow.modelData.key, Number(text));
         }
       }
       Txt {
-        text: I18n.t(numberRow.modelData.unit)
+        text: MihomoI18n.t(numberRow.modelData.unit)
         dim: true
         anchors.verticalCenter: parent.verticalCenter
       }
@@ -99,15 +99,15 @@ Column {
       spacing: Style.space(4)
       Txt {
         width: parent.width
-        text: I18n.t("proxyLazy")
+        text: MihomoI18n.t("proxyLazy")
         wrapMode: Text.Wrap
       }
       Txt {
         width: parent.width
-        text: I18n.t("proxyLazyHint")
+        text: MihomoI18n.t("proxyLazyHint")
         wrapMode: Text.Wrap
         dim: true
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
     }
     Mihomo.Switch {
@@ -118,7 +118,7 @@ Column {
   }
   Btn {
     ghost: true
-    text: I18n.t("proxySection_advanced")
+    text: MihomoI18n.t("proxySection_advanced")
     icon: section.form.healthAdvanced ? Icons.expanded : Icons.collapsed
     onClicked: section.form.healthAdvanced = !section.form.healthAdvanced
   }
@@ -149,17 +149,17 @@ Column {
     Column {
       width: parent.width - checkButton.width
       Txt {
-        text: I18n.t("proxyLastCheck")
+        text: MihomoI18n.t("proxyLastCheck")
       }
       Txt {
         text: section.form.checkedAt || "—"
         dim: true
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
     }
     Btn {
       id: checkButton
-      text: I18n.t("proxyCheckNow")
+      text: MihomoI18n.t("proxyCheckNow")
       icon: Icons.test
       busy: section.form.testing
       onClicked: section.form.check()

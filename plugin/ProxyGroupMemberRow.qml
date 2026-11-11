@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
+import qs.Commons as Commons
 
 // One member of a group in its order: drag handle, position, name and
 // kind, move up and remove.
@@ -13,7 +14,7 @@ Rectangle {
   width: parent.width
   height: Style.space(40)
   radius: Style.cornerRadius
-  color: Util.alpha(Color.popups.text, 0.04)
+  color: Util.alpha(Commons.Color.popups.text, 0.04)
   Row {
     anchors.fill: parent
     anchors.margins: Style.space(4)
@@ -48,25 +49,25 @@ Rectangle {
         width: parent.width
         text: memberRow.modelData
         elide: Text.ElideRight
-        font.pixelSize: Style.font.bodySmall
+        font.pixelSize: Style.font.body
       }
       Txt {
         text: memberRow.form.label(memberRow.modelData)
         dim: true
-        font.pixelSize: Style.font.caption
+        font.pixelSize: Style.font.bodySmall
       }
     }
     Btn {
       ghost: true
       icon: Icons.up
       enabled: memberRow.index > 0
-      tooltip: I18n.t("proxyOrder")
+      tooltip: MihomoI18n.t("proxyOrder")
       onClicked: memberRow.form.reorder(memberRow.index, memberRow.index - 1)
     }
     Btn {
       ghost: true
       icon: Icons.close
-      tooltip: I18n.t("delete")
+      tooltip: MihomoI18n.t("delete")
       onClicked: memberRow.form.toggle(memberRow.modelData, false)
     }
   }

@@ -56,6 +56,8 @@ QtObject {
   readonly property string sets: g(0xf03d6)
   readonly property string logic: g(0xf062d)
   readonly property string sparkles: g(0xf0674)
+  readonly property string sites: g(0xf04c5)
+  readonly property string more: g(0xf01d9)
   readonly property string pulse: g(0xf0430)
   readonly property string account: g(0xf0004)
   readonly property string ban: g(0xf073a)
