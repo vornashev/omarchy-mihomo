@@ -7,3 +7,5 @@
 # Design sources stay local (design.figcraft is edited in FigCraft)
 /design.*
 __pycache__/
+*.pen
+*.figcraft
