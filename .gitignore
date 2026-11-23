@@ -9,3 +9,6 @@
 __pycache__/
 *.pen
 *.figcraft
+
+# Local agent notes
+/CLAUDE.md
